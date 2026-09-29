@@ -1,0 +1,146 @@
+[
+  {
+    "domain": "reuters.com",
+    "name": "Reuters",
+    "type": "agencia",
+    "country": "GB",
+    "prior_alpha": 8,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "apnews.com",
+    "name": "Associated Press",
+    "type": "agencia",
+    "country": "US",
+    "prior_alpha": 8,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "afp.com",
+    "name": "Agence France-Presse",
+    "type": "agencia",
+    "country": "FR",
+    "prior_alpha": 8,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "efe.com",
+    "name": "Agencia EFE",
+    "type": "agencia",
+    "country": "ES",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "bbc.com",
+    "name": "BBC News",
+    "type": "medio",
+    "country": "GB",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": "bbc"
+  },
+  {
+    "domain": "bbc.co.uk",
+    "name": "BBC News",
+    "type": "medio",
+    "country": "GB",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": "bbc"
+  },
+  {
+    "domain": "elpais.com",
+    "name": "El País",
+    "type": "medio",
+    "country": "ES",
+    "prior_alpha": 6,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "nytimes.com",
+    "name": "The New York Times",
+    "type": "medio",
+    "country": "US",
+    "prior_alpha": 6,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "who.int",
+    "name": "Organización Mundial de la Salud",
+    "type": "oficial",
+    "country": "CH",
+    "prior_alpha": 9,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "un.org",
+    "name": "Naciones Unidas",
+    "type": "oficial",
+    "country": "US",
+    "prior_alpha": 9,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "cdc.gov",
+    "name": "Centers for Disease Control and Prevention",
+    "type": "oficial",
+    "country": "US",
+    "prior_alpha": 9,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "europa.eu",
+    "name": "Comisión Europea",
+    "type": "oficial",
+    "country": "EU",
+    "prior_alpha": 8,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "factcheck.org",
+    "name": "FactCheck.org",
+    "type": "verificador",
+    "country": "US",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "politifact.com",
+    "name": "PolitiFact",
+    "type": "verificador",
+    "country": "US",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "maldita.es",
+    "name": "Maldita.es",
+    "type": "verificador",
+    "country": "ES",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "chequeado.com",
+    "name": "Chequeado",
+    "type": "verificador",
+    "country": "AR",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": null
+  }
+]
