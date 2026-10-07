@@ -38,7 +38,7 @@ REFRESH_COOKIE = "refresh_token"
 
 
 def _cookie_secure() -> bool:
-    return get_settings().environment == "production"
+    return get_settings().is_production
 
 
 def _set_session_cookies(response: Response, session: dict) -> None:

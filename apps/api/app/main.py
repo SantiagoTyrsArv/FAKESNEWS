@@ -9,6 +9,7 @@ import app.core.models_registry  # noqa: F401 - populates Base.metadata in this 
 from app.core.config import get_settings
 from app.core.db import engine
 from app.core.logging import configure_logging, get_logger
+from app.core.middleware import REQUEST_ID_HEADER, install_middleware
 from app.core.rate_limit import get_redis
 from app.modules.auth.routers import router as auth_router
 from app.modules.reports.routers import router as reports_router
@@ -34,14 +35,30 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("app_shutdown")
 
 
-app = FastAPI(title="FakesNews API", version="0.1.0", lifespan=lifespan)
+# The interactive docs describe every endpoint; useful in development, but
+# needless attack surface in production.
+_docs_enabled = not settings.is_production
+
+app = FastAPI(
+    title="FakesNews API",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
+
+# Registered before CORS so CORS ends up outermost: preflights are answered
+# first, and even generic 500s carry CORS headers the browser can read.
+install_middleware(app)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", REQUEST_ID_HEADER],
+    expose_headers=[REQUEST_ID_HEADER, "Retry-After"],
 )
 
 

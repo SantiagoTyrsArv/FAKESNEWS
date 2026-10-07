@@ -1,7 +1,17 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Development-only defaults. They are public (they live in this repository),
+# so Settings refuses to start in production while either is still in use.
+_DEV_JWT_SECRET = "dev-insecure-change-me"
+_DEV_TOTP_KEY = "MvSmxncXq52PBWdowkbPhAN6d_-YFDdWLvT3GIwtQL0="
+_MIN_SECRET_LENGTH = 32
+
+
+class InsecureConfigurationError(ValueError):
+    pass
 
 
 class Settings(BaseSettings):
@@ -44,7 +54,7 @@ class Settings(BaseSettings):
     # cookie is scoped to "<prefix>/auth", so it must match the browser's path.
     cookie_path_prefix: str = Field(default="", alias="COOKIE_PATH_PREFIX")
 
-    jwt_secret_key: str = Field(default="dev-insecure-change-me", alias="JWT_SECRET_KEY")
+    jwt_secret_key: str = Field(default=_DEV_JWT_SECRET, alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     refresh_token_expire_days: int = Field(default=30, alias="REFRESH_TOKEN_EXPIRE_DAYS")
@@ -53,7 +63,7 @@ class Settings(BaseSettings):
     )
 
     totp_secret_encryption_key: str = Field(
-        default="MvSmxncXq52PBWdowkbPhAN6d_-YFDdWLvT3GIwtQL0=",
+        default=_DEV_TOTP_KEY,
         alias="TOTP_SECRET_ENCRYPTION_KEY",
     )
     totp_issuer_name: str = Field(default="FakesNews", alias="TOTP_ISSUER_NAME")
@@ -93,6 +103,54 @@ class Settings(BaseSettings):
     trusted_sources_path: str = Field(
         default="app/data/trusted_sources.json", alias="TRUSTED_SOURCES_PATH"
     )
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+    @model_validator(mode="after")
+    def refuse_insecure_production_secrets(self) -> "Settings":
+        """Fail fast at startup instead of running production with secrets
+        anyone can read in this repo: with the dev JWT secret an attacker can
+        forge a session for any user, and with the dev Fernet key decrypt
+        every stored TOTP secret.
+        """
+        if not self.is_production:
+            return self
+
+        problems = []
+        jwt_secret = self.jwt_secret_key
+        if (
+            jwt_secret == _DEV_JWT_SECRET
+            or "change-me" in jwt_secret
+            or len(jwt_secret) < _MIN_SECRET_LENGTH
+        ):
+            problems.append(
+                f"JWT_SECRET_KEY must be a random value of at least {_MIN_SECRET_LENGTH} characters"
+            )
+
+        totp_key = self.totp_secret_encryption_key
+        if totp_key == _DEV_TOTP_KEY or "change-me" in totp_key or not _is_fernet_key(totp_key):
+            problems.append("TOTP_SECRET_ENCRYPTION_KEY must be a freshly generated Fernet key")
+
+        if "*" in self.cors_origins:
+            problems.append("CORS_ORIGINS can't be '*' when cookies carry the session")
+
+        if problems:
+            raise InsecureConfigurationError(
+                "Refusing to start with ENVIRONMENT=production: " + "; ".join(problems)
+            )
+        return self
+
+
+def _is_fernet_key(value: str) -> bool:
+    from cryptography.fernet import Fernet
+
+    try:
+        Fernet(value.encode())
+    except ValueError:
+        return False
+    return True
 
 
 @lru_cache

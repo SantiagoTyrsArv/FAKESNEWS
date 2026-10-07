@@ -1,3 +1,5 @@
+import pytest
+
 from app.core.config import Settings
 
 
@@ -45,3 +47,48 @@ def test_session_cookies_use_configured_domain(monkeypatch) -> None:
     cleared = Response()
     routers._clear_session_cookies(cleared)
     assert all("Domain=.example.com" in h for h in cleared.headers.getlist("set-cookie"))
+
+
+def _production_env(monkeypatch, **overrides: str) -> None:
+    from cryptography.fernet import Fernet
+
+    values = {
+        "ENVIRONMENT": "production",
+        "JWT_SECRET_KEY": "x" * 48,
+        "TOTP_SECRET_ENCRYPTION_KEY": Fernet.generate_key().decode(),
+        "CORS_ORIGINS": '["https://app.example.com"]',
+    }
+    values.update(overrides)
+    for key, value in values.items():
+        monkeypatch.setenv(key, value)
+
+
+def test_production_accepts_strong_secrets(monkeypatch) -> None:
+    _production_env(monkeypatch)
+    assert Settings(_env_file=None).is_production
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"JWT_SECRET_KEY": "dev-insecure-change-me"},
+        {"JWT_SECRET_KEY": "change-me-to-a-long-random-string"},
+        {"JWT_SECRET_KEY": "too-short"},
+        {"TOTP_SECRET_ENCRYPTION_KEY": "MvSmxncXq52PBWdowkbPhAN6d_-YFDdWLvT3GIwtQL0="},
+        {"TOTP_SECRET_ENCRYPTION_KEY": "change-me-fernet-key-32-bytes-b64=="},
+        {"TOTP_SECRET_ENCRYPTION_KEY": "not-a-fernet-key"},
+        {"CORS_ORIGINS": '["*"]'},
+    ],
+)
+def test_production_refuses_insecure_settings(monkeypatch, overrides) -> None:
+    from pydantic import ValidationError
+
+    _production_env(monkeypatch, **overrides)
+    with pytest.raises(ValidationError, match="Refusing to start"):
+        Settings(_env_file=None)
+
+
+def test_development_tolerates_dev_defaults(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+    assert Settings(_env_file=None).jwt_secret_key == "dev-insecure-change-me"
