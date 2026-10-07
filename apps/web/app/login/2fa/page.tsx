@@ -6,15 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthShell } from "@/components/auth-shell";
+import { QrEnrollment, RecoveryCodes } from "@/components/totp";
 import {
   clearPendingToken,
   confirmTotp,
@@ -108,174 +101,150 @@ export default function TwoFactorPage() {
     }
   }
 
-  function downloadRecoveryCodes() {
-    const blob = new Blob([recoveryCodes.join("\n")], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "fakesnews-recovery-codes.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  const titles: Record<Stage, { title: string; description?: string }> = {
+    loading: { title: "Verificación en dos pasos" },
+    error: { title: "No se pudo continuar" },
+    enroll: {
+      title: "Activa la verificación en dos pasos",
+      description: "Es obligatoria: protege tus casos aunque alguien conozca tu contraseña.",
+    },
+    confirm: {
+      title: "Confirma el código",
+      description: "Escribe los 6 dígitos que muestra tu app ahora mismo.",
+    },
+    "recovery-codes": { title: "Guarda tus códigos de recuperación" },
+    verify: {
+      title: "Escribe tu código",
+      description: "Abre tu app de autenticación y escribe los 6 dígitos de FakesNews.",
+    },
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Verificación en dos pasos</CardTitle>
-          <CardDescription>Paso 2 de 2.</CardDescription>
-        </CardHeader>
+    <AuthShell
+      title={titles[stage].title}
+      description={titles[stage].description}
+      step={{ current: 2, total: 2 }}
+    >
+      {stage === "loading" && (
+        <p className="animate-pulse text-sm text-muted-foreground" role="status">
+          Preparando…
+        </p>
+      )}
 
-        {stage === "loading" && (
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Cargando...</p>
-          </CardContent>
-        )}
+      {stage === "error" && (
+        <div className="flex flex-col gap-4">
+          <Alert variant="destructive">
+            <AlertDescription>
+              El enlace de inicio de sesión caducó o no es válido. Vuelve a iniciar sesión.
+            </AlertDescription>
+          </Alert>
+          <Button className="h-10" onClick={() => router.replace("/login")}>
+            Volver a iniciar sesión
+          </Button>
+        </div>
+      )}
 
-        {stage === "error" && (
-          <CardContent>
+      {stage === "enroll" && qrCodeBase64 && (
+        <QrEnrollment
+          qrCodeBase64={qrCodeBase64}
+          otpauthUri={otpauthUri}
+          onContinue={() => setStage("confirm")}
+        />
+      )}
+
+      {stage === "confirm" && (
+        <form onSubmit={handleConfirm} className="flex flex-col gap-5">
+          {error && (
             <Alert variant="destructive">
-              <AlertDescription>
-                No se pudo iniciar el enrolamiento. Vuelve a iniciar sesión.
-              </AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
-          </CardContent>
-        )}
-
-        {stage === "enroll" && qrCodeBase64 && (
-          <CardContent className="flex flex-col items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              Escanea este código QR con tu aplicación de autenticación (Google
-              Authenticator, Authy, etc.).
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`data:image/png;base64,${qrCodeBase64}`}
-              alt="Código QR para configurar 2FA"
-              className="h-48 w-48"
+          )}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="confirm-code">Código</Label>
+            <Input
+              id="confirm-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              required
+              className="h-12 text-center font-mono text-xl tracking-[0.4em]"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
             />
-            {otpauthUri && (
-              <p className="break-all text-center text-xs text-muted-foreground">
-                {otpauthUri}
-              </p>
-            )}
-            <Button className="w-full" onClick={() => setStage("confirm")}>
-              Ya escaneé el código
-            </Button>
-          </CardContent>
-        )}
+          </div>
+          <Button type="submit" disabled={loading} className="h-10 w-full">
+            {loading ? "Comprobando…" : "Confirmar"}
+          </Button>
+          <button
+            type="button"
+            className="text-left text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            onClick={() => setStage("enroll")}
+          >
+            Volver al código QR
+          </button>
+        </form>
+      )}
 
-        {stage === "confirm" && (
-          <form onSubmit={handleConfirm}>
-            <CardContent className="flex flex-col gap-4">
-              <p className="text-sm text-muted-foreground">
-                Ingresa el código de 6 dígitos que muestra tu aplicación.
-              </p>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="confirm-code">Código</Label>
-                <Input
-                  id="confirm-code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Verificando..." : "Confirmar"}
-              </Button>
-            </CardFooter>
-          </form>
-        )}
+      {stage === "recovery-codes" && (
+        <div className="flex flex-col gap-5">
+          <RecoveryCodes codes={recoveryCodes} />
+          <Button className="h-10 w-full" onClick={() => setStage("verify")}>
+            Ya los guardé
+          </Button>
+        </div>
+      )}
 
-        {stage === "recovery-codes" && (
-          <>
-            <CardContent className="flex flex-col gap-4">
-              <Alert>
-                <AlertDescription>
-                  Guarda estos códigos de recuperación en un lugar seguro. Cada uno solo
-                  se puede usar una vez y no se volverán a mostrar.
-                </AlertDescription>
-              </Alert>
-              <div className="grid grid-cols-2 gap-2 rounded-md border p-3 font-mono text-sm">
-                {recoveryCodes.map((rc) => (
-                  <span key={rc}>{rc}</span>
-                ))}
-              </div>
-              <Button variant="outline" onClick={downloadRecoveryCodes}>
-                Descargar códigos
-              </Button>
-              <Separator />
-              <p className="text-sm text-muted-foreground">
-                Ahora ingresa un código de tu aplicación para completar el inicio de
-                sesión.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" onClick={() => setStage("verify")}>
-                Continuar
-              </Button>
-            </CardFooter>
-          </>
-        )}
-
-        {stage === "verify" && (
-          <form onSubmit={handleVerify}>
-            <CardContent className="flex flex-col gap-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              {!useRecovery ? (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="verify-code">Código de autenticación</Label>
-                  <Input
-                    id="verify-code"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="recovery-code">Código de recuperación</Label>
-                  <Input
-                    id="recovery-code"
-                    required
-                    value={recoveryCode}
-                    onChange={(e) => setRecoveryCode(e.target.value)}
-                  />
-                </div>
-              )}
-              <button
-                type="button"
-                className="text-left text-sm text-muted-foreground underline"
-                onClick={() => setUseRecovery((v) => !v)}
-              >
-                {useRecovery
-                  ? "Usar código de la aplicación en su lugar"
-                  : "Usar un código de recuperación en su lugar"}
-              </button>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Verificando..." : "Iniciar sesión"}
-              </Button>
-            </CardFooter>
-          </form>
-        )}
-      </Card>
-    </div>
+      {stage === "verify" && (
+        <form onSubmit={handleVerify} className="flex flex-col gap-5">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {!useRecovery ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="verify-code">Código de la app</Label>
+              <Input
+                id="verify-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                required
+                className="h-12 text-center font-mono text-xl tracking-[0.4em]"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="recovery-code">Código de recuperación</Label>
+              <Input
+                id="recovery-code"
+                required
+                autoComplete="off"
+                className="h-12 font-mono"
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value)}
+              />
+            </div>
+          )}
+          <Button type="submit" disabled={loading} className="h-10 w-full">
+            {loading ? "Comprobando…" : "Entrar"}
+          </Button>
+          <button
+            type="button"
+            className="text-left text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            onClick={() => {
+              setUseRecovery((v) => !v);
+              setError(null);
+            }}
+          >
+            {useRecovery
+              ? "Usar el código de la app"
+              : "¿No tienes el teléfono? Usa un código de recuperación"}
+          </button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

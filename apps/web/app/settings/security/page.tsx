@@ -4,17 +4,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
+import { QrEnrollment, RecoveryCodes } from "@/components/totp";
 import { confirmTotp, me, setupTotp, type UserResponse } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
@@ -71,120 +64,107 @@ export default function SecuritySettingsPage() {
     }
   }
 
-  function downloadRecoveryCodes() {
-    const blob = new Blob([recoveryCodes.join("\n")], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "fakesnews-recovery-codes.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  if (loadingUser) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
-        <p className="text-sm text-muted-foreground">Cargando...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Seguridad de la cuenta</CardTitle>
-          <CardDescription>{user?.email}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+    <AppShell width="narrow">
+      <PageHeading
+        title="Seguridad de la cuenta"
+        description={loadingUser ? undefined : user?.email}
+      />
+
+      {loadingUser ? (
+        <LoadingLine />
+      ) : (
+        <section className="flex flex-col gap-6 rounded-2xl border bg-card p-5 sm:p-7">
+          <div className="flex items-start gap-4">
+            <span
+              className={
+                user?.mfa_enabled
+                  ? "flex size-10 shrink-0 items-center justify-center rounded-full bg-supported-tint text-supported"
+                  : "flex size-10 shrink-0 items-center justify-center rounded-full bg-insufficient-tint text-insufficient"
+              }
+            >
+              {user?.mfa_enabled ? <ShieldCheck className="size-5" /> : <ShieldAlert className="size-5" />}
+            </span>
+            <div className="flex flex-1 flex-col gap-1">
+              <h2 className="font-semibold">Verificación en dos pasos</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {user?.mfa_enabled
+                  ? "Activada. Cada inicio de sesión pide un código de tu app de autenticación."
+                  : "No activada. Actívala para que nadie entre solo con tu contraseña."}
+              </p>
+            </div>
+          </div>
+
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <span className="text-sm">Verificación en dos pasos (TOTP)</span>
-            <Badge variant={user?.mfa_enabled ? "default" : "secondary"}>
-              {user?.mfa_enabled ? "Activada" : "No activada"}
-            </Badge>
-          </div>
-
           {stage === "idle" && (
-            <Button onClick={startEnrollment} disabled={loading}>
-              {user?.mfa_enabled ? "Reenrolar dispositivo 2FA" : "Activar 2FA"}
-            </Button>
-          )}
-
-          {stage === "enroll" && qrCodeBase64 && (
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-sm text-muted-foreground">
-                Escanea este código con tu aplicación de autenticación.
+            <div className="flex flex-col gap-3 border-t pt-5">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {user?.mfa_enabled
+                  ? "¿Cambiaste de teléfono? Configura la app de nuevo. El dispositivo anterior y todos tus códigos de recuperación dejarán de funcionar."
+                  : "Necesitarás una app como Google Authenticator, Authy o 1Password."}
               </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`data:image/png;base64,${qrCodeBase64}`}
-                alt="Código QR para configurar 2FA"
-                className="h-48 w-48"
-              />
-              {otpauthUri && (
-                <p className="break-all text-center text-xs text-muted-foreground">
-                  {otpauthUri}
-                </p>
-              )}
-              <Button className="w-full" onClick={() => setStage("confirm")}>
-                Ya escaneé el código
+              <Button className="h-10 w-fit px-4" onClick={startEnrollment} disabled={loading}>
+                {loading
+                  ? "Preparando…"
+                  : user?.mfa_enabled
+                    ? "Configurar en otro teléfono"
+                    : "Activar verificación en dos pasos"}
               </Button>
             </div>
           )}
 
+          {stage === "enroll" && qrCodeBase64 && (
+            <div className="border-t pt-5">
+              <QrEnrollment
+                qrCodeBase64={qrCodeBase64}
+                otpauthUri={otpauthUri}
+                onContinue={() => setStage("confirm")}
+              />
+            </div>
+          )}
+
           {stage === "confirm" && (
-            <form onSubmit={handleConfirm} className="flex flex-col gap-4">
+            <form onSubmit={handleConfirm} className="flex flex-col gap-4 border-t pt-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="confirm-code">Código de 6 dígitos</Label>
                 <Input
                   id="confirm-code"
                   inputMode="numeric"
                   autoComplete="one-time-code"
+                  placeholder="123456"
                   required
+                  className="h-12 max-w-56 text-center font-mono text-xl tracking-[0.4em]"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                 />
               </div>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Verificando..." : "Confirmar"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" className="h-10 px-4" disabled={loading}>
+                  {loading ? "Comprobando…" : "Confirmar"}
+                </Button>
+                <Button type="button" variant="ghost" className="h-10" onClick={() => setStage("idle")}>
+                  Cancelar
+                </Button>
+              </div>
             </form>
           )}
 
           {stage === "recovery-codes" && (
-            <div className="flex flex-col gap-4">
-              <Alert>
-                <AlertDescription>
-                  Nuevos códigos de recuperación generados. Los anteriores ya no son
-                  válidos. Guárdalos ahora: no se mostrarán de nuevo.
-                </AlertDescription>
-              </Alert>
-              <div className="grid grid-cols-2 gap-2 rounded-md border p-3 font-mono text-sm">
-                {recoveryCodes.map((rc) => (
-                  <span key={rc}>{rc}</span>
-                ))}
-              </div>
-              <Button variant="outline" onClick={downloadRecoveryCodes}>
-                Descargar códigos
+            <div className="flex flex-col gap-4 border-t pt-5">
+              <h3 className="font-semibold">Tus nuevos códigos de recuperación</h3>
+              <RecoveryCodes codes={recoveryCodes} />
+              <Button className="h-10 w-fit px-4" onClick={() => setStage("idle")}>
+                Ya los guardé
               </Button>
-              <Separator />
-              <Button onClick={() => setStage("idle")}>Listo</Button>
             </div>
           )}
-        </CardContent>
-        <CardFooter>
-          <p className="text-xs text-muted-foreground">
-            Reenrolar reemplaza tu dispositivo TOTP actual y todos tus códigos de
-            recuperación anteriores.
-          </p>
-        </CardFooter>
-      </Card>
-    </div>
+        </section>
+      )}
+    </AppShell>
   );
 }

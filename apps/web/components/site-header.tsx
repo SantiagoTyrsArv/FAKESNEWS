@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { Wordmark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/submit", label: "Verificar" },
-  { href: "/history", label: "Historial" },
+  { href: "/history", label: "Mis casos" },
   { href: "/sources", label: "Fuentes" },
   { href: "/settings/security", label: "Seguridad" },
 ];
 
-export function SiteHeader() {
+// `variant="public"` is for pages anyone can open (like /sources): it offers
+// sign-in instead of the session navigation and logout.
+export function SiteHeader({ variant = "app" }: { variant?: "app" | "public" }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   async function handleLogout() {
     try {
@@ -24,24 +30,54 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="border-b bg-background">
-      <nav className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
-        <Link href="/" className="font-semibold">
-          FakesNews
-        </Link>
-        {LINKS.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            {link.label}
-          </Link>
-        ))}
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={handleLogout}>
-          Cerrar sesión
-        </Button>
-      </nav>
+    <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4 sm:gap-6 sm:px-6">
+        <Wordmark compact={variant === "app"} />
+        {variant === "app" ? (
+          <>
+            <nav
+              aria-label="Principal"
+              className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {LINKS.map((link) => {
+                const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "shrink-0 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+                      active && "bg-accent text-accent-foreground hover:text-accent-foreground",
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              aria-label="Cerrar sesión"
+              className="shrink-0"
+            >
+              <LogOut />
+              <span className="hidden sm:inline">Cerrar sesión</span>
+            </Button>
+          </>
+        ) : (
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" size="sm" render={<Link href="/login" />}>
+              Iniciar sesión
+            </Button>
+            <Button size="sm" render={<Link href="/register" />}>
+              Crear cuenta
+            </Button>
+          </div>
+        )}
+      </div>
     </header>
   );
 }

@@ -7,14 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthShell } from "@/components/auth-shell";
 import { register } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
@@ -60,76 +53,74 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Crear cuenta</CardTitle>
-          <CardDescription>
-            Después de registrarte, configurarás la verificación en dos pasos.
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="flex flex-col gap-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {violations.length > 0 && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  <ul className="list-disc pl-4">
-                    {violations.map((v) => (
-                      <li key={v}>{v}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="confirm-password">Confirmar contraseña</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Creando cuenta..." : "Crear cuenta"}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              ¿Ya tienes cuenta?{" "}
-              <Link href="/login" className="underline">
-                Inicia sesión
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+    <AuthShell
+      title="Crea tu cuenta"
+      description="Al terminar, configurarás la verificación en dos pasos con una app como Google Authenticator o Authy."
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {violations.length > 0 && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              <p className="mb-1 font-medium">La contraseña necesita:</p>
+              <ul className="list-disc pl-4">
+                {violations.map((v) => (
+                  <li key={v}>{v}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Correo electrónico</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="h-10"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Contraseña</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            className="h-10"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="confirm-password">Repite la contraseña</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            autoComplete="new-password"
+            required
+            className="h-10"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
+        <Button type="submit" disabled={loading} className="h-10 w-full">
+          {loading ? "Creando cuenta…" : "Crear cuenta"}
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          ¿Ya tienes cuenta?{" "}
+          <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            Inicia sesión
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

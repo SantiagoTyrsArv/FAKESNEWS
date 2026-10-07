@@ -7,14 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthShell } from "@/components/auth-shell";
 import { login, savePendingToken } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
@@ -61,60 +54,58 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Iniciar sesión</CardTitle>
-          <CardDescription>Paso 1 de 2: correo y contraseña.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="flex flex-col gap-4">
-            {justRegistered && (
-              <Alert>
-                <AlertDescription>
-                  Cuenta creada. Inicia sesión para configurar la verificación en dos pasos.
-                </AlertDescription>
-              </Alert>
-            )}
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Verificando..." : "Continuar"}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              ¿No tienes cuenta?{" "}
-              <Link href="/register" className="underline">
-                Regístrate
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+    <AuthShell
+      title="Inicia sesión"
+      description="Primero tu correo y contraseña. Después, el código de tu app de autenticación."
+      step={{ current: 1, total: 2 }}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {justRegistered && (
+          <Alert>
+            <AlertDescription>
+              Cuenta creada. Inicia sesión para activar la verificación en dos pasos.
+            </AlertDescription>
+          </Alert>
+        )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Correo electrónico</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="h-10"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Contraseña</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            className="h-10"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <Button type="submit" disabled={loading} className="h-10 w-full">
+          {loading ? "Comprobando…" : "Continuar"}
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          ¿No tienes cuenta?{" "}
+          <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+            Crea una
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

@@ -1,16 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
+import { ScoreMeter } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
 
 interface SourceSummary {
@@ -23,8 +16,8 @@ interface SourceSummary {
   low_sample: boolean;
 }
 
-// Public page (the API's /sources is unauthenticated), so it uses a minimal
-// header instead of SiteHeader, whose links and logout assume a session.
+// Public page (the API's /sources is unauthenticated), so it uses the public
+// header variant: sign-in links instead of session navigation and logout.
 export default function SourcesPage() {
   const [sources, setSources] = useState<SourceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,69 +25,87 @@ export default function SourcesPage() {
   useEffect(() => {
     apiFetch<{ sources: SourceSummary[] }>("/sources")
       .then((res) => setSources([...res.sources].sort((a, b) => b.score - a.score)))
-      .catch(() => setError("No se pudo cargar el listado de fuentes."));
+      .catch(() =>
+        setError("No se pudo cargar el listado de fuentes. Recarga la página para reintentar."),
+      );
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
-      <header className="border-b bg-background">
-        <nav className="mx-auto flex max-w-4xl items-center gap-4 px-6 py-3">
-          <Link href="/" className="font-semibold">
-            FakesNews
-          </Link>
-        </nav>
-      </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-col px-6 py-10">
-        <Card>
-          <CardHeader>
-            <CardTitle>Confiabilidad de fuentes</CardTitle>
-            <CardDescription>
-              Puntaje = qué tan seguido la postura de cada fuente coincidió con el
-              consenso ponderado de fuentes independientes. Mide consistencia entre
-              fuentes, no verdad objetiva. Ver <code>docs/reputation.md</code> para la
-              fórmula y sus limitaciones.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {sources === null && !error && (
-              <p className="text-sm text-muted-foreground">Cargando...</p>
-            )}
-            {sources && (
-              <ul className="divide-y">
-                {sources.map((source) => (
-                  <li
-                    key={source.domain}
-                    className="flex flex-wrap items-center justify-between gap-2 py-3"
-                  >
-                    <span className="flex flex-col">
-                      <span className="text-sm font-medium">{source.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {source.domain} · {source.type}
-                        {source.country ? ` · ${source.country}` : ""}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2">
+    <AppShell variant="public">
+      <PageHeading
+        title="Confiabilidad de las fuentes"
+        description="El puntaje mide qué tan seguido la postura de cada fuente coincidió con el consenso de las demás fuentes independientes. Mide consistencia entre fuentes, no la verdad absoluta, y se ajusta con cada caso verificado."
+      />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {sources === null && !error && <LoadingLine />}
+
+      {sources && sources.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border bg-card">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b bg-muted/50 text-xs text-muted-foreground">
+              <tr>
+                <th scope="col" className="px-4 py-3 font-medium sm:px-5">
+                  Fuente
+                </th>
+                <th scope="col" className="hidden px-4 py-3 font-medium sm:table-cell">
+                  Tipo
+                </th>
+                <th scope="col" className="hidden px-4 py-3 text-right font-medium md:table-cell">
+                  Casos
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium sm:px-5">
+                  Confiabilidad
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map((source) => (
+                <tr key={source.domain} className="border-b last:border-b-0">
+                  <td className="px-4 py-3.5 sm:px-5">
+                    <div className="font-semibold">{source.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {source.domain}
+                      {source.country ? `, ${source.country}` : ""}
+                    </div>
+                  </td>
+                  <td className="hidden px-4 py-3.5 text-muted-foreground capitalize sm:table-cell">
+                    {source.type}
+                  </td>
+                  <td className="hidden px-4 py-3.5 text-right tabular-nums md:table-cell">
+                    {source.cases_count}
+                  </td>
+                  <td className="px-4 py-3.5 sm:px-5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ScoreMeter score={source.score} />
                       {source.low_sample && (
-                        <Badge variant="outline" title="Menos de 10 casos">
-                          Muestra pequeña
-                        </Badge>
+                        <span
+                          className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground"
+                          title="Menos de 10 casos: el puntaje aún es poco estable"
+                        >
+                          Pocos casos
+                        </span>
                       )}
-                      <Badge variant="secondary">
-                        {Math.round(source.score * 100)}% · {source.cases_count} casos
-                      </Badge>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+        Cada fuente parte de un puntaje inicial según su tipo (por ejemplo, los organismos
+        oficiales parten más alto que los medios). Las fuentes que se replican entre sí (por
+        ejemplo, la misma agencia en dos dominios) cuentan como una sola voz, para que no inflen el
+        consenso. Con menos de 10 casos el puntaje todavía es poco estable.
+      </p>
+    </AppShell>
   );
 }

@@ -3,18 +3,17 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SiteHeader } from "@/components/site-header";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Check, ExternalLink } from "lucide-react";
+import { AppShell, LoadingLine } from "@/components/app-shell";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  ScoreMeter,
+  VERDICTS,
+  VERDICT_ORDER,
+  VerdictBar,
+  VerdictLabel,
+} from "@/components/verdict";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import {
   getReport,
@@ -28,8 +27,8 @@ import {
   type Stance,
   type Submission,
   type SubmissionStatus,
-  type Verdict,
 } from "@/lib/cases";
+import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -40,34 +39,13 @@ const PIPELINE_STEPS: SubmissionStatus[] = [
   "extracting",
   "verifying",
   "scoring",
-  "done",
 ];
 
-const VERDICT_STYLES: Record<Verdict, { label: string; className: string }> = {
-  SUPPORTED: {
-    label: "Respaldada por fuentes",
-    className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-  },
-  CONTRADICTED: {
-    label: "Contradicha por fuentes",
-    className: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200",
-  },
-  INSUFFICIENT: {
-    label: "Evidencia insuficiente",
-    className: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200",
-  },
+const STANCE_STYLES: Record<Stance, { label: string; className: string }> = {
+  supports: { label: "Respalda", className: "bg-supported-tint text-supported" },
+  contradicts: { label: "Contradice", className: "bg-contradicted-tint text-contradicted" },
+  neutral: { label: "Neutral", className: "bg-muted text-muted-foreground" },
 };
-
-const STANCE_LABELS: Record<Stance, string> = {
-  supports: "Respalda",
-  contradicts: "Contradice",
-  neutral: "Neutral",
-};
-
-function progressFor(status: SubmissionStatus): number {
-  const index = PIPELINE_STEPS.indexOf(status);
-  return index < 0 ? 0 : Math.round((index / (PIPELINE_STEPS.length - 1)) * 100);
-}
 
 export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
   const { id } = use(params);
@@ -99,9 +77,9 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
         if (err instanceof ApiError && err.status === 401) {
           router.push("/login");
         } else if (err instanceof ApiError && err.status === 404) {
-          setError("Caso no encontrado.");
+          setError("No existe un caso con este enlace en tu cuenta.");
         } else {
-          setError("No se pudo cargar el caso. Reintentando...");
+          setError("No se pudo cargar el caso. Reintentando…");
           timer = setTimeout(poll, POLL_INTERVAL_MS * 2);
         }
       }
@@ -115,172 +93,261 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
   }, [id, router]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-10">
-        {error && !report && (
+    <AppShell>
+      <Link
+        href="/history"
+        className="-mb-4 inline-flex w-fit items-center gap-1.5 rounded-md text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Mis casos
+      </Link>
+
+      {error && !report && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {!submission && !error && <LoadingLine />}
+
+      {submission && !report && submission.status !== "failed" && (
+        <PipelineProgress submission={submission} />
+      )}
+
+      {submission?.status === "failed" && (
+        <section className="flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
+          <h1 className="text-2xl font-bold tracking-tight">No pudimos terminar este análisis</h1>
           <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {submission.error ?? "Error desconocido en el procesamiento."}
+            </AlertDescription>
           </Alert>
-        )}
+          <p className="text-sm text-muted-foreground">
+            Si enviaste un enlace, comprueba que sea público o prueba pegando el texto directamente.
+          </p>
+          <Button className="h-10 px-4" render={<Link href="/submit" />}>
+            Enviar otro caso
+          </Button>
+        </section>
+      )}
 
-        {!submission && !error && (
-          <p className="text-sm text-muted-foreground">Cargando...</p>
-        )}
+      {report && <ReportView report={report} />}
+    </AppShell>
+  );
+}
 
-        {submission && !report && submission.status !== "failed" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Analizando el contenido</CardTitle>
-              <CardDescription>
-                {STATUS_LABELS[submission.status]}. Esta página se actualiza sola.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Progress value={progressFor(submission.status)} />
-            </CardContent>
-          </Card>
-        )}
+function PipelineProgress({ submission }: { submission: Submission }) {
+  const steps = PIPELINE_STEPS.filter(
+    (step) => step !== "transcribing" || submission.input_type === "video",
+  );
+  const currentIndex = steps.indexOf(submission.status);
 
-        {submission?.status === "failed" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>No se pudo completar el análisis</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {submission.error ?? "Error desconocido en el procesamiento."}
-                </AlertDescription>
-              </Alert>
-              <Button className="w-fit" render={<Link href="/submit" />}>
-                Enviar otro caso
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {report && <ReportView report={report} />}
-      </main>
-    </div>
+  return (
+    <section className="grid gap-8 rounded-2xl border bg-card p-6 sm:p-8 md:grid-cols-2">
+      <div className="flex flex-col gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Analizando el contenido</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Esta página se actualiza sola. Puedes cerrarla: el reporte quedará en Mis casos.
+        </p>
+        <p className="mt-2 line-clamp-5 rounded-lg bg-muted/60 p-3 font-quote text-[0.95rem] leading-relaxed break-words whitespace-pre-wrap">
+          {submission.raw_input}
+        </p>
+      </div>
+      <ol className="flex flex-col gap-0.5" aria-label="Progreso del análisis">
+        {steps.map((step, i) => {
+          const done = i < currentIndex;
+          const active = i === currentIndex;
+          return (
+            <li
+              key={step}
+              aria-current={active ? "step" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm",
+                active && "bg-accent font-medium text-accent-foreground",
+                !done && !active && "text-muted-foreground",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-full border",
+                  done && "border-primary bg-primary text-primary-foreground",
+                  active && "border-primary",
+                )}
+              >
+                {done && <Check className="size-3" aria-hidden="true" />}
+                {active && <span className="size-2 animate-pulse rounded-full bg-primary" />}
+              </span>
+              {STATUS_LABELS[step]}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
 function ReportView({ report }: { report: Report }) {
   const { submission, summary, claims, disclaimer } = report;
+  const counts = {
+    SUPPORTED: summary.supported,
+    CONTRADICTED: summary.contradicted,
+    INSUFFICIENT: summary.insufficient,
+  };
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Reporte de credibilidad</CardTitle>
-          <CardDescription>
-            {INPUT_TYPE_LABELS[submission.input_type]} ·{" "}
-            {new Date(submission.created_at).toLocaleString("es")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="line-clamp-4 whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3 text-sm">
-            {submission.raw_input}
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">
+            Reporte de credibilidad ({INPUT_TYPE_LABELS[submission.input_type].toLowerCase()}),
+            enviado el{" "}
+            {new Date(submission.created_at).toLocaleString("es", {
+              dateStyle: "long",
+              timeStyle: "short",
+            })}
           </p>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="outline">{summary.total_claims} afirmaciones</Badge>
-            <Badge className={VERDICT_STYLES.SUPPORTED.className}>
-              {summary.supported} respaldadas
-            </Badge>
-            <Badge className={VERDICT_STYLES.CONTRADICTED.className}>
-              {summary.contradicted} contradichas
-            </Badge>
-            <Badge className={VERDICT_STYLES.INSUFFICIENT.className}>
-              {summary.insufficient} sin evidencia suficiente
-            </Badge>
+          <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+            {summary.total_claims === 0
+              ? "No encontramos afirmaciones comprobables"
+              : summary.total_claims === 1
+                ? "Revisamos 1 afirmación"
+                : `Revisamos ${summary.total_claims} afirmaciones`}
+          </h1>
+        </div>
+
+        <blockquote className="max-h-56 overflow-y-auto rounded-2xl border bg-card p-5 font-quote text-[1.05rem] leading-[1.7] break-words whitespace-pre-wrap sm:p-6">
+          {submission.raw_input}
+        </blockquote>
+
+        {summary.total_claims > 0 && (
+          <div className="flex flex-col gap-3">
+            <VerdictBar counts={counts} />
+            <ul className="flex flex-wrap gap-x-6 gap-y-2">
+              {VERDICT_ORDER.map((v) => {
+                const Icon = VERDICTS[v].icon;
+                return (
+                  <li key={v} className="flex items-center gap-2 text-sm">
+                    <Icon className={cn("size-4", VERDICTS[v].text)} aria-hidden="true" />
+                    <span className="font-semibold tabular-nums">{counts[v]}</span>
+                    <span className="text-muted-foreground">{VERDICTS[v].plural}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <Alert>
-            <AlertDescription>{disclaimer}</AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+        )}
+
+        <p className="border-l-2 border-primary pl-4 text-sm leading-relaxed text-muted-foreground">
+          {disclaimer}
+        </p>
+      </section>
 
       {claims.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No se encontraron afirmaciones factuales verificables en este contenido
-          (opiniones y predicciones se descartan).
+        <p className="rounded-2xl border border-dashed p-6 text-sm leading-relaxed text-muted-foreground">
+          El contenido no tiene hechos comprobables: las opiniones y las predicciones se descartan.
         </p>
       ) : (
-        claims.map((claim, index) => (
-          <ClaimCard key={claim.id} claim={claim} index={index + 1} />
-        ))
+        <ol className="flex flex-col gap-5">
+          {claims.map((claim, index) => (
+            <ClaimCard key={claim.id} claim={claim} index={index + 1} />
+          ))}
+        </ol>
       )}
+
+      <div className="flex flex-wrap gap-3 border-t pt-6">
+        <Button className="h-10 px-4" render={<Link href="/submit" />}>
+          Verificar otro contenido
+        </Button>
+        <Button variant="outline" className="h-10 px-4" render={<Link href="/sources" />}>
+          Cómo medimos a las fuentes
+        </Button>
+      </div>
     </>
   );
 }
 
 function ClaimCard({ claim, index }: { claim: ReportClaim; index: number }) {
-  const verdict = VERDICT_STYLES[claim.verdict];
+  const verdict = VERDICTS[claim.verdict];
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <CardTitle className="text-base">
-            {index}. {claim.text}
-          </CardTitle>
-          <Badge className={verdict.className}>{verdict.label}</Badge>
+    <li className="flex flex-col gap-4 rounded-2xl border bg-card p-5 sm:p-6">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">Afirmación {index}</span>
+          <VerdictLabel verdict={claim.verdict} />
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <p className="text-sm">{claim.rationale}</p>
-        {claim.confidence_note && (
-          <p className="text-xs text-muted-foreground">{claim.confidence_note}</p>
-        )}
-        {claim.evidence.length > 0 ? (
+        <h2 className="font-quote text-xl leading-[1.55] text-pretty">
+          <span className={cn("mark", verdict.mark)}>{claim.text}</span>
+        </h2>
+      </div>
+      <p className="max-w-[72ch] text-[0.95rem] leading-relaxed">{claim.rationale}</p>
+      {claim.confidence_note && (
+        <p className="text-sm text-muted-foreground">{claim.confidence_note}</p>
+      )}
+      {claim.evidence.length > 0 ? (
+        <div className="flex flex-col gap-3 border-t pt-4">
+          <h3 className="text-sm font-semibold">
+            {claim.evidence.length === 1
+              ? "1 fuente citada"
+              : `${claim.evidence.length} fuentes citadas`}
+          </h3>
           <ul className="flex flex-col gap-3">
             {claim.evidence.map((evidence) => (
               <EvidenceItem key={evidence.url} evidence={evidence} />
             ))}
           </ul>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Sin evidencia citable de fuentes de confianza.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : (
+        <p className="border-t pt-4 text-sm text-muted-foreground">
+          Ninguna fuente de confianza publicó algo citable sobre esta afirmación.
+        </p>
+      )}
+    </li>
   );
 }
 
 function EvidenceItem({ evidence }: { evidence: ReportEvidence }) {
   const { source } = evidence;
+  const stance = STANCE_STYLES[evidence.stance];
 
   return (
-    <li className="flex flex-col gap-2 rounded-md border p-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium">{source.name}</span>
-        <span className="text-muted-foreground">{source.domain}</span>
-        <Badge variant="outline">{STANCE_LABELS[evidence.stance]}</Badge>
-        <Badge
-          variant="secondary"
+    <li className="flex flex-col gap-3 rounded-xl bg-muted/50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-semibold">{source.name}</span>
+          <span className="text-sm text-muted-foreground">{source.domain}</span>
+          <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", stance.className)}>
+            {stance.label}
+          </span>
+        </div>
+        <span
+          className="flex items-center gap-2 text-xs text-muted-foreground"
           title={`Confiabilidad histórica basada en ${source.cases_count} casos`}
         >
-          Confiabilidad {Math.round(source.score * 100)}%
-        </Badge>
-        {source.low_sample && (
-          <Badge variant="outline" title="Menos de 10 casos: el puntaje es poco estable">
-            Muestra pequeña
-          </Badge>
-        )}
+          Confiabilidad
+          <ScoreMeter score={source.score} className="text-foreground" />
+          {source.low_sample && (
+            <span
+              className="rounded-full border px-2 py-0.5"
+              title="Menos de 10 casos: el puntaje aún es poco estable"
+            >
+              Pocos casos
+            </span>
+          )}
+        </span>
       </div>
-      <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground">
-        {evidence.snippet}
+      <blockquote className="font-quote text-[1.02rem] leading-relaxed text-foreground/85">
+        “{evidence.snippet}”
       </blockquote>
-      <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <a
           href={evidence.url}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="break-all underline"
+          className="inline-flex min-w-0 items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
         >
-          {evidence.url}
+          <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate">Leer en {source.domain}</span>
         </a>
         {evidence.published_at && <span>Publicado: {evidence.published_at}</span>}
       </div>
