@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     # cookie is scoped to "<prefix>/auth", so it must match the browser's path.
     cookie_path_prefix: str = Field(default="", alias="COOKIE_PATH_PREFIX")
 
+    # Reverse proxies between the client and this app that append to
+    # X-Forwarded-For: 0 = use the socket peer (local/docker compose), 1 =
+    # Railway, 2 = web rewrite proxy (e.g. Vercel) + Railway. See
+    # app/core/client_ip.py for why this is counted rather than trusted.
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5, alias="TRUSTED_PROXY_HOPS")
+
     jwt_secret_key: str = Field(default=_DEV_JWT_SECRET, alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")

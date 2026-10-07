@@ -231,9 +231,10 @@ COOKIE_DOMAIN=.example.com
 quedan atadas a `api.example.com`, la web no puede leer `csrf_token` (todo `POST` falla con `403`) y
 `proxy.ts` no ve la sesión, así que cada página protegida redirige a `/login`.
 
-La API arranca con el `CMD` del Dockerfile, que escucha en el `$PORT` que inyecta Railway y confía en
-las cabeceras `X-Forwarded-*` del proxy para que el rate limiting y el bloqueo por intentos usen la
-IP real del cliente.
+La API arranca con el `CMD` del Dockerfile, que escucha en el `$PORT` que inyecta Railway. Para que
+el rate limiting y el bloqueo por intentos usen la IP real del cliente, configura
+`TRUSTED_PROXY_HOPS=1` (solo el proxy de Railway). La API toma la IP contando proxies desde la derecha
+de `X-Forwarded-For`, así un cliente no puede falsificarla añadiendo entradas a la cabecera.
 
 En `web`, configura `NEXT_PUBLIC_API_URL=https://api.example.com`. Es una variable de build y debe
 estar definida antes de desplegar la web. La API normaliza las URLs PostgreSQL `postgres://` y
@@ -247,8 +248,8 @@ dominio de la web:
 
 - En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` y
   `API_PROXY_TARGET=https://<api>.up.railway.app`. Ambas se leen al compilar.
-- En `api`: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío y
-  `CORS_ORIGINS=["https://<web>.vercel.app"]`.
+- En `api`: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío,
+  `CORS_ORIGINS=["https://<web>.vercel.app"]` y `TRUSTED_PROXY_HOPS=2` (Vercel + Railway).
 
 Genera los secretos con los comandos documentados en [.env.example](.env.example); no reutilices
 claves entre desarrollo y producción. El procesamiento con Claude requiere una clave con acceso a

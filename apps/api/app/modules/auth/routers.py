@@ -4,6 +4,7 @@ import redis.asyncio as redis_asyncio
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.client_ip import client_ip
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.deps import (
@@ -85,10 +86,6 @@ def _clear_session_cookies(response: Response) -> None:
         REFRESH_COOKIE, path=f"{settings.cookie_path_prefix}/auth", domain=domain
     )
     response.delete_cookie(CSRF_COOKIE, path="/", domain=domain)
-
-
-def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
 
 
 async def _get_bearer_token(
@@ -191,7 +188,7 @@ async def login(
 ):
     try:
         user = await service.authenticate_password(
-            db, redis_client, ip=_client_ip(request), email=body.email, password=body.password
+            db, redis_client, ip=client_ip(request), email=body.email, password=body.password
         )
     except RateLimitExceeded:
         raise _rate_limited() from None
@@ -223,7 +220,7 @@ async def confirm_totp(
 ):
     try:
         codes = await service.confirm_totp_setup(
-            db, redis_client, ip=_client_ip(request), user=user, code=body.code
+            db, redis_client, ip=client_ip(request), user=user, code=body.code
         )
     except RateLimitExceeded:
         raise _rate_limited() from None
@@ -255,7 +252,7 @@ async def verify_totp(
         user = await service.verify_login(
             db,
             redis_client,
-            ip=_client_ip(request),
+            ip=client_ip(request),
             user=user,
             code=body.code,
             recovery_code=body.recovery_code,

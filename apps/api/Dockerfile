@@ -25,6 +25,7 @@ EXPOSE 8000
 
 # sh -c so $PORT (injected by Railway and similar platforms) expands; exec so
 # uvicorn replaces the shell and receives SIGTERM for a graceful shutdown.
-# --proxy-headers makes request.client the real client IP behind the platform
-# proxy, which login rate limiting and lockout are keyed on.
-CMD ["sh", "-c", "exec uv run --frozen uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*'"]
+# Proxy headers are resolved by the app (TRUSTED_PROXY_HOPS, see
+# app/core/client_ip.py), not by uvicorn, whose "trust *" mode takes the
+# client-controlled leftmost X-Forwarded-For entry.
+CMD ["sh", "-c", "exec uv run --frozen uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-proxy-headers"]
