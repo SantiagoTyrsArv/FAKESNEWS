@@ -128,20 +128,27 @@ async def require_setup_actor(
     token: Annotated[str | None, Depends(_get_bearer_token)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
-    """Resolve the user for /2fa/setup and /2fa/confirm: either a fresh
-    mfa_setup_pending token (first-time enrollment during login) or an
-    existing full session (re-enrollment from /settings/security).
+    """Resolve who may enroll an authenticator (/2fa/setup and /2fa/confirm).
+
+    Only two actors qualify:
+    - an `mfa_setup_pending` token for a user who has no 2FA yet (first-time
+      enrollment right after the password step), or
+    - a full session, which already passed 2FA (re-enrollment from settings).
+
+    An `mfa_pending` token is deliberately rejected: it proves only the
+    password, and accepting it here would let anyone who knows the password
+    swap in their own authenticator and bypass 2FA entirely.
     """
     if token is not None:
         try:
-            payload = decode_token(token)
+            payload = decode_token(token, expected_scope="mfa_setup_pending")
         except TokenError as exc:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token inválido o expirado") from exc
 
-        if payload.scope in ("mfa_setup_pending", "mfa_pending"):
-            user = await service.get_user_by_id(db, parse_user_id(payload.sub))
-            if user is not None:
-                return user
+        user = await service.get_user_by_id(db, parse_user_id(payload.sub))
+        if user is None or user.mfa_enabled:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token inválido o expirado")
+        return user
 
     access_cookie = request.cookies.get(ACCESS_COOKIE)
     if access_cookie is not None:

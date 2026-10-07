@@ -19,6 +19,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     totp_secret_encrypted: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Secret being enrolled but not yet confirmed. Kept apart from the active
+    # secret so an abandoned (or hostile) enrollment never disables the
+    # authenticator currently protecting the account.
+    totp_pending_secret_encrypted: Mapped[str | None] = mapped_column(String, nullable=True)
     totp_last_used_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
     failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -175,7 +175,7 @@ def issue_pending_token(user: User) -> tuple[str, str, int]:
 
 async def start_totp_setup(db: AsyncSession, user: User) -> tuple[str, str]:
     secret = totp_module.generate_secret()
-    user.totp_secret_encrypted = encrypt_secret(secret)
+    user.totp_pending_secret_encrypted = encrypt_secret(secret)
     await db.commit()
 
     uri = totp_module.build_provisioning_uri(secret, user.email)
@@ -200,15 +200,20 @@ async def confirm_totp_setup(
 
     await _check_not_locked(user)
 
-    if user.totp_secret_encrypted is None:
+    if user.totp_pending_secret_encrypted is None:
         raise TotpSetupNotStartedError()
 
-    secret = decrypt_secret(user.totp_secret_encrypted)
+    secret = decrypt_secret(user.totp_pending_secret_encrypted)
 
     if not totp_module.verify_totp_code_any(secret, code):
         await _register_failed_attempt(db, user)
         raise InvalidCodeError()
 
+    # Only now does the new device replace the old one. The replay marker
+    # belongs to the old secret's codes, so it starts over.
+    user.totp_secret_encrypted = user.totp_pending_secret_encrypted
+    user.totp_pending_secret_encrypted = None
+    user.totp_last_used_step = None
     user.mfa_enabled = True
     await _reset_failed_attempts(db, user)
 
