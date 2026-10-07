@@ -55,7 +55,7 @@ flowchart LR
 | Componente | Responsabilidad |
 | --- | --- |
 | `apps/web` | UI en Next.js 16 (App Router, componentes cliente). `proxy.ts` solo redirige a `/login` cuando falta la cookie; **la API es el único límite de autorización**. `lib/api.ts` renueva la sesión ante un `401`. |
-| `apps/api` — `auth` | Registro, login en dos pasos (contraseña → token limitado → TOTP), sesión con access + refresh rotativo, CSRF de doble envío, lockout y rate limiting. |
+| `apps/api` — `auth` | Registro, login con verificación en dos pasos TOTP opcional (se activa en Ajustes), sesión con access + refresh rotativo, CSRF de doble envío, lockout y rate limiting. |
 | `apps/api` — `submissions` | Crea casos y los encola; estado consultable por polling. |
 | `apps/api` — `pipeline` | Worker: `ingest → transcribe → claims → verify → scoring`, con validación de cada cita contra los resultados reales de la búsqueda y la lista blanca de dominios. |
 | `apps/api` — `sources` | Fuentes de confianza y su reputación Beta-Bernoulli ([docs/reputation.md](docs/reputation.md)). |
@@ -77,8 +77,9 @@ se fuerza a `INSUFFICIENT`. El contenido del usuario viaja delimitado y marcado 
 | Método y ruta | Auth | Descripción |
 | --- | --- | --- |
 | `POST /auth/register` | — | Crea la cuenta (argon2id). |
-| `POST /auth/login` | — | Devuelve un token limitado `mfa_setup_pending` o `mfa_pending`. |
-| `POST /auth/2fa/setup` · `/auth/2fa/confirm` | token limitado o sesión | Enrolamiento TOTP y códigos de recuperación. |
+| `POST /auth/login` | — | Sin 2FA emite la sesión (`status: "authenticated"`); con 2FA devuelve un token limitado `mfa_pending` (`status: "mfa_required"`). |
+| `POST /auth/2fa/setup` · `/auth/2fa/confirm` | sesión + CSRF | Activa (o reconfigura) TOTP y genera códigos de recuperación. |
+| `POST /auth/2fa/disable` | sesión + CSRF + código | Desactiva 2FA con un código TOTP o de recuperación. |
 | `POST /auth/2fa/verify` | token limitado | Emite la sesión completa (cookies). |
 | `POST /auth/refresh` · `/auth/logout` | cookie + CSRF | Rota o revoca la sesión. |
 | `GET /auth/me` | sesión | Usuario actual. |
@@ -164,18 +165,23 @@ Documentación interactiva completa en http://localhost:8000/docs.
 
 ### Cómo probar el 2FA manualmente
 
+La verificación en dos pasos es opcional: una cuenta sin 2FA entra solo con la contraseña.
+
 1. `POST /auth/register` con `email`/`password`.
-2. `POST /auth/login` → devuelve `{token, token_type: "mfa_setup_pending", expires_in}`.
-3. `POST /auth/2fa/setup` con `Authorization: Bearer <token>` → devuelve `otpauth_uri` y
-   `qr_code_base64`. Puedes decodificar el QR o extraer el parámetro `secret` de la URI y generarlo
-   con cualquier librería TOTP (p. ej. `pyotp.TOTP(secret).now()`).
-4. `POST /auth/2fa/confirm` con el mismo bearer token y `{"code": "<código de 6 dígitos>"}` →
-   activa 2FA y devuelve 10 `recovery_codes` (solo se muestran una vez).
-5. `POST /auth/2fa/verify` con el mismo bearer token y `{"code": "..."}` o
-   `{"recovery_code": "..."}` → responde `Set-Cookie` con `access_token`, `refresh_token` y
-   `csrf_token`.
-6. Desde el navegador, el flujo completo está en `/login` → `/login/2fa` (muestra el QR y los
-   códigos de recuperación con opción de descarga).
+2. `POST /auth/login` → `{"status": "authenticated", ...}` y `Set-Cookie` con `access_token`,
+   `refresh_token` y `csrf_token`.
+3. `POST /auth/2fa/setup` con esas cookies y `X-CSRF-Token: <csrf_token>` → devuelve `otpauth_uri`
+   y `qr_code_base64`. Puedes decodificar el QR o extraer el parámetro `secret` de la URI y generar
+   el código con cualquier librería TOTP (p. ej. `pyotp.TOTP(secret).now()`).
+4. `POST /auth/2fa/confirm` (cookies + CSRF) con `{"code": "<código de 6 dígitos>"}` → activa 2FA
+   y devuelve 10 `recovery_codes` (solo se muestran una vez).
+5. Un nuevo `POST /auth/login` devuelve `{"status": "mfa_required", "token": ...}`. Envía
+   `POST /auth/2fa/verify` con `Authorization: Bearer <token>` y `{"code": "..."}` o
+   `{"recovery_code": "..."}` para obtener la sesión.
+6. `POST /auth/2fa/disable` (cookies + CSRF) con `{"code": "..."}` o `{"recovery_code": "..."}`
+   desactiva 2FA y borra el secreto y los códigos de recuperación.
+7. Desde el navegador: `/settings/security` activa (QR + códigos de recuperación con descarga),
+   reconfigura o desactiva la 2FA; con ella activa, `/login` pasa por `/login/2fa`.
 
 ## Cómo levantar el proyecto
 

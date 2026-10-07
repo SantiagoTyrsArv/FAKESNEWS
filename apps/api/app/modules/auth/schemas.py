@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field
 
@@ -29,12 +29,6 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
-class PendingTokenResponse(BaseModel):
-    token: str
-    token_type: str
-    expires_in: int
-
-
 class TotpSetupResponse(BaseModel):
     otpauth_uri: str
     qr_code_base64: str
@@ -48,7 +42,7 @@ class TotpConfirmResponse(BaseModel):
     recovery_codes: list[str]
 
 
-class VerifyRequest(BaseModel):
+class SecondFactorRequest(BaseModel):
     code: str | None = Field(default=None, min_length=6, max_length=8)
     recovery_code: str | None = Field(default=None, min_length=8, max_length=32)
 
@@ -61,3 +55,14 @@ class UserResponse(BaseModel):
 
 class SessionResponse(BaseModel):
     user: UserResponse
+
+
+class LoginResponse(BaseModel):
+    """`authenticated`: no 2FA, the session cookies are set and `user` is
+    filled in. `mfa_required`: send the pending `token` to /2fa/verify."""
+
+    status: Literal["authenticated", "mfa_required"]
+    user: UserResponse | None = None
+    token: str | None = None
+    token_type: str | None = None
+    expires_in: int | None = None

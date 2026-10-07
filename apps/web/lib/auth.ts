@@ -5,11 +5,11 @@ export interface RegisterResponse {
   email: string;
 }
 
-export interface PendingTokenResponse {
-  token: string;
-  token_type: "mfa_setup_pending" | "mfa_pending";
-  expires_in: number;
-}
+// Without 2FA the password alone opens the session (cookies are set);
+// with 2FA it returns a short-lived token for /2fa/verify.
+export type LoginResponse =
+  | { status: "authenticated"; user: UserResponse }
+  | { status: "mfa_required"; token: string; token_type: "mfa_pending"; expires_in: number };
 
 export interface TotpSetupResponse {
   otpauth_uri: string;
@@ -31,23 +31,17 @@ export interface SessionResponse {
 }
 
 const PENDING_TOKEN_KEY = "fakesnews_pending_token";
-const PENDING_TOKEN_TYPE_KEY = "fakesnews_pending_token_type";
 
-export function savePendingToken(token: string, tokenType: string) {
+export function savePendingToken(token: string) {
   sessionStorage.setItem(PENDING_TOKEN_KEY, token);
-  sessionStorage.setItem(PENDING_TOKEN_TYPE_KEY, tokenType);
 }
 
-export function readPendingToken(): { token: string; tokenType: string } | null {
-  const token = sessionStorage.getItem(PENDING_TOKEN_KEY);
-  const tokenType = sessionStorage.getItem(PENDING_TOKEN_TYPE_KEY);
-  if (!token || !tokenType) return null;
-  return { token, tokenType };
+export function readPendingToken(): string | null {
+  return sessionStorage.getItem(PENDING_TOKEN_KEY);
 }
 
 export function clearPendingToken() {
   sessionStorage.removeItem(PENDING_TOKEN_KEY);
-  sessionStorage.removeItem(PENDING_TOKEN_TYPE_KEY);
 }
 
 function bearer(token?: string): HeadersInit {
@@ -62,24 +56,33 @@ export function register(email: string, password: string) {
 }
 
 export function login(email: string, password: string) {
-  return apiFetch<PendingTokenResponse>("/auth/login", {
+  return apiFetch<LoginResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
 }
 
-export function setupTotp(pendingToken?: string) {
+// Enrolling and disabling 2FA happen from settings, with a full session.
+export function setupTotp() {
   return apiFetch<TotpSetupResponse>("/auth/2fa/setup", {
     method: "POST",
-    headers: bearer(pendingToken),
+    headers: csrfHeaders(),
   });
 }
 
-export function confirmTotp(code: string, pendingToken?: string) {
+export function confirmTotp(code: string) {
   return apiFetch<TotpConfirmResponse>("/auth/2fa/confirm", {
     method: "POST",
-    headers: bearer(pendingToken),
+    headers: csrfHeaders(),
     body: JSON.stringify({ code }),
+  });
+}
+
+export function disableTotp(body: { code?: string; recovery_code?: string }) {
+  return apiFetch<UserResponse>("/auth/2fa/disable", {
+    method: "POST",
+    headers: csrfHeaders(),
+    body: JSON.stringify(body),
   });
 }
 

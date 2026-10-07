@@ -1,7 +1,6 @@
 import uuid
 from urllib.parse import parse_qs, urlparse
 
-import pyotp
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,14 +20,7 @@ def _secret_from_uri(uri: str) -> str:
 async def _login_full_session(client: AsyncClient, email: str) -> None:
     await client.post("/auth/register", json={"email": email, "password": PASSWORD})
     login_resp = await client.post("/auth/login", json={"email": email, "password": PASSWORD})
-    headers = {"Authorization": f"Bearer {login_resp.json()['token']}"}
-
-    setup_resp = await client.post("/auth/2fa/setup", headers=headers)
-    code = pyotp.TOTP(_secret_from_uri(setup_resp.json()["otpauth_uri"])).now()
-    await client.post("/auth/2fa/confirm", json={"code": code}, headers=headers)
-
-    verify_resp = await client.post("/auth/2fa/verify", json={"code": code}, headers=headers)
-    assert verify_resp.status_code == 200
+    assert login_resp.json()["status"] == "authenticated"
 
 
 async def _user_id(db_session: AsyncSession, email: str) -> uuid.UUID:

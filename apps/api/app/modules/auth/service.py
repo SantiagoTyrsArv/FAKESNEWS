@@ -169,7 +169,7 @@ async def authenticate_password(
 
 
 def issue_pending_token(user: User) -> tuple[str, str, int]:
-    scope = "mfa_pending" if user.mfa_enabled else "mfa_setup_pending"
+    scope = "mfa_pending"
     expires_minutes = settings.mfa_pending_token_expire_minutes
     token = create_token(str(user.id), scope, expires_minutes)
     return token, scope, expires_minutes * 60
@@ -228,7 +228,7 @@ async def confirm_totp_setup(
     return plaintext_codes
 
 
-async def verify_login(
+async def _check_second_factor(
     db: AsyncSession,
     redis_client: redis_asyncio.Redis,
     *,
@@ -236,7 +236,9 @@ async def verify_login(
     user: User,
     code: str | None,
     recovery_code: str | None,
-) -> User:
+) -> None:
+    """Accept a current TOTP code or an unused recovery code (spending it),
+    under the same rate limits and lockout as the login itself."""
     await check_rate_limit(
         f"verify:ip:{ip}", settings.rate_limit_verify_per_minute, client=redis_client
     )
@@ -275,6 +277,42 @@ async def verify_login(
         raise InvalidCodeError()
 
     await _reset_failed_attempts(db, user)
+
+
+async def verify_login(
+    db: AsyncSession,
+    redis_client: redis_asyncio.Redis,
+    *,
+    ip: str,
+    user: User,
+    code: str | None,
+    recovery_code: str | None,
+) -> User:
+    await _check_second_factor(
+        db, redis_client, ip=ip, user=user, code=code, recovery_code=recovery_code
+    )
+    return user
+
+
+async def disable_mfa(
+    db: AsyncSession,
+    redis_client: redis_asyncio.Redis,
+    *,
+    ip: str,
+    user: User,
+    code: str | None,
+    recovery_code: str | None,
+) -> User:
+    await _check_second_factor(
+        db, redis_client, ip=ip, user=user, code=code, recovery_code=recovery_code
+    )
+
+    user.mfa_enabled = False
+    user.totp_secret_encrypted = None
+    user.totp_pending_secret_encrypted = None
+    user.totp_last_used_step = None
+    await db.execute(delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user.id))
+    await db.commit()
     return user
 
 

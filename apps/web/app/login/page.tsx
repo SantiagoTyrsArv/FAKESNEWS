@@ -35,9 +35,13 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const { token, token_type } = await login(email, password);
-      savePendingToken(token, token_type);
-      router.push("/login/2fa");
+      const res = await login(email, password);
+      if (res.status === "authenticated") {
+        router.push("/history");
+      } else {
+        savePendingToken(res.token);
+        router.push("/login/2fa");
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 423) {
         setError("Cuenta bloqueada temporalmente por demasiados intentos fallidos.");
@@ -56,14 +60,13 @@ function LoginForm() {
   return (
     <AuthShell
       title="Inicia sesión"
-      description="Primero tu correo y contraseña. Después, el código de tu app de autenticación."
-      step={{ current: 1, total: 2 }}
+      description="Con tu correo y contraseña. Si activaste la verificación en dos pasos, después te pediremos el código de tu app."
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {justRegistered && (
           <Alert>
             <AlertDescription>
-              Cuenta creada. Inicia sesión para activar la verificación en dos pasos.
+              Cuenta creada. Ya puedes iniciar sesión.
             </AlertDescription>
           </Alert>
         )}

@@ -8,10 +8,10 @@ import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
 import { QrEnrollment, RecoveryCodes } from "@/components/totp";
-import { confirmTotp, me, setupTotp, type UserResponse } from "@/lib/auth";
+import { confirmTotp, disableTotp, me, setupTotp, type UserResponse } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
-type Stage = "idle" | "enroll" | "confirm" | "recovery-codes";
+type Stage = "idle" | "enroll" | "confirm" | "recovery-codes" | "disable";
 
 export default function SecuritySettingsPage() {
   const [user, setUser] = useState<UserResponse | null>(null);
@@ -21,6 +21,8 @@ export default function SecuritySettingsPage() {
   const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [code, setCode] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [useRecovery, setUseRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +66,37 @@ export default function SecuritySettingsPage() {
     }
   }
 
+  function goIdle() {
+    setStage("idle");
+    setCode("");
+    setRecoveryCode("");
+    setUseRecovery(false);
+    setError(null);
+  }
+
+  async function handleDisable(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const updated = await disableTotp(
+        useRecovery ? { recovery_code: recoveryCode } : { code },
+      );
+      setUser(updated);
+      goIdle();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setError("Demasiados intentos. Intenta de nuevo en unos minutos.");
+      } else if (err instanceof ApiError && err.status === 423) {
+        setError("Cuenta bloqueada temporalmente por demasiados intentos fallidos.");
+      } else {
+        setError("Código inválido.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <AppShell width="narrow">
       <PageHeading
@@ -90,7 +123,7 @@ export default function SecuritySettingsPage() {
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {user?.mfa_enabled
                   ? "Activada. Cada inicio de sesión pide un código de tu app de autenticación."
-                  : "No activada. Actívala para que nadie entre solo con tu contraseña."}
+                  : "Opcional y no activada. Actívala para que nadie entre solo con tu contraseña."}
               </p>
             </div>
           </div>
@@ -108,14 +141,82 @@ export default function SecuritySettingsPage() {
                   ? "¿Cambiaste de teléfono? Configura la app de nuevo. El dispositivo anterior y todos tus códigos de recuperación dejarán de funcionar."
                   : "Necesitarás una app como Google Authenticator, Authy o 1Password."}
               </p>
-              <Button className="h-10 w-fit px-4" onClick={startEnrollment} disabled={loading}>
-                {loading
-                  ? "Preparando…"
-                  : user?.mfa_enabled
-                    ? "Configurar en otro teléfono"
-                    : "Activar verificación en dos pasos"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button className="h-10 w-fit px-4" onClick={startEnrollment} disabled={loading}>
+                  {loading
+                    ? "Preparando…"
+                    : user?.mfa_enabled
+                      ? "Configurar en otro teléfono"
+                      : "Activar verificación en dos pasos"}
+                </Button>
+                {user?.mfa_enabled && (
+                  <Button
+                    variant="outline"
+                    className="h-10 w-fit px-4"
+                    onClick={() => setStage("disable")}
+                    disabled={loading}
+                  >
+                    Desactivar
+                  </Button>
+                )}
+              </div>
             </div>
+          )}
+
+          {stage === "disable" && (
+            <form onSubmit={handleDisable} className="flex flex-col gap-4 border-t pt-5">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Para desactivarla, confirma que eres tú. Después podrás entrar solo con tu
+                contraseña, y tus códigos de recuperación dejarán de funcionar.
+              </p>
+              {!useRecovery ? (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="disable-code">Código de la app</Label>
+                  <Input
+                    id="disable-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    required
+                    className="h-12 max-w-56 text-center font-mono text-xl tracking-[0.4em]"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="disable-recovery-code">Código de recuperación</Label>
+                  <Input
+                    id="disable-recovery-code"
+                    required
+                    autoComplete="off"
+                    className="h-12 max-w-72 font-mono"
+                    value={recoveryCode}
+                    onChange={(e) => setRecoveryCode(e.target.value)}
+                  />
+                </div>
+              )}
+              <button
+                type="button"
+                className="w-fit text-left text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                onClick={() => {
+                  setUseRecovery((v) => !v);
+                  setError(null);
+                }}
+              >
+                {useRecovery
+                  ? "Usar el código de la app"
+                  : "¿No tienes el teléfono? Usa un código de recuperación"}
+              </button>
+              <div className="flex gap-2">
+                <Button type="submit" variant="destructive" className="h-10 px-4" disabled={loading}>
+                  {loading ? "Comprobando…" : "Desactivar verificación en dos pasos"}
+                </Button>
+                <Button type="button" variant="ghost" className="h-10" onClick={goIdle}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
           )}
 
           {stage === "enroll" && qrCodeBase64 && (
@@ -147,7 +248,7 @@ export default function SecuritySettingsPage() {
                 <Button type="submit" className="h-10 px-4" disabled={loading}>
                   {loading ? "Comprobando…" : "Confirmar"}
                 </Button>
-                <Button type="button" variant="ghost" className="h-10" onClick={() => setStage("idle")}>
+                <Button type="button" variant="ghost" className="h-10" onClick={goIdle}>
                   Cancelar
                 </Button>
               </div>

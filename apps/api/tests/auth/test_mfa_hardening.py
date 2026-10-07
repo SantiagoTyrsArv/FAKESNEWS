@@ -10,10 +10,9 @@ import pyotp
 from httpx import AsyncClient
 
 from tests.auth.test_auth_flow import (
-    EMAIL,
-    PASSWORD,
-    _enroll_mfa,
-    _register_and_login,
+    _csrf,
+    _login_with_password_only,
+    _register_with_mfa,
     _totp_secret_from_uri,
 )
 
@@ -24,20 +23,12 @@ def _next_code(secret: str) -> str:
     return pyotp.TOTP(secret).at(time.time() + 30)
 
 
-async def _login_with_password_only(client: AsyncClient) -> str:
-    resp = await client.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
-    assert resp.status_code == 200
-    assert resp.json()["token_type"] == "mfa_pending"
-    return resp.json()["token"]
-
-
 async def _full_session(client: AsyncClient) -> str:
-    setup_token = await _register_and_login(client)
-    secret, _codes = await _enroll_mfa(client, setup_token)
+    secret, _codes, pending = await _register_with_mfa(client)
     verify = await client.post(
         "/auth/2fa/verify",
         json={"code": pyotp.TOTP(secret).now()},
-        headers={"Authorization": f"Bearer {setup_token}"},
+        headers={"Authorization": f"Bearer {pending}"},
     )
     assert verify.status_code == 200
     return secret
@@ -45,7 +36,6 @@ async def _full_session(client: AsyncClient) -> str:
 
 async def test_password_only_token_cannot_start_enrollment(app_client: AsyncClient) -> None:
     await _full_session(app_client)
-    app_client.cookies.clear()
 
     pending = await _login_with_password_only(app_client)
     resp = await app_client.post("/auth/2fa/setup", headers={"Authorization": f"Bearer {pending}"})
@@ -57,7 +47,6 @@ async def test_password_only_token_cannot_replace_authenticator(app_client: Asyn
     """The full takeover chain: an attacker with the password must not be able
     to enroll their own authenticator and then pass /2fa/verify with it."""
     victim_secret = await _full_session(app_client)
-    app_client.cookies.clear()
 
     pending = await _login_with_password_only(app_client)
     headers = {"Authorization": f"Bearer {pending}"}
@@ -74,7 +63,6 @@ async def test_password_only_token_cannot_replace_authenticator(app_client: Asyn
     assert attacker_verify.status_code == 401
 
     # The victim's own authenticator still works.
-    app_client.cookies.clear()
     pending = await _login_with_password_only(app_client)
     victim_verify = await app_client.post(
         "/auth/2fa/verify",
@@ -88,12 +76,11 @@ async def test_reenrollment_keeps_current_device_until_confirmed(app_client: Asy
     old_secret = await _full_session(app_client)
 
     # Start re-enrollment from the full session, then abandon it.
-    setup = await app_client.post("/auth/2fa/setup")
+    setup = await app_client.post("/auth/2fa/setup", headers=_csrf(app_client))
     assert setup.status_code == 200
     new_secret = _totp_secret_from_uri(setup.json()["otpauth_uri"])
     assert new_secret != old_secret
 
-    app_client.cookies.clear()
     pending = await _login_with_password_only(app_client)
     resp = await app_client.post(
         "/auth/2fa/verify",
@@ -106,15 +93,16 @@ async def test_reenrollment_keeps_current_device_until_confirmed(app_client: Asy
 async def test_reenrollment_switches_device_once_confirmed(app_client: AsyncClient) -> None:
     old_secret = await _full_session(app_client)
 
-    setup = await app_client.post("/auth/2fa/setup")
+    setup = await app_client.post("/auth/2fa/setup", headers=_csrf(app_client))
     new_secret = _totp_secret_from_uri(setup.json()["otpauth_uri"])
     confirm = await app_client.post(
-        "/auth/2fa/confirm", json={"code": pyotp.TOTP(new_secret).now()}
+        "/auth/2fa/confirm",
+        json={"code": pyotp.TOTP(new_secret).now()},
+        headers=_csrf(app_client),
     )
     assert confirm.status_code == 200
     assert len(confirm.json()["recovery_codes"]) == 10
 
-    app_client.cookies.clear()
     pending = await _login_with_password_only(app_client)
     headers = {"Authorization": f"Bearer {pending}"}
 

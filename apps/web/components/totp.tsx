@@ -3,8 +3,8 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// QR enrollment and recovery codes are shown both on first login (/login/2fa)
-// and when re-enrolling from /settings/security.
+// QR enrollment and recovery codes, shown when enabling or re-enrolling 2FA
+// from /settings/security.
 
 export function QrEnrollment({
   qrCodeBase64,

@@ -20,15 +20,15 @@ from app.modules.auth import service
 from app.modules.auth.models import User
 from app.modules.auth.schemas import (
     LoginRequest,
-    PendingTokenResponse,
+    LoginResponse,
     RegisterRequest,
     RegisterResponse,
+    SecondFactorRequest,
     SessionResponse,
     TotpConfirmRequest,
     TotpConfirmResponse,
     TotpSetupResponse,
     UserResponse,
-    VerifyRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -100,19 +100,14 @@ async def require_pending_actor(
     token: Annotated[str | None, Depends(_get_bearer_token)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
-    """Resolve the user behind an mfa_setup_pending or mfa_pending bearer
-    token, used by /2fa/verify (and as one option for /2fa/setup + confirm).
-    """
+    """Resolve the user behind an mfa_pending bearer token (/2fa/verify)."""
     if token is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "falta token de autenticación")
 
     try:
-        payload = decode_token(token)
+        payload = decode_token(token, expected_scope="mfa_pending")
     except TokenError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token inválido o expirado") from exc
-
-    if payload.scope not in ("mfa_setup_pending", "mfa_pending"):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "alcance de token inválido")
 
     user = await service.get_user_by_id(db, parse_user_id(payload.sub))
     if user is None:
@@ -120,45 +115,13 @@ async def require_pending_actor(
     return user
 
 
-async def require_setup_actor(
-    request: Request,
-    token: Annotated[str | None, Depends(_get_bearer_token)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> User:
-    """Resolve who may enroll an authenticator (/2fa/setup and /2fa/confirm).
+def _user_response(user: User) -> UserResponse:
+    return UserResponse(id=user.id, email=user.email, mfa_enabled=user.mfa_enabled)
 
-    Only two actors qualify:
-    - an `mfa_setup_pending` token for a user who has no 2FA yet (first-time
-      enrollment right after the password step), or
-    - a full session, which already passed 2FA (re-enrollment from settings).
 
-    An `mfa_pending` token is deliberately rejected: it proves only the
-    password, and accepting it here would let anyone who knows the password
-    swap in their own authenticator and bypass 2FA entirely.
-    """
-    if token is not None:
-        try:
-            payload = decode_token(token, expected_scope="mfa_setup_pending")
-        except TokenError as exc:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token inválido o expirado") from exc
-
-        user = await service.get_user_by_id(db, parse_user_id(payload.sub))
-        if user is None or user.mfa_enabled:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token inválido o expirado")
-        return user
-
-    access_cookie = request.cookies.get(ACCESS_COOKIE)
-    if access_cookie is not None:
-        try:
-            payload = decode_token(access_cookie, expected_scope="access")
-        except TokenError as exc:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sesión inválida o expirada") from exc
-
-        user = await service.get_user_by_id(db, parse_user_id(payload.sub))
-        if user is not None:
-            return user
-
-    raise HTTPException(status.HTTP_401_UNAUTHORIZED, "falta token de autenticación")
+def _require_second_factor(body: SecondFactorRequest) -> None:
+    if not body.code and not body.recovery_code:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Debes enviar 'code' o 'recovery_code'.")
 
 
 def _rate_limited() -> HTTPException:
@@ -179,10 +142,11 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
     return RegisterResponse(id=user.id, email=user.email)
 
 
-@router.post("/login", response_model=PendingTokenResponse)
+@router.post("/login", response_model=LoginResponse)
 async def login(
     body: LoginRequest,
     request: Request,
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
 ):
@@ -197,14 +161,22 @@ async def login(
     except service.InvalidCredentialsError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, GENERIC_AUTH_ERROR) from exc
 
+    if not user.mfa_enabled:
+        session = await service.issue_session(db, user)
+        _set_session_cookies(response, session)
+        return LoginResponse(status="authenticated", user=_user_response(user))
+
     token, scope, expires_in = service.issue_pending_token(user)
-    return PendingTokenResponse(token=token, token_type=scope, expires_in=expires_in)
+    return LoginResponse(
+        status="mfa_required", token=token, token_type=scope, expires_in=expires_in
+    )
 
 
 @router.post("/2fa/setup", response_model=TotpSetupResponse)
 async def setup_totp(
     db: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User, Depends(require_setup_actor)],
+    user: Annotated[User, Depends(get_current_user)],
+    _csrf: Annotated[None, Depends(require_csrf)],
 ):
     uri, qr_b64 = await service.start_totp_setup(db, user)
     return TotpSetupResponse(otpauth_uri=uri, qr_code_base64=qr_b64)
@@ -216,7 +188,8 @@ async def confirm_totp(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
-    user: Annotated[User, Depends(require_setup_actor)],
+    user: Annotated[User, Depends(get_current_user)],
+    _csrf: Annotated[None, Depends(require_csrf)],
 ):
     try:
         codes = await service.confirm_totp_setup(
@@ -238,15 +211,14 @@ async def confirm_totp(
 
 @router.post("/2fa/verify", response_model=SessionResponse)
 async def verify_totp(
-    body: VerifyRequest,
+    body: SecondFactorRequest,
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
     user: Annotated[User, Depends(require_pending_actor)],
 ):
-    if not body.code and not body.recovery_code:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Debes enviar 'code' o 'recovery_code'.")
+    _require_second_factor(body)
 
     try:
         user = await service.verify_login(
@@ -263,7 +235,7 @@ async def verify_totp(
         raise HTTPException(status.HTTP_423_LOCKED, GENERIC_AUTH_ERROR) from exc
     except service.MfaNotEnabledError as exc:
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Primero debes completar el enrolamiento de 2FA."
+            status.HTTP_400_BAD_REQUEST, "La verificación en dos pasos no está activada."
         ) from exc
     except service.InvalidCodeError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, GENERIC_AUTH_ERROR) from exc
@@ -271,9 +243,43 @@ async def verify_totp(
     session = await service.issue_session(db, user)
     _set_session_cookies(response, session)
 
-    return SessionResponse(
-        user=UserResponse(id=user.id, email=user.email, mfa_enabled=user.mfa_enabled)
-    )
+    return SessionResponse(user=_user_response(user))
+
+
+@router.post("/2fa/disable", response_model=UserResponse)
+async def disable_totp(
+    body: SecondFactorRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
+    user: Annotated[User, Depends(get_current_user)],
+    _csrf: Annotated[None, Depends(require_csrf)],
+):
+    """Turn 2FA off. A session alone is not enough: it takes a current code
+    (or a recovery code), so an unattended or stolen session cannot strip it."""
+    _require_second_factor(body)
+
+    try:
+        user = await service.disable_mfa(
+            db,
+            redis_client,
+            ip=client_ip(request),
+            user=user,
+            code=body.code,
+            recovery_code=body.recovery_code,
+        )
+    except RateLimitExceeded:
+        raise _rate_limited() from None
+    except service.AccountLockedError as exc:
+        raise HTTPException(status.HTTP_423_LOCKED, GENERIC_AUTH_ERROR) from exc
+    except service.MfaNotEnabledError as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "La verificación en dos pasos no está activada."
+        ) from exc
+    except service.InvalidCodeError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, GENERIC_AUTH_ERROR) from exc
+
+    return _user_response(user)
 
 
 @router.post("/refresh", response_model=SessionResponse)
@@ -299,10 +305,7 @@ async def refresh(
 
     _set_session_cookies(response, session)
 
-    user = session["user"]
-    return SessionResponse(
-        user=UserResponse(id=user.id, email=user.email, mfa_enabled=user.mfa_enabled)
-    )
+    return SessionResponse(user=_user_response(session["user"]))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -319,4 +322,4 @@ async def logout(
 
 @router.get("/me", response_model=UserResponse)
 async def me(user: Annotated[User, Depends(get_current_user)]):
-    return UserResponse(id=user.id, email=user.email, mfa_enabled=user.mfa_enabled)
+    return _user_response(user)

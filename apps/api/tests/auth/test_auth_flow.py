@@ -16,31 +16,56 @@ def _totp_secret_from_uri(otpauth_uri: str) -> str:
     return query["secret"][0]
 
 
-async def _register_and_login(client: AsyncClient) -> str:
+async def _register_and_login(client: AsyncClient) -> None:
+    """Register and log in with the password alone: without 2FA that is a
+    full session."""
     register_resp = await client.post("/auth/register", json={"email": EMAIL, "password": PASSWORD})
     assert register_resp.status_code == 201
 
     login_resp = await client.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
     assert login_resp.status_code == 200
-    body = login_resp.json()
-    assert body["token_type"] == "mfa_setup_pending"
-    return body["token"]
+    assert login_resp.json()["status"] == "authenticated"
 
 
-async def _enroll_mfa(client: AsyncClient, setup_token: str) -> tuple[str, list[str]]:
-    headers = {"Authorization": f"Bearer {setup_token}"}
+def _csrf(client: AsyncClient) -> dict[str, str]:
+    return {"X-CSRF-Token": client.cookies.get("csrf_token")}
 
-    setup_resp = await client.post("/auth/2fa/setup", headers=headers)
+
+async def _enroll_mfa(client: AsyncClient) -> tuple[str, list[str]]:
+    """Enroll an authenticator from the current full session (settings)."""
+    setup_resp = await client.post("/auth/2fa/setup", headers=_csrf(client))
     assert setup_resp.status_code == 200
     secret = _totp_secret_from_uri(setup_resp.json()["otpauth_uri"])
 
     code = pyotp.TOTP(secret).now()
-    confirm_resp = await client.post("/auth/2fa/confirm", json={"code": code}, headers=headers)
+    confirm_resp = await client.post(
+        "/auth/2fa/confirm", json={"code": code}, headers=_csrf(client)
+    )
     assert confirm_resp.status_code == 200
     recovery_codes = confirm_resp.json()["recovery_codes"]
     assert len(recovery_codes) == 10
 
     return secret, recovery_codes
+
+
+async def _login_with_password_only(client: AsyncClient) -> str:
+    """Log in again (fresh cookies) as a user with 2FA: returns the pending token."""
+    client.cookies.clear()
+    resp = await client.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "mfa_required"
+    assert body["token_type"] == "mfa_pending"
+    assert "access_token" not in resp.cookies
+    return body["token"]
+
+
+async def _register_with_mfa(client: AsyncClient) -> tuple[str, list[str], str]:
+    """A user with 2FA enrolled, logged out, holding a pending token."""
+    await _register_and_login(client)
+    secret, recovery_codes = await _enroll_mfa(client)
+    pending = await _login_with_password_only(client)
+    return secret, recovery_codes, pending
 
 
 async def test_register_rejects_weak_password(app_client: AsyncClient) -> None:
@@ -70,15 +95,31 @@ async def test_login_wrong_password_returns_generic_error(app_client: AsyncClien
     assert resp.status_code == 401
 
 
+async def test_login_without_mfa_issues_session(app_client: AsyncClient) -> None:
+    await app_client.post("/auth/register", json={"email": EMAIL, "password": PASSWORD})
+
+    resp = await app_client.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "authenticated"
+    assert body["user"]["mfa_enabled"] is False
+    assert body["token"] is None
+    assert "access_token" in resp.cookies
+    assert "csrf_token" in resp.cookies
+
+    me_resp = await app_client.get("/auth/me")
+    assert me_resp.status_code == 200
+    assert me_resp.json()["mfa_enabled"] is False
+
+
 async def test_full_enrollment_and_verify_happy_path(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    secret, _codes = await _enroll_mfa(app_client, setup_token)
+    secret, _codes, pending = await _register_with_mfa(app_client)
 
     code = pyotp.TOTP(secret).now()
     verify_resp = await app_client.post(
         "/auth/2fa/verify",
         json={"code": code},
-        headers={"Authorization": f"Bearer {setup_token}"},
+        headers={"Authorization": f"Bearer {pending}"},
     )
     assert verify_resp.status_code == 200
     assert verify_resp.json()["user"]["email"] == EMAIL
@@ -94,9 +135,8 @@ async def test_full_enrollment_and_verify_happy_path(app_client: AsyncClient) ->
 
 
 async def test_verify_rejects_reused_code(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    secret, _codes = await _enroll_mfa(app_client, setup_token)
-    headers = {"Authorization": f"Bearer {setup_token}"}
+    secret, _codes, pending = await _register_with_mfa(app_client)
+    headers = {"Authorization": f"Bearer {pending}"}
 
     code = pyotp.TOTP(secret).now()
     first = await app_client.post("/auth/2fa/verify", json={"code": code}, headers=headers)
@@ -107,29 +147,27 @@ async def test_verify_rejects_reused_code(app_client: AsyncClient) -> None:
 
 
 async def test_verify_rejects_invalid_code(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    await _enroll_mfa(app_client, setup_token)
+    _secret, _codes, pending = await _register_with_mfa(app_client)
 
     resp = await app_client.post(
         "/auth/2fa/verify",
         json={"code": "000000"},
-        headers={"Authorization": f"Bearer {setup_token}"},
+        headers={"Authorization": f"Bearer {pending}"},
     )
     assert resp.status_code == 401
 
 
 async def test_pending_token_cannot_access_protected_route(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
+    _secret, _codes, pending = await _register_with_mfa(app_client)
 
-    app_client.cookies.set("access_token", setup_token)
+    app_client.cookies.set("access_token", pending)
     resp = await app_client.get("/auth/me")
     assert resp.status_code == 401
 
 
 async def test_recovery_code_login_and_single_use(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    secret, recovery_codes = await _enroll_mfa(app_client, setup_token)
-    headers = {"Authorization": f"Bearer {setup_token}"}
+    secret, recovery_codes, pending = await _register_with_mfa(app_client)
+    headers = {"Authorization": f"Bearer {pending}"}
 
     recovery_code = recovery_codes[0]
     resp = await app_client.post(
@@ -162,16 +200,7 @@ async def test_lockout_after_max_failed_attempts(app_client: AsyncClient) -> Non
 
 
 async def test_refresh_rotation_and_reuse_detection(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    secret, _codes = await _enroll_mfa(app_client, setup_token)
-
-    code = pyotp.TOTP(secret).now()
-    verify_resp = await app_client.post(
-        "/auth/2fa/verify",
-        json={"code": code},
-        headers={"Authorization": f"Bearer {setup_token}"},
-    )
-    assert verify_resp.status_code == 200
+    await _register_and_login(app_client)
 
     old_refresh = app_client.cookies.get("refresh_token")
     csrf_1 = app_client.cookies.get("csrf_token")
@@ -198,30 +227,14 @@ async def test_refresh_rotation_and_reuse_detection(app_client: AsyncClient) -> 
 
 
 async def test_refresh_requires_csrf_header(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    secret, _codes = await _enroll_mfa(app_client, setup_token)
-
-    code = pyotp.TOTP(secret).now()
-    await app_client.post(
-        "/auth/2fa/verify",
-        json={"code": code},
-        headers={"Authorization": f"Bearer {setup_token}"},
-    )
+    await _register_and_login(app_client)
 
     resp = await app_client.post("/auth/refresh")
     assert resp.status_code == 403
 
 
 async def test_logout_revokes_refresh_token(app_client: AsyncClient) -> None:
-    setup_token = await _register_and_login(app_client)
-    secret, _codes = await _enroll_mfa(app_client, setup_token)
-
-    code = pyotp.TOTP(secret).now()
-    await app_client.post(
-        "/auth/2fa/verify",
-        json={"code": code},
-        headers={"Authorization": f"Bearer {setup_token}"},
-    )
+    await _register_and_login(app_client)
 
     csrf = app_client.cookies.get("csrf_token")
     refresh_token_value = app_client.cookies.get("refresh_token")

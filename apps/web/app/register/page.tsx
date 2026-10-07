@@ -55,7 +55,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Crea tu cuenta"
-      description="Al terminar, configurarás la verificación en dos pasos con una app como Google Authenticator o Authy."
+      description="Después podrás activar la verificación en dos pasos desde Ajustes de seguridad."
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {error && (
