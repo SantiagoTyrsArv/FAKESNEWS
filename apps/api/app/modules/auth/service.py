@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as redis_asyncio
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -110,7 +110,9 @@ async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> User | None:
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
-    result = await db.execute(select(User).where(User.email == email))
+    # lower() on the column too, so accounts stored before emails were
+    # normalized (possibly with uppercase letters) still match.
+    result = await db.execute(select(User).where(func.lower(User.email) == email.lower()))
     return result.scalar_one_or_none()
 
 
@@ -123,7 +125,7 @@ async def register_user(db: AsyncSession, email: str, password: str) -> User:
     if existing is not None:
         raise EmailAlreadyRegisteredError()
 
-    user = User(email=email, password_hash=hash_password(password))
+    user = User(email=email.lower(), password_hash=hash_password(password))
     db.add(user)
     await db.commit()
     await db.refresh(user)

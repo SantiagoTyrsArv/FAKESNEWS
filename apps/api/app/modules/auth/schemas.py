@@ -1,10 +1,21 @@
 import uuid
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field
+
+
+def _strip(value: object) -> object:
+    return value.strip() if isinstance(value, str) else value
+
+
+# Emails are compared case-insensitively everywhere: "Ana@x.com" and
+# "ana@x.com" are one account, and per-email rate limits can't be dodged by
+# changing case.
+NormalizedEmail = Annotated[EmailStr, BeforeValidator(_strip), AfterValidator(str.lower)]
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(min_length=1, max_length=256)
 
 
@@ -14,7 +25,7 @@ class RegisterResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(min_length=1, max_length=256)
 
 

@@ -235,3 +235,21 @@ async def test_logout_revokes_refresh_token(app_client: AsyncClient) -> None:
     app_client.cookies.set("csrf_token", csrf)
     refresh_resp = await app_client.post("/auth/refresh", headers={"X-CSRF-Token": csrf})
     assert refresh_resp.status_code == 401
+
+
+async def test_email_is_case_insensitive(app_client: AsyncClient) -> None:
+    resp = await app_client.post(
+        "/auth/register", json={"email": "Demo@Example.COM", "password": PASSWORD}
+    )
+    assert resp.status_code == 201
+    assert resp.json()["email"] == "demo@example.com"
+
+    duplicate = await app_client.post(
+        "/auth/register", json={"email": "DEMO@example.com", "password": PASSWORD}
+    )
+    assert duplicate.status_code == 409
+
+    login = await app_client.post(
+        "/auth/login", json={"email": "  demo@EXAMPLE.com ", "password": PASSWORD}
+    )
+    assert login.status_code == 200
