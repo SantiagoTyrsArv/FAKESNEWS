@@ -193,6 +193,51 @@ make seed   # opcional: usuario demo + casos de ejemplo (ver "Demo en 5 minutos"
 - API: http://localhost:8000 (docs interactivas en http://localhost:8000/docs)
 - Postgres: localhost:5432, Redis: localhost:6379
 
+## Despliegue en Railway
+
+El despliegue necesita cinco servicios: `web`, `api`, `worker`, PostgreSQL y Redis. Railway no
+ejecuta este `docker-compose.yml` directamente; crea cada servicio desde el mismo repositorio y usa
+las bases de datos gestionadas de Railway.
+
+1. Crea PostgreSQL y Redis en el proyecto Railway y nombra los servicios exactamente `Postgres` y
+   `Redis` para que las referencias de variables del ejemplo se resuelvan.
+2. Crea `api` desde el repositorio con directorio raíz `apps/api` y el archivo de configuración
+   `/railway.toml`. Este ejecuta las migraciones antes de arrancar y comprueba `/health/ready`.
+3. Crea `worker` desde el mismo repositorio y directorio raíz `apps/api`; selecciona
+   `/apps/api/railway.worker.toml` como archivo de configuración. El worker consume la cola Redis y
+   procesa los casos.
+4. Crea `web` desde el repositorio con directorio raíz `apps/web` y su Dockerfile.
+5. Añade un dominio personalizado a `web` (por ejemplo, `app.example.com`) y otro a `api`
+   (`api.example.com`). Deben compartir el mismo dominio raíz para que el navegador envíe las
+   cookies de sesión `SameSite=Lax` en las llamadas de la web a la API.
+
+Configura estas variables en `api` y `worker` (puedes compartir las variables comunes del proyecto):
+
+```dotenv
+ENVIRONMENT=production
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+REDIS_URL=${{Redis.REDIS_URL}}
+JWT_SECRET_KEY=<secreto aleatorio de al menos 48 bytes>
+TOTP_SECRET_ENCRYPTION_KEY=<clave Fernet generada para este entorno>
+ANTHROPIC_API_KEY=<clave de Anthropic>
+ANTHROPIC_MODEL=claude-sonnet-5
+CORS_ORIGINS=["https://app.example.com"]
+```
+
+En `web`, configura `NEXT_PUBLIC_API_URL=https://api.example.com`. Es una variable de build y debe
+estar definida antes de desplegar la web. La API normaliza las URLs PostgreSQL `postgres://` y
+`postgresql://` del proveedor al driver `asyncpg` requerido por la aplicación.
+
+Genera los secretos con los comandos documentados en [.env.example](.env.example); no reutilices
+claves entre desarrollo y producción. El procesamiento con Claude requiere una clave con acceso a
+`messages.parse` y a la herramienta de búsqueda web. Configura recursos suficientes para el worker:
+la transcripción de video usa FFmpeg y descarga el modelo Whisper al procesar videos.
+
+Tras el primer despliegue, comprueba `https://api.example.com/health/ready`, abre la web y completa
+un registro/login con TOTP. Envía un texto de prueba y revisa que el worker lo lleve a `done`; un
+estado `failed` suele indicar una clave/modelo de Anthropic inválido o un error de acceso al
+servicio externo. No ejecutes `make seed` en producción.
+
 ## Desarrollo local del backend (sin Docker)
 
 ```bash

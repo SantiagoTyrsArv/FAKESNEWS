@@ -6,7 +6,7 @@ def test_settings_load_with_defaults(monkeypatch) -> None:
     settings = Settings(_env_file=None)
 
     assert settings.environment == "development"
-    assert settings.anthropic_model == "claude-sonnet-5-5"
+    assert settings.anthropic_model == "claude-sonnet-5"
     assert settings.access_token_expire_minutes == 15
     assert settings.mfa_pending_token_expire_minutes == 5
 

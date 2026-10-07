@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "uv run arq app.workers.arq_settings.WorkerSettings"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

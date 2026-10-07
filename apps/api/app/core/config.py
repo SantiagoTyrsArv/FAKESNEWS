@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,17 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://fakesnews:fakesnews@postgres:5432/fakesnews",
         alias="DATABASE_URL",
     )
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def use_asyncpg_driver(cls, value: str) -> str:
+        # Managed Postgres providers commonly expose a plain postgres:// or
+        # postgresql:// URL. This app uses SQLAlchemy's asyncpg driver.
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+asyncpg://", 1)
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
     redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
@@ -38,7 +49,7 @@ class Settings(BaseSettings):
     rate_limit_verify_per_minute: int = Field(default=10, alias="RATE_LIMIT_VERIFY_PER_MINUTE")
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field(default="claude-sonnet-5-5", alias="ANTHROPIC_MODEL")
+    anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
 
     whisper_model_size: str = Field(default="small", alias="WHISPER_MODEL_SIZE")
     max_video_duration_seconds: int = Field(default=600, alias="MAX_VIDEO_DURATION_SECONDS")
