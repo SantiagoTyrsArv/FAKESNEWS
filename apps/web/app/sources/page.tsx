@@ -5,6 +5,7 @@ import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
 import { ScoreMeter } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { apiFetch } from "@/lib/api";
+import { me } from "@/lib/auth";
 
 interface SourceSummary {
   domain: string;
@@ -16,13 +17,18 @@ interface SourceSummary {
   low_sample: boolean;
 }
 
-// Public page (the API's /sources is unauthenticated), so it uses the public
-// header variant: sign-in links instead of session navigation and logout.
+// Public page (the API's /sources is unauthenticated): visitors get the public
+// header with sign-in links, signed-in users keep their session navigation.
 export default function SourcesPage() {
   const [sources, setSources] = useState<SourceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
+    me()
+      .then(() => setSignedIn(true))
+      .catch(() => setSignedIn(false));
+
     apiFetch<{ sources: SourceSummary[] }>("/sources")
       .then((res) => setSources([...res.sources].sort((a, b) => b.score - a.score)))
       .catch(() =>
@@ -31,7 +37,7 @@ export default function SourcesPage() {
   }, []);
 
   return (
-    <AppShell variant="public">
+    <AppShell variant={signedIn === null ? "pending" : signedIn ? "app" : "public"}>
       <PageHeading
         title="Confiabilidad de las fuentes"
         description="El puntaje mide qué tan seguido la postura de cada fuente coincidió con el consenso de las demás fuentes independientes. Mide consistencia entre fuentes, no la verdad absoluta, y se ajusta con cada caso verificado."

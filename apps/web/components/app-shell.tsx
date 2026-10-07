@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SiteHeader } from "@/components/site-header";
+import { type HeaderVariant, SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 
 export function AppShell({
@@ -8,7 +8,7 @@ export function AppShell({
   width = "default",
 }: {
   children: ReactNode;
-  variant?: "app" | "public";
+  variant?: HeaderVariant;
   width?: "default" | "narrow";
 }) {
   return (

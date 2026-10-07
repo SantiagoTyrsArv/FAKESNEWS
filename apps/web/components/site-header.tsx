@@ -15,9 +15,13 @@ const LINKS = [
   { href: "/settings/security", label: "Seguridad" },
 ];
 
-// `variant="public"` is for pages anyone can open (like /sources): it offers
-// sign-in instead of the session navigation and logout.
-export function SiteHeader({ variant = "app" }: { variant?: "app" | "public" }) {
+export type HeaderVariant = "app" | "public" | "pending";
+
+// `variant="public"` is for visitors on pages anyone can open (like /sources):
+// it offers sign-in instead of the session navigation and logout. "pending"
+// shows only the wordmark while such a page is still checking the session,
+// so a signed-in user never sees a flash of the sign-in buttons.
+export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -67,7 +71,7 @@ export function SiteHeader({ variant = "app" }: { variant?: "app" | "public" }) 
               <span className="hidden sm:inline">Cerrar sesión</span>
             </Button>
           </>
-        ) : (
+        ) : variant === "public" ? (
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" size="sm" render={<Link href="/login" />}>
               Iniciar sesión
@@ -76,7 +80,7 @@ export function SiteHeader({ variant = "app" }: { variant?: "app" | "public" }) 
               Crear cuenta
             </Button>
           </div>
-        )}
+        ) : null}
       </div>
     </header>
   );
