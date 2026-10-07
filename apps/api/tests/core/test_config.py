@@ -78,6 +78,8 @@ def test_production_accepts_strong_secrets(monkeypatch) -> None:
         {"TOTP_SECRET_ENCRYPTION_KEY": "change-me-fernet-key-32-bytes-b64=="},
         {"TOTP_SECRET_ENCRYPTION_KEY": "not-a-fernet-key"},
         {"CORS_ORIGINS": '["*"]'},
+        {"API_PROXY_SECRET": "too-short"},
+        {"API_PROXY_SECRET": "change-me-to-a-long-random-string-for-the-proxy"},
     ],
 )
 def test_production_refuses_insecure_settings(monkeypatch, overrides) -> None:
@@ -92,3 +94,13 @@ def test_development_tolerates_dev_defaults(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
     assert Settings(_env_file=None).jwt_secret_key == "dev-insecure-change-me"
+
+
+def test_production_accepts_a_strong_proxy_secret(monkeypatch) -> None:
+    _production_env(monkeypatch, API_PROXY_SECRET="p" * 48)
+    assert Settings(_env_file=None).api_proxy_secret == "p" * 48
+
+
+def test_empty_proxy_secret_is_none(monkeypatch) -> None:
+    monkeypatch.setenv("API_PROXY_SECRET", "")
+    assert Settings(_env_file=None).api_proxy_secret is None

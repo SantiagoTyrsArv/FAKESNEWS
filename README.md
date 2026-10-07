@@ -252,10 +252,18 @@ Si la web está en `*.vercel.app` y la API en `*.up.railway.app`, no comparten d
 no llegarían. En ese caso la web hace de proxy de la API en `/api`, así las cookies quedan en el
 dominio de la web:
 
-- En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` y
-  `API_PROXY_TARGET=https://<api>.up.railway.app`. Ambas se leen al compilar.
+- En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` (se lee al compilar),
+  `API_PROXY_TARGET=https://<api>.up.railway.app` y `API_PROXY_SECRET=<secreto aleatorio>`.
 - En `api`: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío,
-  `CORS_ORIGINS=["https://<web>.vercel.app"]` y `TRUSTED_PROXY_HOPS=2` (Vercel + Railway).
+  `CORS_ORIGINS=["https://<web>.vercel.app"]`, `TRUSTED_PROXY_HOPS=1` y el mismo
+  `API_PROXY_SECRET`.
+
+El proxy de `/api` está en `apps/web/proxy.ts`: reenvía la petición y añade la IP del visitante
+(`X-Client-IP`, tomada de las cabeceras que fija el edge de Vercel) junto con `X-Proxy-Secret`. La
+API solo acepta esa IP si el secreto coincide; quien llame directamente a `*.up.railway.app` queda
+identificado por la IP que vio Railway, así que no puede elegir una IP falsa para saltarse el rate
+limiting. Este esquema confía en el edge de Vercel: si alojas la web en otro sitio, asegúrate de que
+su proxy sobrescriba `X-Real-IP`/`X-Forwarded-For` antes de usar `API_PROXY_SECRET`.
 
 Genera los secretos con los comandos documentados en [.env.example](.env.example); no reutilices
 claves entre desarrollo y producción. El procesamiento con Claude requiere una clave con acceso a

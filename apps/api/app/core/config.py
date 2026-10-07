@@ -54,11 +54,21 @@ class Settings(BaseSettings):
     # cookie is scoped to "<prefix>/auth", so it must match the browser's path.
     cookie_path_prefix: str = Field(default="", alias="COOKIE_PATH_PREFIX")
 
-    # Reverse proxies between the client and this app that append to
+    # Platform reverse proxies in front of this app that append to
     # X-Forwarded-For: 0 = use the socket peer (local/docker compose), 1 =
-    # Railway, 2 = web rewrite proxy (e.g. Vercel) + Railway. See
-    # app/core/client_ip.py for why this is counted rather than trusted.
+    # Railway. See app/core/client_ip.py for why this is counted rather than
+    # trusted.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=5, alias="TRUSTED_PROXY_HOPS")
+
+    # Shared with the web (same variable there) when it proxies the API on its
+    # own domain: the web sends it with the client IP it saw, and only requests
+    # carrying it may set the client IP. Empty = no web proxy.
+    api_proxy_secret: str | None = Field(default=None, alias="API_PROXY_SECRET")
+
+    @field_validator("api_proxy_secret", mode="before")
+    @classmethod
+    def empty_proxy_secret_is_none(cls, value: str | None) -> str | None:
+        return value or None
 
     jwt_secret_key: str = Field(default=_DEV_JWT_SECRET, alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
@@ -138,6 +148,14 @@ class Settings(BaseSettings):
         totp_key = self.totp_secret_encryption_key
         if totp_key == _DEV_TOTP_KEY or "change-me" in totp_key or not _is_fernet_key(totp_key):
             problems.append("TOTP_SECRET_ENCRYPTION_KEY must be a freshly generated Fernet key")
+
+        proxy_secret = self.api_proxy_secret
+        if proxy_secret is not None and (
+            "change-me" in proxy_secret or len(proxy_secret) < _MIN_SECRET_LENGTH
+        ):
+            problems.append(
+                f"API_PROXY_SECRET must be a random value of at least {_MIN_SECRET_LENGTH} characters"
+            )
 
         if "*" in self.cors_origins:
             problems.append("CORS_ORIGINS can't be '*' when cookies carry the session")
