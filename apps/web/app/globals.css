@@ -154,8 +154,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Reserve the scrollbar's space on every page, so the centered layout
+     doesn't jump sideways when content (like the sources table) loads
+     and the page becomes scrollable. */
   html {
     @apply font-sans;
+    scrollbar-gutter: stable;
   }
 }
 

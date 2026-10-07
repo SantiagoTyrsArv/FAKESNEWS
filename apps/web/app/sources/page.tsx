@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
 import { ScoreMeter } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch, readCsrfCookie } from "@/lib/api";
 import { me } from "@/lib/auth";
 
 interface SourceSummary {
@@ -17,18 +17,33 @@ interface SourceSummary {
   low_sample: boolean;
 }
 
+const subscribeNever = () => () => {};
+
 // Public page (the API's /sources is unauthenticated): visitors get the public
 // header with sign-in links, signed-in users keep their session navigation.
 export default function SourcesPage() {
   const [sources, setSources] = useState<SourceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  // The readable CSRF cookie lives as long as the session, so it picks the
+  // header right away instead of waiting on /auth/me. It's null only while
+  // hydrating server HTML, where cookies can't be read.
+  const hasSessionCookie = useSyncExternalStore(
+    subscribeNever,
+    () => readCsrfCookie() !== null,
+    () => null,
+  );
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
-    me()
-      .then(() => setSignedIn(true))
-      .catch(() => setSignedIn(false));
+    // The cookie can outlive a revoked session; confirm it in the background.
+    if (hasSessionCookie) {
+      me().catch((err) => {
+        if (err instanceof ApiError && err.status === 401) setSessionExpired(true);
+      });
+    }
+  }, [hasSessionCookie]);
 
+  useEffect(() => {
     apiFetch<{ sources: SourceSummary[] }>("/sources")
       .then((res) => setSources([...res.sources].sort((a, b) => b.score - a.score)))
       .catch(() =>
@@ -37,7 +52,15 @@ export default function SourcesPage() {
   }, []);
 
   return (
-    <AppShell variant={signedIn === null ? "pending" : signedIn ? "app" : "public"}>
+    <AppShell
+      variant={
+        hasSessionCookie === null
+          ? "pending"
+          : hasSessionCookie && !sessionExpired
+            ? "app"
+            : "public"
+      }
+    >
       <PageHeading
         title="Confiabilidad de las fuentes"
         description="El puntaje mide qué tan seguido la postura de cada fuente coincidió con el consenso de las demás fuentes independientes. Mide consistencia entre fuentes, no la verdad absoluta, y se ajusta con cada caso verificado."
