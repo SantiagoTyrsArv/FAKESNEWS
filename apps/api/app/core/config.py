@@ -25,9 +25,19 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             return value.replace("postgresql://", "postgresql+asyncpg://", 1)
         return value
+
     redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # Parent domain for session cookies (e.g. ".example.com") when web and API
+    # live on different subdomains: the web needs to read csrf_token and the
+    # proxy needs to see the session cookies. Empty = host-only cookies.
+    cookie_domain: str | None = Field(default=None, alias="COOKIE_DOMAIN")
+
+    @field_validator("cookie_domain", mode="before")
+    @classmethod
+    def empty_cookie_domain_is_none(cls, value: str | None) -> str | None:
+        return value or None
 
     jwt_secret_key: str = Field(default="dev-insecure-change-me", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")

@@ -3,6 +3,6 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "uv run arq app.workers.arq_settings.WorkerSettings"
+startCommand = "uv run --frozen arq app.workers.arq_settings.WorkerSettings"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10

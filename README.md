@@ -209,7 +209,9 @@ las bases de datos gestionadas de Railway.
 4. Crea `web` desde el repositorio con directorio raíz `apps/web` y su Dockerfile.
 5. Añade un dominio personalizado a `web` (por ejemplo, `app.example.com`) y otro a `api`
    (`api.example.com`). Deben compartir el mismo dominio raíz para que el navegador envíe las
-   cookies de sesión `SameSite=Lax` en las llamadas de la web a la API.
+   cookies de sesión `SameSite=Lax` en las llamadas de la web a la API. Los dominios
+   `*.up.railway.app` no sirven para esto: `up.railway.app` es un sufijo público y el navegador
+   no comparte cookies entre sus subdominios.
 
 Configura estas variables en `api` y `worker` (puedes compartir las variables comunes del proyecto):
 
@@ -222,7 +224,16 @@ TOTP_SECRET_ENCRYPTION_KEY=<clave Fernet generada para este entorno>
 ANTHROPIC_API_KEY=<clave de Anthropic>
 ANTHROPIC_MODEL=claude-sonnet-5
 CORS_ORIGINS=["https://app.example.com"]
+COOKIE_DOMAIN=.example.com
 ```
+
+`COOKIE_DOMAIN` es obligatorio cuando web y API están en subdominios distintos: sin él, las cookies
+quedan atadas a `api.example.com`, la web no puede leer `csrf_token` (todo `POST` falla con `403`) y
+`proxy.ts` no ve la sesión, así que cada página protegida redirige a `/login`.
+
+La API arranca con el `CMD` del Dockerfile, que escucha en el `$PORT` que inyecta Railway y confía en
+las cabeceras `X-Forwarded-*` del proxy para que el rate limiting y el bloqueo por intentos usen la
+IP real del cliente.
 
 En `web`, configura `NEXT_PUBLIC_API_URL=https://api.example.com`. Es una variable de build y debe
 estar definida antes de desplegar la web. La API normaliza las URLs PostgreSQL `postgres://` y

@@ -52,6 +52,7 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         httponly=True,
         secure=secure,
         samesite="lax",
+        domain=settings.cookie_domain,
         path="/",
     )
     response.set_cookie(
@@ -61,6 +62,7 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         httponly=True,
         secure=secure,
         samesite="lax",
+        domain=settings.cookie_domain,
         path="/auth",
     )
     response.set_cookie(
@@ -70,14 +72,16 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         httponly=False,
         secure=secure,
         samesite="lax",
+        domain=settings.cookie_domain,
         path="/",
     )
 
 
 def _clear_session_cookies(response: Response) -> None:
-    response.delete_cookie(ACCESS_COOKIE, path="/")
-    response.delete_cookie(REFRESH_COOKIE, path="/auth")
-    response.delete_cookie(CSRF_COOKIE, path="/")
+    domain = get_settings().cookie_domain
+    response.delete_cookie(ACCESS_COOKIE, path="/", domain=domain)
+    response.delete_cookie(REFRESH_COOKIE, path="/auth", domain=domain)
+    response.delete_cookie(CSRF_COOKIE, path="/", domain=domain)
 
 
 def _client_ip(request: Request) -> str:
