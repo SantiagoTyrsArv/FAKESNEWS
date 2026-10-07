@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     def empty_cookie_domain_is_none(cls, value: str | None) -> str | None:
         return value or None
 
+    # Path prefix under which the browser reaches the API (e.g. "/api" when the
+    # web proxies the API through a rewrite on its own domain). The refresh
+    # cookie is scoped to "<prefix>/auth", so it must match the browser's path.
+    cookie_path_prefix: str = Field(default="", alias="COOKIE_PATH_PREFIX")
+
     jwt_secret_key: str = Field(default="dev-insecure-change-me", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")

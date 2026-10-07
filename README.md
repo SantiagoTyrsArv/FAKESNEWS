@@ -239,6 +239,17 @@ En `web`, configura `NEXT_PUBLIC_API_URL=https://api.example.com`. Es una variab
 estar definida antes de desplegar la web. La API normaliza las URLs PostgreSQL `postgres://` y
 `postgresql://` del proveedor al driver `asyncpg` requerido por la aplicación.
 
+### Web en Vercel sin dominio propio
+
+Si la web está en `*.vercel.app` y la API en `*.up.railway.app`, no comparten dominio y las cookies
+no llegarían. En ese caso la web hace de proxy de la API en `/api`, así las cookies quedan en el
+dominio de la web:
+
+- En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` y
+  `API_PROXY_TARGET=https://<api>.up.railway.app`. Ambas se leen al compilar.
+- En `api`: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío y
+  `CORS_ORIGINS=["https://<web>.vercel.app"]`.
+
 Genera los secretos con los comandos documentados en [.env.example](.env.example); no reutilices
 claves entre desarrollo y producción. El procesamiento con Claude requiere una clave con acceso a
 `messages.parse` y a la herramienta de búsqueda web. Configura recursos suficientes para el worker:
