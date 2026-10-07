@@ -1,11 +1,13 @@
 import uuid
 from typing import Annotated
 
+import redis.asyncio as redis_asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.deps import get_current_user, require_csrf
+from app.core.rate_limit import get_redis_dependency
 from app.modules.auth.models import User
 from app.modules.submissions import service
 from app.modules.submissions.schemas import (
@@ -32,12 +34,29 @@ def _to_response(submission) -> SubmissionResponse:
 async def create_submission(
     body: CreateSubmissionRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
+    redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
     user: Annotated[User, Depends(get_current_user)],
     _csrf: Annotated[None, Depends(require_csrf)],
 ):
-    submission = await service.create_submission(
-        db, user_id=user.id, input_type=body.input_type, raw_input=body.raw_input
-    )
+    try:
+        submission = await service.create_submission(
+            db,
+            redis_client,
+            user_id=user.id,
+            input_type=body.input_type,
+            raw_input=body.raw_input,
+        )
+    except service.InputTypeDisabledError as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "El análisis de video no está disponible por ahora. Envía el texto o un enlace.",
+        ) from exc
+    except service.SubmissionQuotaError as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            exc.message,
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
     return _to_response(submission)
 
 

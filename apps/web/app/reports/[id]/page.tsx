@@ -31,6 +31,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL_MS = 2000;
+// A bit over the worker's job timeout (PIPELINE_JOB_TIMEOUT_SECONDS, 15 min):
+// past it the case should already be done or failed, so stop polling instead
+// of spinning forever. Measured from created_at, so a reload doesn't reset it.
+const STALE_AFTER_MS = 16 * 60 * 1000;
 
 const PIPELINE_STEPS: SubmissionStatus[] = [
   "queued",
@@ -53,6 +57,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +75,10 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
           return;
         }
         if (!TERMINAL_STATUSES.includes(current.status)) {
+          if (Date.now() - new Date(current.created_at).getTime() > STALE_AFTER_MS) {
+            setStale(true);
+            return;
+          }
           timer = setTimeout(poll, POLL_INTERVAL_MS);
         }
       } catch (err) {
@@ -110,8 +119,21 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
 
       {!submission && !error && <LoadingLine />}
 
-      {submission && !report && submission.status !== "failed" && (
+      {submission && !report && submission.status !== "failed" && !stale && (
         <PipelineProgress submission={submission} />
+      )}
+
+      {stale && submission?.status !== "failed" && !report && (
+        <section className="flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
+          <h1 className="text-2xl font-bold tracking-tight">Este análisis está tardando demasiado</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Lleva más tiempo del esperado sin terminar. Recarga la página en unos minutos o envía el
+            caso de nuevo.
+          </p>
+          <Button className="h-10 px-4" render={<Link href="/submit" />}>
+            Enviar otro caso
+          </Button>
+        </section>
       )}
 
       {submission?.status === "failed" && (

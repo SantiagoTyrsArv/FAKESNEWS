@@ -3,6 +3,8 @@
 Run inside the API container:  make seed
 (= docker compose exec api uv run python -m app.cli.seed_demo)
 
+In production, only on purpose:  uv run python -m app.cli.seed_demo --production
+
 Why pre-processed cases: the real pipeline needs ANTHROPIC_API_KEY. With
 these rows the report, history and source pages can be demoed without it.
 
@@ -17,10 +19,14 @@ Design decisions:
 - Every demo input is prefixed with DEMO_MARKER and every snippet is marked
   as illustrative, so seeded evidence can't be mistaken for real citations.
   Evidence URLs point at the sources' public sites, not at invented articles.
-- Refuses to run with ENVIRONMENT=production: the credentials are printed.
+- Refuses to run with ENVIRONMENT=production unless --production is passed.
+  Then the password is random and rotated on every run (the fixed
+  DEMO_PASSWORD lives in this public repo), and is printed only once.
 """
 
+import argparse
 import asyncio
+import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -217,14 +223,16 @@ DEMO_CASES = [
 ]
 
 
-async def _ensure_demo_user(db: AsyncSession) -> tuple[User, str, bool]:
+async def _ensure_demo_user(db: AsyncSession, password: str) -> tuple[User, str, bool]:
     result = await db.execute(select(User).where(User.email == DEMO_EMAIL))
     user = result.scalar_one_or_none()
     created = user is None
 
     if user is None:
-        user = User(email=DEMO_EMAIL, password_hash=hash_password(DEMO_PASSWORD))
+        user = User(email=DEMO_EMAIL, password_hash=hash_password(password))
         db.add(user)
+    else:
+        user.password_hash = hash_password(password)
 
     if user.totp_secret_encrypted:
         secret = decrypt_secret(user.totp_secret_encrypted)
@@ -305,19 +313,23 @@ async def _insert_demo_cases(db: AsyncSession, user: User) -> list[uuid.UUID]:
     return case_ids
 
 
-async def seed(db: AsyncSession) -> SeedResult:
-    if get_settings().environment == "production":
-        raise ProductionSeedError("make seed no se ejecuta con ENVIRONMENT=production.")
+async def seed(db: AsyncSession, *, allow_production: bool = False) -> SeedResult:
+    production = get_settings().environment == "production"
+    if production and not allow_production:
+        raise ProductionSeedError(
+            "make seed no se ejecuta con ENVIRONMENT=production (usa --production a propósito)."
+        )
+    password = secrets.token_urlsafe(18) if production else DEMO_PASSWORD
 
     sources_added = await load_trusted_sources(db)
-    user, secret, user_created = await _ensure_demo_user(db)
+    user, secret, user_created = await _ensure_demo_user(db, password)
     recovery_codes = await _reset_recovery_codes(db, user)
     case_ids = await _insert_demo_cases(db, user)
     await db.commit()
 
     return SeedResult(
         email=DEMO_EMAIL,
-        password=DEMO_PASSWORD,
+        password=password,
         totp_secret=secret,
         otpauth_uri=totp_module.build_provisioning_uri(secret, DEMO_EMAIL),
         recovery_codes=recovery_codes,
@@ -342,20 +354,26 @@ def _print_result(result: SeedResult) -> None:
         print(f"  {code}")
     print(f"Casos demo creados: {result.cases_created} (0 = ya existían)")
     print(f"Fuentes nuevas cargadas: {result.sources_added}")
-    print("Inicia sesión en http://localhost:3000/login y agrega el secreto TOTP a tu app")
-    print("de autenticación (o usa un código de recuperación).")
+    print("Inicia sesión en /login y agrega el secreto TOTP a tu app de autenticación")
+    print("(o usa un código de recuperación). Guarda estos datos: no se vuelven a mostrar.")
 
 
-async def _main() -> None:
+async def _main(allow_production: bool) -> None:
     from app.core.db import async_session_factory, engine
 
     try:
         async with async_session_factory() as db:
-            result = await seed(db)
+            result = await seed(db, allow_production=allow_production)
     finally:
         await engine.dispose()
     _print_result(result)
 
 
 if __name__ == "__main__":
-    asyncio.run(_main())
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="permite ejecutarlo con ENVIRONMENT=production (contraseña aleatoria)",
+    )
+    asyncio.run(_main(parser.parse_args().production))

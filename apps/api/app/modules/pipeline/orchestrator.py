@@ -17,6 +17,15 @@ from app.modules.submissions.models import Submission
 settings = get_settings()
 logger = get_logger(__name__)
 
+# What the user sees when a case fails for a reason that isn't theirs to fix.
+# The exception itself goes to the logs only: its text can carry provider
+# errors, internal hostnames or other details that don't belong in a report.
+GENERIC_FAILURE = (
+    "No se pudo completar el análisis de este caso. Intenta enviarlo de nuevo más tarde."
+)
+TIMEOUT_FAILURE = "El análisis superó el tiempo máximo permitido y se detuvo."
+INTERRUPTED_FAILURE = "El análisis se interrumpió antes de terminar. Envía el caso de nuevo."
+
 
 async def _set_status(
     db: Any, submission: Submission, new_status: str, *, error: str | None = None
@@ -46,7 +55,7 @@ async def _verify_one(
             logger.warning("verify_claim_unexpected_error", error=str(exc))
             return verify_module.VerifyResult(
                 verdict="INSUFFICIENT",
-                rationale=f"No se pudo verificar esta afirmación: {exc}",
+                rationale="No se pudo verificar esta afirmación por un error interno.",
                 evidence=[],
             )
 
@@ -62,11 +71,47 @@ async def _ingest(submission: Submission, db: Any) -> str:
     return await ingest_module.ingest_video(submission.raw_input, transcriber)
 
 
+async def _mark_failed(submission_id: str, error: str) -> None:
+    """Record the failure from a fresh session: the job's own session may be
+    mid-transaction (or unusable) when this runs."""
+    async with async_session_factory() as db:
+        submission = await db.get(Submission, uuid.UUID(submission_id))
+        if submission is not None and submission.status not in ("done", "failed"):
+            submission.status = "failed"
+            submission.error = error
+            await db.commit()
+
+
 async def run_pipeline(_ctx: dict, submission_id: str) -> None:
+    try:
+        await _run_pipeline(submission_id)
+    except asyncio.CancelledError:
+        # arq enforces job_timeout by cancelling the task. CancelledError is
+        # not an Exception, so without this the case would sit in its last
+        # intermediate status forever.
+        logger.error("run_pipeline_cancelled", submission_id=submission_id)
+        await asyncio.shield(_mark_failed(submission_id, TIMEOUT_FAILURE))
+        raise
+
+
+async def _run_pipeline(submission_id: str) -> None:
     async with async_session_factory() as db:
         submission = await db.get(Submission, uuid.UUID(submission_id))
         if submission is None:
             logger.error("run_pipeline_submission_not_found", submission_id=submission_id)
+            return
+
+        if submission.status != "queued":
+            # A previous attempt started this case and never finished (the
+            # worker died and arq retried the job). Running it again would
+            # duplicate its claims and score the same sources twice.
+            logger.error(
+                "run_pipeline_interrupted_case",
+                submission_id=submission_id,
+                status=submission.status,
+            )
+            if submission.status not in ("done", "failed"):
+                await _set_status(db, submission, "failed", error=INTERRUPTED_FAILURE)
             return
 
         try:
@@ -127,7 +172,10 @@ async def run_pipeline(_ctx: dict, submission_id: str) -> None:
             await _set_status(db, submission, "done")
         except Exception as exc:  # noqa: BLE001 - top-level guard: mark the case failed, don't crash the worker
             logger.error("run_pipeline_failed", submission_id=submission_id, error=str(exc))
+            # IngestError messages are written for the user (empty text, video
+            # too long, URL not allowed); anything else stays in the logs.
+            user_error = str(exc) if isinstance(exc, ingest_module.IngestError) else GENERIC_FAILURE
             await db.rollback()
             failed_submission = await db.get(Submission, uuid.UUID(submission_id))
             if failed_submission is not None:
-                await _set_status(db, failed_submission, "failed", error=str(exc))
+                await _set_status(db, failed_submission, "failed", error=user_error)

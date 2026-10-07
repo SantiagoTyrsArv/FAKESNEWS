@@ -232,3 +232,105 @@ async def test_run_pipeline_scores_source_reputation_end_to_end(
             reuters_id: "hit",
             apnews_id: "hit",
         }
+
+
+async def test_run_pipeline_marks_failed_when_cancelled(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """arq enforces job_timeout by cancelling the task; the case must not be
+    left in an intermediate status forever."""
+    import asyncio
+
+    submission_id = await _create_user_and_submission(
+        db_session_factory, email="cancel@example.com"
+    )
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def hanging_ingest(_raw_text: str) -> str:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(ingest_module, "ingest_text", hanging_ingest)
+
+    with pytest.raises(asyncio.CancelledError):
+        await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        submission = await check_db.get(Submission, uuid.UUID(submission_id))
+        assert submission.status == "failed"
+        assert "tiempo" in submission.error
+
+
+async def test_run_pipeline_does_not_reprocess_an_interrupted_case(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the worker died mid-job, arq retries it. Re-running would duplicate
+    claims and score sources twice, so the retry fails the case instead."""
+    submission_id = await _create_user_and_submission(db_session_factory, email="retry@example.com")
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+    async with db_session_factory() as db:
+        submission = await db.get(Submission, uuid.UUID(submission_id))
+        submission.status = "verifying"
+        await db.commit()
+
+    async def must_not_run(*_args, **_kwargs):
+        raise AssertionError("an interrupted case must not be reprocessed")
+
+    monkeypatch.setattr(ingest_module, "ingest_text", must_not_run)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        submission = await check_db.get(Submission, uuid.UUID(submission_id))
+        assert submission.status == "failed"
+        assert "interrump" in submission.error
+
+
+async def test_run_pipeline_hides_internal_error_details(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission_id = await _create_user_and_submission(db_session_factory, email="leak@example.com")
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def fake_ingest_text(_raw_text: str) -> str:
+        return "texto"
+
+    async def exploding_extract(_text: str, **_kwargs) -> list[str]:
+        raise RuntimeError("anthropic.APIStatusError 400 credit balance is too low sk-ant-xyz")
+
+    monkeypatch.setattr(ingest_module, "ingest_text", fake_ingest_text)
+    monkeypatch.setattr(claims_module, "extract_claims", exploding_extract)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        submission = await check_db.get(Submission, uuid.UUID(submission_id))
+        assert submission.status == "failed"
+        assert "anthropic" not in submission.error.lower()
+        assert "sk-ant" not in submission.error
+
+
+async def test_failed_verify_rationale_hides_exception_text(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission_id = await _create_user_and_submission(db_session_factory, email="rat@example.com")
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def fake_ingest_text(_raw_text: str) -> str:
+        return "texto"
+
+    async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:
+        return ["Una afirmación."]
+
+    async def failing_verify(_claim_text: str, *, allowed_domains: list[str], **_kwargs):
+        raise RuntimeError("internal hostname db.railway.internal refused")
+
+    monkeypatch.setattr(ingest_module, "ingest_text", fake_ingest_text)
+    monkeypatch.setattr(claims_module, "extract_claims", fake_extract_claims)
+    monkeypatch.setattr(verify_module, "verify_claim", failing_verify)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        claim = (await check_db.execute(select(Claim))).scalars().one()
+        assert claim.verdict == "INSUFFICIENT"
+        assert "railway.internal" not in claim.rationale

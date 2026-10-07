@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Link as LinkIcon, Plus, Video } from "lucide-react";
+import { MfaNudge } from "@/components/mfa-nudge";
 import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,8 @@ export default function HistoryPage() {
 
   return (
     <AppShell>
+      <MfaNudge />
+
       <PageHeading
         title="Mis casos"
         description="Todo lo que enviaste a verificar, del más reciente al más antiguo."

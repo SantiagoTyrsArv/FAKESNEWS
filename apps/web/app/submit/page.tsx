@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Link as LinkIcon, Video, type LucideIcon } from "lucide-react";
+import { MfaNudge } from "@/components/mfa-nudge";
 import { AppShell, PageHeading } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,11 @@ import { cn } from "@/lib/utils";
 
 const MAX_LENGTH = 10000;
 
-const INPUT_TYPES: { value: InputType; label: string; hint: string; icon: LucideIcon }[] = [
+// Mirrors VIDEO_INGEST_ENABLED on the API, which rejects video when it's off;
+// this only keeps the option out of sight.
+const VIDEO_ENABLED = process.env.NEXT_PUBLIC_VIDEO_INGEST_ENABLED !== "false";
+
+const ALL_INPUT_TYPES: { value: InputType; label: string; hint: string; icon: LucideIcon }[] = [
   {
     value: "text",
     label: "Texto",
@@ -35,6 +40,8 @@ const INPUT_TYPES: { value: InputType; label: string; hint: string; icon: Lucide
     icon: Video,
   },
 ];
+
+const INPUT_TYPES = ALL_INPUT_TYPES.filter((t) => VIDEO_ENABLED || t.value !== "video");
 
 export default function SubmitPage() {
   const router = useRouter();
@@ -64,6 +71,8 @@ export default function SubmitPage() {
 
   return (
     <AppShell width="narrow">
+      <MfaNudge />
+
       <PageHeading
         title="¿Qué quieres verificar?"
         description="Separamos el contenido en afirmaciones comprobables y buscamos cada una en fuentes de confianza. El resultado es un reporte con citas."
@@ -78,7 +87,7 @@ export default function SubmitPage() {
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-3 text-sm font-medium">Tipo de contenido</legend>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className={cn("grid gap-2", VIDEO_ENABLED ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
             {INPUT_TYPES.map(({ value, label, icon: Icon }) => (
               <label
                 key={value}

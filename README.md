@@ -1,7 +1,7 @@
 # FakesNews
 
 Plataforma de verificación asistida por IA de noticias sospechosas, con perfil histórico de
-confiabilidad de fuentes y autenticación de dos pasos (TOTP).
+confiabilidad de fuentes y autenticación de dos pasos (TOTP) opcional.
 
 **Principio de producto:** la plataforma nunca declara una noticia "verdadera" o "falsa". Entrega
 un reporte de credibilidad trazable: afirmaciones verificadas, fuentes concretas que las
@@ -165,7 +165,10 @@ Documentación interactiva completa en http://localhost:8000/docs.
 
 ### Cómo probar el 2FA manualmente
 
-La verificación en dos pasos es opcional: una cuenta sin 2FA entra solo con la contraseña.
+La verificación en dos pasos es opcional: una cuenta sin 2FA entra solo con la contraseña, y la
+interfaz le recuerda activarla (aviso en `/history` y `/submit`). La garantía es: **una cuenta con
+2FA activada no puede abrir sesión solo con la contraseña** (el token `mfa_pending` no da acceso a
+ninguna ruta protegida).
 
 1. `POST /auth/register` con `email`/`password`.
 2. `POST /auth/login` → `{"status": "authenticated", ...}` y `Set-Cookie` con `access_token`,
@@ -273,7 +276,12 @@ la transcripción de video usa FFmpeg y descarga el modelo Whisper al procesar v
 Tras el primer despliegue, comprueba `https://api.example.com/health/ready`, abre la web y completa
 un registro/login con TOTP. Envía un texto de prueba y revisa que el worker lo lleve a `done`; un
 estado `failed` suele indicar una clave/modelo de Anthropic inválido o un error de acceso al
-servicio externo. No ejecutes `make seed` en producción.
+servicio externo.
+
+Para la demo en producción, siembra el usuario demo a propósito con
+`railway ssh -s <api> -- uv run python -m app.cli.seed_demo --production`: genera una contraseña
+aleatoria (distinta en cada ejecución; la fija del repo nunca se usa en producción) y la imprime una
+sola vez junto al secreto TOTP. `make seed` sin `--production` se niega a correr ahí.
 
 ## Desarrollo local del backend (sin Docker)
 
@@ -338,5 +346,10 @@ Lista consolidada, agrupada por la fase en que se introdujo cada componente.
   casos son componentes cliente que consultan la API desde el navegador (sin render en servidor).
   No hay exportación del reporte (PDF/Markdown).
 - Fase 6: los casos del seed usan evidencia ilustrativa (marcada como tal) con URLs a la portada
-  de cada fuente, no a artículos concretos. La contraseña del usuario demo es fija y se imprime en
-  consola: el seed se niega a correr en producción, pero no debe usarse en un entorno expuesto.
+  de cada fuente, no a artículos concretos. En desarrollo la contraseña del usuario demo es fija;
+  con `--production` es aleatoria y rota en cada ejecución.
+- Costos: cada usuario tiene una cuota de casos (`RATE_LIMIT_SUBMISSIONS_PER_MINUTE`,
+  `MAX_SUBMISSIONS_PER_DAY`, `MAX_ACTIVE_SUBMISSIONS_PER_USER`). No sustituye un límite de gasto en
+  la consola de Anthropic, que sigue siendo necesario.
+- Video: se puede apagar con `VIDEO_INGEST_ENABLED=false` (y `NEXT_PUBLIC_VIDEO_INGEST_ENABLED=false`
+  en la web) mientras no se haya probado con los recursos reales del worker.

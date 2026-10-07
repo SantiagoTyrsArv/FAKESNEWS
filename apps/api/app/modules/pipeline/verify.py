@@ -78,6 +78,17 @@ class _RawVerifyResult(BaseModel):
     evidence: list[_RawEvidenceItem] = Field(default_factory=list)
 
 
+# A directional verdict must rest on at least one validated citation that
+# takes that same stance; otherwise the model's verdict isn't backed by what
+# it actually cited.
+_REQUIRED_STANCE = {"SUPPORTED": "supports", "CONTRADICTED": "contradicts"}
+
+UNBACKED_VERDICT_NOTE = (
+    "Las citas válidas encontradas no sostienen directamente el veredicto propuesto, "
+    "así que se marca como evidencia insuficiente."
+)
+
+
 def _insufficient(reason: str) -> VerifyResult:
     return VerifyResult(verdict="INSUFFICIENT", rationale=reason, evidence=[])
 
@@ -189,8 +200,19 @@ async def verify_claim(
                 raw.rationale or "No se encontró evidencia válida en fuentes de confianza."
             )
 
+        required_stance = _REQUIRED_STANCE.get(raw.verdict)
+        if required_stance and not any(e.stance == required_stance for e in validated_evidence):
+            logger.info("verify_claim_unbacked_verdict", proposed=raw.verdict)
+            return VerifyResult(
+                verdict="INSUFFICIENT",
+                rationale=f"{UNBACKED_VERDICT_NOTE} {raw.rationale}".strip(),
+                evidence=validated_evidence,
+            )
+
         return VerifyResult(
             verdict=raw.verdict, rationale=raw.rationale, evidence=validated_evidence
         )
 
-    return _insufficient(f"No se pudo completar la verificación: {last_error}")
+    # The provider's error text stays in the logs (logged per attempt above).
+    logger.warning("verify_claim_gave_up", max_attempts=max_attempts, error=last_error)
+    return _insufficient("No se pudo completar la verificación de esta afirmación.")

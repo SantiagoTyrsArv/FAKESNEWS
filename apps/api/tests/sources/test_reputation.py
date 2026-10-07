@@ -169,7 +169,9 @@ async def test_insufficient_verdict_is_skipped(db_session: AsyncSession) -> None
     assert await _events_for_claim(db_session, claim_id) == []
 
 
-async def test_neutral_evidence_does_not_count_toward_independence(db_session: AsyncSession) -> None:
+async def test_neutral_evidence_does_not_count_toward_independence(
+    db_session: AsyncSession,
+) -> None:
     a = await _make_source(db_session, alpha=5, beta=5)
     b = await _make_source(db_session, alpha=5, beta=5)
     claim_id = uuid.uuid4()

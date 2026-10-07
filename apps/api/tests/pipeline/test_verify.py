@@ -184,3 +184,72 @@ async def test_verify_claim_api_error_returns_insufficient(monkeypatch: pytest.M
     )
 
     assert result.verdict == "INSUFFICIENT"
+
+
+def _verdict_with_evidence(verdict: str, stances: list[str]) -> list:
+    urls = [f"https://reuters.com/a{i}" for i in range(len(stances))]
+    return [
+        _search_tool_result_block([_web_search_result(u) for u in urls]),
+        _text_block(
+            json.dumps(
+                {
+                    "verdict": verdict,
+                    "rationale": "explicación del modelo",
+                    "evidence": [
+                        {"url": u, "snippet": "cita", "published_at": None, "stance": s}
+                        for u, s in zip(urls, stances, strict=True)
+                    ],
+                }
+            )
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("verdict", "stances"),
+    [
+        ("SUPPORTED", ["neutral"]),
+        ("SUPPORTED", ["contradicts"]),
+        ("CONTRADICTED", ["neutral", "neutral"]),
+        ("CONTRADICTED", ["supports"]),
+    ],
+)
+async def test_directional_verdict_needs_matching_evidence(
+    monkeypatch: pytest.MonkeyPatch, verdict: str, stances: list[str]
+) -> None:
+    content = _verdict_with_evidence(verdict, stances)
+    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    # The real, validated citations are still shown, just not as proof.
+    assert len(result.evidence) == len(stances)
+
+
+@pytest.mark.parametrize(
+    ("verdict", "stances"),
+    [("SUPPORTED", ["supports", "neutral"]), ("CONTRADICTED", ["contradicts", "supports"])],
+)
+async def test_directional_verdict_kept_with_matching_evidence(
+    monkeypatch: pytest.MonkeyPatch, verdict: str, stances: list[str]
+) -> None:
+    content = _verdict_with_evidence(verdict, stances)
+    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert result.verdict == verdict
+
+
+async def test_api_error_rationale_hides_provider_details(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = _FakeClient([RuntimeError("Error code: 400 credit balance too low")] * 2)
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    assert "credit" not in result.rationale
+    assert "400" not in result.rationale

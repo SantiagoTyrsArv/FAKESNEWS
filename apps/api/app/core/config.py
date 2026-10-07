@@ -89,9 +89,21 @@ class Settings(BaseSettings):
     rate_limit_login_per_minute: int = Field(default=10, alias="RATE_LIMIT_LOGIN_PER_MINUTE")
     rate_limit_verify_per_minute: int = Field(default=10, alias="RATE_LIMIT_VERIFY_PER_MINUTE")
 
+    # Every submission costs LLM calls and web searches, and anyone can
+    # register, so each account gets a budget: a burst limit, a daily cap and
+    # a cap on cases still being processed.
+    rate_limit_submissions_per_minute: int = Field(
+        default=5, alias="RATE_LIMIT_SUBMISSIONS_PER_MINUTE"
+    )
+    max_submissions_per_day: int = Field(default=20, alias="MAX_SUBMISSIONS_PER_DAY")
+    max_active_submissions_per_user: int = Field(default=2, alias="MAX_ACTIVE_SUBMISSIONS_PER_USER")
+
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
 
+    # Video ingest downloads media and runs Whisper on the worker's CPU; turn it
+    # off where the worker lacks the memory or time for it.
+    video_ingest_enabled: bool = Field(default=True, alias="VIDEO_INGEST_ENABLED")
     whisper_model_size: str = Field(default="small", alias="WHISPER_MODEL_SIZE")
     max_video_duration_seconds: int = Field(default=600, alias="MAX_VIDEO_DURATION_SECONDS")
     max_text_input_chars: int = Field(default=20000, alias="MAX_TEXT_INPUT_CHARS")
@@ -115,6 +127,9 @@ class Settings(BaseSettings):
     max_claims_per_submission: int = Field(default=8, alias="MAX_CLAIMS_PER_SUBMISSION")
     verify_concurrency_limit: int = Field(default=4, alias="VERIFY_CONCURRENCY_LIMIT")
     verify_timeout_seconds: int = Field(default=30, alias="VERIFY_TIMEOUT_SECONDS")
+    # Hard ceiling for one whole case in the worker. Past it arq cancels the
+    # job and the orchestrator marks the case failed.
+    pipeline_job_timeout_seconds: int = Field(default=900, alias="PIPELINE_JOB_TIMEOUT_SECONDS")
 
     trusted_sources_path: str = Field(
         default="app/data/trusted_sources.json", alias="TRUSTED_SOURCES_PATH"

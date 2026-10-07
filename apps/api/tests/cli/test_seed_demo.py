@@ -97,3 +97,40 @@ async def test_seeded_user_can_log_in_and_read_a_report(
     assert first_claim["verdict"] == "SUPPORTED"
     assert len(first_claim["evidence"]) == 3
     assert all(seed_demo.ILLUSTRATIVE in e["snippet"] for e in first_claim["evidence"])
+
+
+def _production(monkeypatch) -> None:
+    monkeypatch.setattr(
+        seed_demo, "get_settings", lambda: SimpleNamespace(environment="production")
+    )
+
+
+async def test_production_seed_uses_a_random_password(
+    app_client: AsyncClient, db_session: AsyncSession, monkeypatch
+) -> None:
+    _production(monkeypatch)
+
+    result = await seed_demo.seed(db_session, allow_production=True)
+
+    assert result.password != seed_demo.DEMO_PASSWORD
+    assert len(result.password) >= 20
+    ok = await app_client.post(
+        "/auth/login", json={"email": result.email, "password": result.password}
+    )
+    assert ok.json()["token_type"] == "mfa_pending"
+    public = await app_client.post(
+        "/auth/login", json={"email": result.email, "password": seed_demo.DEMO_PASSWORD}
+    )
+    assert public.status_code == 401
+
+
+async def test_production_seed_rotates_the_password_on_each_run(
+    db_session: AsyncSession, monkeypatch
+) -> None:
+    _production(monkeypatch)
+
+    first = await seed_demo.seed(db_session, allow_production=True)
+    second = await seed_demo.seed(db_session, allow_production=True)
+
+    assert first.password != second.password
+    assert second.cases_created == 0
