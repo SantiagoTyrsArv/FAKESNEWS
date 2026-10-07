@@ -63,7 +63,7 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         secure=secure,
         samesite="lax",
         domain=settings.cookie_domain,
-        path="/auth",
+        path=f"{settings.cookie_path_prefix}/auth",
     )
     response.set_cookie(
         CSRF_COOKIE,
@@ -78,9 +78,12 @@ def _set_session_cookies(response: Response, session: dict) -> None:
 
 
 def _clear_session_cookies(response: Response) -> None:
-    domain = get_settings().cookie_domain
+    settings = get_settings()
+    domain = settings.cookie_domain
     response.delete_cookie(ACCESS_COOKIE, path="/", domain=domain)
-    response.delete_cookie(REFRESH_COOKIE, path="/auth", domain=domain)
+    response.delete_cookie(
+        REFRESH_COOKIE, path=f"{settings.cookie_path_prefix}/auth", domain=domain
+    )
     response.delete_cookie(CSRF_COOKIE, path="/", domain=domain)
 
 
