@@ -25,4 +25,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 
 EXPOSE 3000
-CMD ["pnpm", "start"]
+# Run next directly: "pnpm start" would make corepack download pnpm at boot.
+# next start honors $PORT, which Railway and similar platforms inject.
+CMD ["node_modules/.bin/next", "start"]
