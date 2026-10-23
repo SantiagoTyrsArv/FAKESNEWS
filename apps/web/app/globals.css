@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Animate.css: only the pieces in use, not the ~70 KB bundle. */
+@import "animate.css/source/_vars.css";
+@import "animate.css/source/_base.css";
+@import "animate.css/source/fading_entrances/fadeIn.css";
+@import "animate.css/source/fading_entrances/fadeInUp.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -60,6 +66,7 @@
 }
 
 :root {
+  --animate-duration: 0.6s;
   --font-ui: "Public Sans Variable", "Segoe UI", system-ui, sans-serif;
   --font-quote: "Newsreader Variable", georgia, "Times New Roman", serif;
   --font-code: ui-monospace, "SFMono-Regular", consolas, "Liberation Mono", monospace;
@@ -330,5 +337,14 @@
 
   to {
     background-size: 100% 0.9em;
+  }
+}
+
+/* SSR shows everything; the `motion` class (inline script in layout.tsx) opts
+   into the hidden initial state that the motion layer then animates in. */
+@media (prefers-reduced-motion: no-preference) {
+  html.motion [data-pop],
+  html.motion [data-reveal] {
+    opacity: 0;
   }
 }
