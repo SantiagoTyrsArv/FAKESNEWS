@@ -56,6 +56,9 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
     devDependencies:
+      '@projectwallace/css-analyzer':
+        specifier: ^9.9.4
+        version: 9.9.4
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
@@ -690,6 +693,14 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
+
+  '@projectwallace/css-analyzer@9.9.4':
+    resolution: {integrity: sha512-MQU1tvCADwFrvYiiJQNH7w4iABSbOm7TTyvdPhuLxjK3TDyh8qole6hJn4NKWRRLh+9seYXbB5wkgoDRWefo2g==}
+    engines: {node: '>=18.0.0', pnpm: '>=11.0.0'}
+
+  '@projectwallace/css-parser@0.18.12':
+    resolution: {integrity: sha512-U3sOKtSXuoY5cgtTiAn4TrS4uyLDDk+ezvk55ExjXpajZ4vkaCCEiwdYqIV4Z8aaLh5izCrskEM9w9Ddk5wwpw==}
+    engines: {pnpm: '>=11.0.0'}
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
@@ -3846,6 +3857,12 @@ snapshots:
       fastq: 1.20.3
 
   '@nolyfill/is-core-module@1.0.39': {}
+
+  '@projectwallace/css-analyzer@9.9.4':
+    dependencies:
+      '@projectwallace/css-parser': 0.18.12
+
+  '@projectwallace/css-parser@0.18.12': {}
 
   '@rtsao/scc@1.1.0': {}
 
