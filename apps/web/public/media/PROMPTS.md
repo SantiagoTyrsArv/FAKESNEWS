@@ -31,3 +31,13 @@ palette and cut-paper style of the reference image."*, que ya aparece en la tabl
 
 Descartes: un primer intento de `step-2` (`0dbccb36-62b8-4ebd-9b0f-1c297d5f8d7d`, 0,5 créditos)
 salió con personas fotorrealistas y titulares falsos, y se repitió con el sujeto actual.
+
+## Video descartado
+
+Se probó un video del hero a partir del fotograma clave. Seedance 2.0 Mini y Grok Video 1.5 Lite
+exigen el plan Basic. Seedance 1.5 Pro (`seedance1_5`, 4 s, 720p, sin audio, trabajo
+`9ea398bb-ed40-49b5-8524-f1c43b301937`, 2,4 créditos) sí funcionó, pero se descartó: pesaba 5,3 MB,
+añadía una lupa realista que rompía el estilo collage y no hacía bucle limpio. El hero usa el
+fotograma clave fijo con un zoom y paneo lento en CSS (decisión del usuario).
+
+Créditos gastados en total: 6,4 de 10.
