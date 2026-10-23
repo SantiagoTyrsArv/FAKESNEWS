@@ -2,3 +2,11 @@ allowBuilds:
   unrs-resolver: true
 onlyBuiltDependencies:
   - unrs-resolver
+# Security floors for transitive dependencies flagged by OSV-Scanner
+# (see VULNERABILIDADES.md). Same major only; drop each once its parent
+# package resolves a fixed version on its own.
+overrides:
+  source-map-js: ^1.2.2
+  zod@^4: ^4.6.6
+  hono: ^4.13.11
+  ip-address: ^10.7.4
