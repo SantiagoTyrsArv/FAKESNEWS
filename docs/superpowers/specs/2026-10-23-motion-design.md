@@ -33,8 +33,8 @@ código a copiar.
 
 ## No objetivos
 
-- Transiciones animadas entre páginas (cortina al navegar). *Decisión del agente*: chocan con el
-  anti-objetivo de no hacer esperar; cada página anima su propia entrada.
+- Transiciones entre páginas tipo cortina o barrido: el dueño pidió transiciones **leves** (ver
+  "Transiciones entre páginas").
 - Cambiar textos, rutas, flujos o lógica de las páginas.
 - Personajes en la verificación en dos pasos (`/login/2fa`): esa página va con el tratamiento
   general al 75% (decisión del dueño).
@@ -140,6 +140,28 @@ builder no debe duplicar la misma animación con las dos.
   rebote.
 - **Recortes que se inclinan en 3D** hacia el cursor (tarjeta del ejemplo e ilustraciones de los
   pasos) y se enderezan.
+
+## Transiciones entre páginas (pedido del dueño)
+
+El dueño quiere transiciones **leves**: no una cortina, sino **un fundido**, y que **los componentes
+de la página nueva aparezcan con un "pop" instantáneo**.
+
+- **Fundido** entre la página que se va y la que llega: solo opacidad, ≤ 200 ms en total. La página
+  nueva es clicable en cuanto se pinta; el fundido nunca retrasa la navegación ni bloquea clics.
+- **Pop de componentes** al llegar: los bloques principales de la página nueva (título, tarjetas,
+  formularios, listas) aparecen con escala 0,96 → 1 y opacidad 0 → 1, `back.out` suave, 200–300 ms
+  cada uno y escalonado de 30–50 ms; **todo visible en ≤ 400 ms** desde que la página se pinta.
+  Este pop sustituye a la entrada escalonada "al hacer scroll" del contenido que ya está en la
+  primera pantalla; lo que queda más abajo sigue apareciendo al entrar en pantalla.
+- Aplica a todas las navegaciones internas (incluidas portada ↔ páginas internas y hacia/desde
+  login y registro). En la primera carga de la portada manda su propia coreografía de entrada.
+- Información importante: en `/reports/[id]` el pop afecta a los bloques (contenedores), nunca a
+  líneas de texto, citas o veredictos por separado; el texto no se mueve después de aparecer.
+- Reduced-motion: solo el fundido (o cambio instantáneo), sin escala.
+- Técnica (*a decidir por el builder*): la guía de Next 16 propone `<ViewTransition>` de React con
+  la View Transitions API, pero requiere React 19.3 y el proyecto está en 19.2.8; actualizar React
+  es aceptable si el builder lo justifica y la CI pasa. La alternativa es un fundido y pop al montar
+  cada página con GSAP. En navegadores sin soporte, la navegación funciona igual, sin animar.
 
 ## Páginas internas: intensidad 0,75
 
