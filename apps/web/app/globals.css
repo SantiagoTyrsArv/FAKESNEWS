@@ -348,3 +348,83 @@
     opacity: 0;
   }
 }
+
+/* Custom cursor (Cursor component). The system cursor is only hidden while the
+   custom one is actually visible (`cursor-on`), never in text fields. */
+.cursor-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--ink);
+}
+
+.cursor-ring {
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+}
+
+.cursor-scale {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 3px solid var(--ink);
+}
+
+.cursor-fill,
+.cursor-blue {
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  opacity: 0;
+}
+
+.cursor-fill {
+  background: var(--collage-blue);
+}
+
+.cursor-blue {
+  border: 3px solid var(--collage-blue);
+}
+
+.cursor-label {
+  position: relative;
+  opacity: 0;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.motion.cursor-on,
+  html.motion.cursor-on a,
+  html.motion.cursor-on button,
+  html.motion.cursor-on [role="button"],
+  html.motion.cursor-on [data-tilt] {
+    cursor: none;
+  }
+}
+
+@media not all and (hover: hover) and (pointer: fine) {
+  .cursor-root {
+    display: none;
+  }
+}

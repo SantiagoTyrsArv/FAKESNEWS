@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { Cursor } from "@/components/motion/cursor";
 import { gsap, ScrollTrigger } from "@/lib/motion/gsap";
 import { getMotionEnv } from "@/lib/motion/env.mjs";
 import { intensityFor } from "@/lib/motion/tokens.mjs";
@@ -91,5 +92,16 @@ export function MotionProvider({ children }: { children: ReactNode }) {
     [reduced, touch, pathname, ready],
   );
 
-  return <MotionContext.Provider value={value}>{children}</MotionContext.Provider>;
+  const cursorAllowed =
+    ready &&
+    !touch &&
+    !reduced &&
+    !NO_LENIS_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+
+  return (
+    <MotionContext.Provider value={value}>
+      {children}
+      {cursorAllowed ? <Cursor label={value.intensity === 1} /> : null}
+    </MotionContext.Provider>
+  );
 }
