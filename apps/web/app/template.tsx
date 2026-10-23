@@ -67,8 +67,57 @@ export default function Template({ children }: { children: ReactNode }) {
     const cleanups: Array<() => void> = [];
     const frames = new Set<number>();
     let observer: MutationObserver | undefined;
+    const revealed = new WeakSet<Element>();
+    const pending = new Set<ScrollTrigger>();
+    let refreshFrame = 0;
+    let sweep = () => {};
 
     const ctx = gsap.context((self) => {
+      const show = (batch: Element[]) => {
+        const els = batch.filter((el) => !revealed.has(el));
+        if (!els.length) return;
+        els.forEach((el) => revealed.add(el));
+        self.add(() =>
+          gsap.to(els, {
+            opacity: 1,
+            y: 0,
+            duration: REVEAL_DURATION,
+            ease: EASE.out,
+            stagger: scaled(STAGGER.base, intensity),
+            overwrite: true,
+          }),
+        );
+      };
+
+      // Safety net: a reveal whose start sits at (or past) the end of the
+      // scroll range may never be crossed (short page, last block of a page),
+      // and one clamped to a start the scroll already sits on is never
+      // "entered" either (e.g. in view after content above it shrank): both
+      // show right away.
+      sweep = () => {
+        const max = ScrollTrigger.maxScroll(window);
+        for (const st of pending) {
+          const el = st.trigger;
+          if (!el || revealed.has(el) || !el.isConnected) {
+            pending.delete(st);
+          } else if (st.start >= max - 1 || st.start <= st.scroll()) {
+            pending.delete(st);
+            show([el]);
+          }
+        }
+      };
+      ScrollTrigger.addEventListener("refresh", sweep);
+
+      // One refresh per frame after the DOM changes (late content can move or
+      // shrink the page and leave trigger positions stale).
+      const scheduleRefresh = () => {
+        if (refreshFrame || !pending.size) return;
+        refreshFrame = requestAnimationFrame(() => {
+          refreshFrame = 0;
+          ScrollTrigger.refresh();
+        });
+      };
+
       // Animates in a set of [data-pop]/[data-reveal] already set to opacity 0.
       const enter = (els: HTMLElement[], pop: boolean) => {
         const popNow = els.filter((el) => el.matches("[data-pop]") && inFirstScreen(el));
@@ -96,25 +145,20 @@ export default function Template({ children }: { children: ReactNode }) {
         }
 
         if (reveals.length) {
-          gsap.set(reveals, { y: scaled(REVEAL_DISTANCE, intensity) });
-          const show = (batch: Element[]) =>
-            self.add(() =>
-              gsap.to(batch, {
-                opacity: 1,
-                y: 0,
-                duration: REVEAL_DURATION,
-                ease: EASE.out,
-                stagger: scaled(STAGGER.base, intensity),
-                overwrite: true,
-              }),
-            );
-          ScrollTrigger.batch(reveals, {
-            start: "top 90%",
+          const offset = scaled(REVEAL_DISTANCE, intensity);
+          gsap.set(reveals, { y: offset });
+          const triggers = ScrollTrigger.batch(reveals, {
+            // ScrollTrigger measures the transformed box, so undo the y
+            // pre-offset; clamp so a start past the end of the page is reachable.
+            start: `clamp(top-=${offset} 90%)`,
             once: true,
             onEnter: show,
             // Already scrolled past (restored scroll on back/forward): show.
             onLeave: show,
           });
+          triggers.forEach((st) => pending.add(st));
+          sweep();
+          scheduleRefresh();
         }
       };
 
@@ -161,12 +205,15 @@ export default function Template({ children }: { children: ReactNode }) {
       // land in the first screen.
       observer = new MutationObserver((records) => {
         if (records.some((r) => r.addedNodes.length)) self.add(() => scan(true));
+        scheduleRefresh();
       });
       observer.observe(root, { childList: true, subtree: true });
     }, root);
 
     return () => {
       observer?.disconnect();
+      ScrollTrigger.removeEventListener("refresh", sweep);
+      cancelAnimationFrame(refreshFrame);
       frames.forEach((f) => cancelAnimationFrame(f));
       cleanups.forEach((fn) => fn());
       ctx.revert();
