@@ -1,9 +1,6 @@
 "use client";
 
 import Lenis from "lenis";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { SplitText } from "gsap/SplitText";
 import { usePathname } from "next/navigation";
 import {
   createContext,
@@ -13,6 +10,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { gsap, ScrollTrigger } from "@/lib/motion/gsap";
 import { getMotionEnv } from "@/lib/motion/env.mjs";
 import { intensityFor } from "@/lib/motion/tokens.mjs";
 
@@ -35,13 +33,6 @@ export function useMotion(): MotionState {
 }
 
 const NO_LENIS_ROUTES = ["/login", "/register"];
-
-let registered = false;
-function registerPlugins() {
-  if (registered) return;
-  gsap.registerPlugin(ScrollTrigger, SplitText);
-  registered = true;
-}
 
 const QUERIES = [
   "(prefers-reduced-motion: reduce)",
@@ -73,10 +64,6 @@ export function MotionProvider({ children }: { children: ReactNode }) {
   );
   const reduced = snapshot[0] === "1";
   const touch = snapshot[1] === "1";
-
-  useEffect(() => {
-    registerPlugins();
-  }, []);
 
   const lenisAllowed =
     ready &&
