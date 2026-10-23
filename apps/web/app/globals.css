@@ -61,8 +61,8 @@
 
 :root {
   --font-ui: "Public Sans Variable", "Segoe UI", system-ui, sans-serif;
-  --font-quote: "Newsreader Variable", Georgia, "Times New Roman", serif;
-  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-quote: "Newsreader Variable", georgia, "Times New Roman", serif;
+  --font-code: ui-monospace, "SFMono-Regular", consolas, "Liberation Mono", monospace;
 
   /* Paper, ink and the evidence blue that marks actions. */
   --background: oklch(0.975 0.004 255);
@@ -84,7 +84,6 @@
   --input: oklch(0.88 0.012 262);
   --ring: oklch(0.6 0.15 266);
   --ink: oklch(0.24 0.035 262);
-
   --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* Collage: the paper the pieces sit on, a block blue and a cut-paper
@@ -92,6 +91,7 @@
   --paper: oklch(0.935 0.006 90);
   --collage-blue: oklch(0.5 0.24 266);
   --collage-orange: oklch(0.68 0.19 40);
+
   /* The same orange dark enough for small text (5.3:1 on --background). */
   --collage-orange-ink: oklch(0.53 0.17 40);
 
@@ -102,7 +102,6 @@
   --contradicted-tint: oklch(0.91 0.06 25);
   --insufficient: oklch(0.58 0.12 80);
   --insufficient-tint: oklch(0.94 0.08 92);
-
   --chart-1: var(--supported);
   --chart-2: var(--contradicted);
   --chart-3: var(--insufficient);
@@ -168,15 +167,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+
     background-image: var(--paper-grain);
   }
+
   /* Reserve the scrollbar's space on every page, so the centered layout
      doesn't jump sideways when content (like the sources table) loads
      and the page becomes scrollable. */
   html {
     @apply font-sans;
+
     scrollbar-gutter: stable;
   }
 }
@@ -188,6 +191,7 @@
 @layer components {
   .mark {
     --mark-color: var(--insufficient-tint);
+
     background-image: linear-gradient(
       100deg,
       transparent 0.2em,
@@ -200,16 +204,20 @@
     background-repeat: no-repeat;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+
     /* Let the stroke overhang the words without shifting surrounding text. */
     padding-inline: 0.15em;
     margin-inline: -0.15em;
   }
+
   .mark-supported {
     --mark-color: var(--supported-tint);
   }
+
   .mark-contradicted {
     --mark-color: var(--contradicted-tint);
   }
+
   .mark-insufficient {
     --mark-color: var(--insufficient-tint);
   }
@@ -235,7 +243,8 @@
 
   /* Halftone dots, tinted by --halftone-color. */
   .halftone {
-    --halftone-color: currentColor;
+    --halftone-color: currentcolor;
+
     background-image: radial-gradient(var(--halftone-color) 1.2px, transparent 1.6px);
     background-size: 8px 8px;
   }
@@ -269,9 +278,11 @@
   /* A clipping glued onto the page: hard short shadow and a slight tilt. */
   .cutout {
     --cutout-rotate: -1deg;
+
     box-shadow: 4px 4px 0 color-mix(in oklch, var(--ink) 15%, transparent);
     rotate: var(--cutout-rotate);
   }
+
   @media (prefers-reduced-motion: reduce) {
     .cutout {
       rotate: none;
@@ -282,16 +293,20 @@
   .torn-top,
   .torn-bottom {
     --torn-edge: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='16' preserveAspectRatio='none'%3E%3Cpath d='M0 16V9l6-3 7 4 8-6 6 5 9-7 7 6 8-3 6 4 9-6 8 5 7-3 9 6 6-5 8 3 7-4 9 5V16z'/%3E%3C/svg%3E");
+
     mask-repeat: repeat-x, no-repeat;
   }
+
   .torn-top {
     mask-image: var(--torn-edge), linear-gradient(#000, #000);
     mask-position: top, 0 15px;
     mask-size: 120px 16px, 100% calc(100% - 15px);
   }
+
   .torn-bottom {
     /* The same edge, flipped so the tear faces down. */
     --torn-edge: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='16' preserveAspectRatio='none'%3E%3Cpath d='M0 0v7l6 3 7-4 8 6 6-5 9 7 7-6 8 3 6-4 9 6 8-5 7 3 9-6 6 5 8-3 7 4 9-5V0z'/%3E%3C/svg%3E");
+
     mask-image: var(--torn-edge), linear-gradient(#000, #000);
     mask-position: bottom, 0 0;
     mask-size: 120px 16px, 100% calc(100% - 15px);
@@ -302,6 +317,7 @@
   from {
     transform: scale(1) translate(0, 0);
   }
+
   to {
     transform: scale(1.07) translate(-1.5%, -1%);
   }
@@ -311,6 +327,7 @@
   from {
     background-size: 0% 0.9em;
   }
+
   to {
     background-size: 100% 0.9em;
   }
