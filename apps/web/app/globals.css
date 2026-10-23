@@ -242,6 +242,17 @@
     border-bottom: 3px double color-mix(in oklch, var(--foreground) 70%, transparent);
   }
 
+  .rule-double-top {
+    border-top: 3px double color-mix(in oklch, var(--foreground) 70%, transparent);
+  }
+
+  /* The hero collage drifts in slowly, like a camera over a table of clippings. */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-pan {
+      animation: hero-pan 24s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+    }
+  }
+
   /* Small caps line above a headline. */
   .kicker {
     font-size: 0.75rem;
@@ -281,6 +292,15 @@
     mask-image: var(--torn-edge), linear-gradient(#000, #000);
     mask-position: bottom, 0 0;
     mask-size: 120px 16px, 100% calc(100% - 15px);
+  }
+}
+
+@keyframes hero-pan {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.07) translate(-1.5%, -1%);
   }
 }
 
