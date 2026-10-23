@@ -125,7 +125,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
 
       {stale && submission?.status !== "failed" && !report && (
         <section className="flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight">Este análisis está tardando demasiado</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">Este análisis está tardando demasiado</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Lleva más tiempo del esperado sin terminar. Recarga la página en unos minutos o envía el
             caso de nuevo.
@@ -138,7 +138,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
 
       {submission?.status === "failed" && (
         <section className="flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight">No pudimos terminar este análisis</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">No pudimos terminar este análisis</h1>
           <Alert variant="destructive">
             <AlertDescription>
               {submission.error ?? "Error desconocido en el procesamiento."}
@@ -167,7 +167,7 @@ function PipelineProgress({ submission }: { submission: Submission }) {
   return (
     <section className="grid gap-8 rounded-2xl border bg-card p-6 sm:p-8 md:grid-cols-2">
       <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Analizando el contenido</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">Analizando el contenido</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
           Esta página se actualiza sola. Puedes cerrarla: el reporte quedará en Mis casos.
         </p>
@@ -228,7 +228,7 @@ function ReportView({ report }: { report: Report }) {
               timeStyle: "short",
             })}
           </p>
-          <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             {summary.total_claims === 0
               ? "No encontramos afirmaciones comprobables"
               : summary.total_claims === 1

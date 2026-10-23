@@ -86,8 +86,12 @@ export default function HistoryPage() {
       {submissions === null && !error && <LoadingLine />}
 
       {submissions?.length === 0 && (
-        <div className="flex flex-col items-start gap-4 rounded-2xl border border-dashed p-8 sm:p-10">
-          <h2 className="text-lg font-semibold">Todavía no verificaste nada</h2>
+        <div className="relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-dashed p-8 sm:p-10">
+          <div
+            aria-hidden="true"
+            className="halftone pointer-events-none absolute -top-6 -right-6 size-40 rounded-full text-collage-blue/15"
+          />
+          <h2 className="font-heading text-2xl font-semibold">Todavía no verificaste nada</h2>
           <p className="max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
             Pega un mensaje sospechoso, el enlace a un artículo o un video. El reporte aparecerá
             aquí cuando esté listo.
