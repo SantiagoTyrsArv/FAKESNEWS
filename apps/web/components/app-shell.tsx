@@ -36,7 +36,7 @@ export function PageHeading({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
+    <div data-pop className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex max-w-2xl flex-col gap-2">
         <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {title}
