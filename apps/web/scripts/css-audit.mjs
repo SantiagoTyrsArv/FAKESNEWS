@@ -32,11 +32,20 @@ console.log(formatSummary("Todo el build", build));
 
 let home = null;
 if (existsSync(HOME_HTML)) {
-  const files = findPageStylesheets(readFileSync(HOME_HTML, "utf8"))
-    .map((href) => join(NEXT_DIR, href.replace(/^\/_next\//, "")))
-    .filter((f) => existsSync(f));
-  home = summarize(readAll(files));
-  console.log(`\n${formatSummary("Portada (/)", home)}`);
+  const paths = findPageStylesheets(readFileSync(HOME_HTML, "utf8")).map((href) =>
+    join(NEXT_DIR, href.replace(/^\/_next\//, "")),
+  );
+  const files = paths.filter((f) => existsSync(f));
+  const missing = paths.filter((f) => !existsSync(f));
+  if (missing.length > 0) {
+    console.error(`\nAviso: faltan hojas de estilo de la portada en disco: ${missing.join(", ")}`);
+  }
+  if (files.length > 0) {
+    home = summarize(readAll(files));
+    console.log(`\n${formatSummary("Portada (/)", home)}`);
+  } else {
+    console.error('Aviso: no se encontró ninguna hoja de estilo de la portada; se omite el bloque "Portada (/)".');
+  }
 } else {
   console.warn(`\nAviso: no existe ${HOME_HTML}; se omite el bloque "Portada (/)".`);
 }

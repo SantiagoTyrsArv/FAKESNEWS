@@ -18,7 +18,9 @@ duplicados, selectores mal escritos y convenciones de formato y nombres.
 
   ```css
   /* stylelint-disable-next-line selector-class-pattern -- clase generada por una librería */
-  .animate__fadeIn { }
+  .animate__fadeIn {
+    animation-duration: 300ms;
+  }
   ```
 
   Si la regla no sirve para todo el proyecto, se cambia en `stylelint.config.mjs`.

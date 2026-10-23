@@ -11,6 +11,13 @@ on:
       - "apps/web/**"
       - ".github/workflows/web.yml"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
