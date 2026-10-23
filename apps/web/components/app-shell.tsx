@@ -38,7 +38,9 @@ export function PageHeading({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex max-w-2xl flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{title}</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          {title}
+        </h1>
         {description && (
           <p className="text-[0.95rem] leading-relaxed text-pretty text-muted-foreground">
             {description}
