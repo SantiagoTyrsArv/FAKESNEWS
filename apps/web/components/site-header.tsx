@@ -34,7 +34,7 @@ export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+    <header className="rule-double sticky top-0 z-30 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4 sm:gap-6 sm:px-6">
         <Wordmark compact={variant !== "public"} />
         {variant === "app" ? (

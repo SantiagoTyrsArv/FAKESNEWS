@@ -119,7 +119,7 @@ export default function SecuritySettingsPage() {
               {user?.mfa_enabled ? <ShieldCheck className="size-5" /> : <ShieldAlert className="size-5" />}
             </span>
             <div className="flex flex-1 flex-col gap-1">
-              <h2 className="font-semibold">Verificación en dos pasos</h2>
+              <h2 className="font-heading text-xl font-semibold">Verificación en dos pasos</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {user?.mfa_enabled
                   ? "Activada. Cada inicio de sesión pide un código de tu app de autenticación."

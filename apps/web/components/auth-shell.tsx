@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Wordmark } from "@/components/brand";
 
 // Two-column layout for sign-in flows: the form on the right, and on the left
-// a reminder of what the account is for, written as a highlighted claim.
+// a reminder of what the account is for, written as a highlighted claim over
+// the collage illustration (darkened so the white text keeps its contrast).
 export function AuthShell({
   title,
   description,
@@ -16,19 +18,27 @@ export function AuthShell({
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-      <aside className="hidden flex-col justify-between bg-ink p-10 text-white lg:flex">
+      <aside className="relative isolate hidden flex-col justify-between overflow-hidden bg-ink p-10 text-white lg:flex">
+        <Image
+          src="/media/auth.webp"
+          alt=""
+          fill
+          sizes="45vw"
+          className="-z-10 object-cover"
+        />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-ink/85" />
         <Wordmark className="text-white" />
         <blockquote className="flex max-w-md flex-col gap-5">
           <p className="font-quote text-[1.75rem] leading-snug text-white/90">
             <span className="mark mark-insufficient text-ink">Cada conclusión lleva su cita.</span>{" "}
             Si ninguna fuente de confianza la respalda, el reporte lo dice.
           </p>
-          <footer className="text-sm leading-relaxed text-white/60">
+          <footer className="text-sm leading-relaxed text-white/75">
             FakesNews no declara noticias verdaderas o falsas: te muestra qué dicen las fuentes
             y qué tan confiables han sido.
           </footer>
         </blockquote>
-        <p className="text-xs text-white/40">Verificación asistida por IA</p>
+        <p className="text-xs text-white/60">Verificación asistida por IA</p>
       </aside>
 
       <div className="flex flex-col px-4 py-6 sm:px-8">
@@ -53,7 +63,7 @@ export function AuthShell({
                 </span>
               </div>
             )}
-            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+            <h1 className="font-heading text-3xl font-semibold tracking-tight">{title}</h1>
             {description && (
               <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
             )}
