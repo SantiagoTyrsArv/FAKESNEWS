@@ -92,6 +92,8 @@
   --paper: oklch(0.935 0.006 90);
   --collage-blue: oklch(0.5 0.24 266);
   --collage-orange: oklch(0.68 0.19 40);
+  /* The same orange dark enough for small text (5.3:1 on --background). */
+  --collage-orange-ink: oklch(0.53 0.17 40);
 
   /* Verdict colors: a solid tone for text/marks and a highlighter tint. */
   --supported: oklch(0.5 0.12 155);
@@ -140,6 +142,7 @@
   --paper: oklch(0.25 0.02 262);
   --collage-blue: oklch(0.45 0.2 266);
   --collage-orange: oklch(0.72 0.17 45);
+  --collage-orange-ink: var(--collage-orange);
   --supported: oklch(0.75 0.13 155);
   --supported-tint: oklch(0.35 0.07 155);
   --contradicted: oklch(0.74 0.15 25);
@@ -260,7 +263,7 @@
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--collage-orange);
+    color: var(--collage-orange-ink);
   }
 
   /* A clipping glued onto the page: hard short shadow and a slight tilt. */
