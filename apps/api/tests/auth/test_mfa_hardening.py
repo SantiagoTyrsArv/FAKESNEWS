@@ -115,3 +115,70 @@ async def test_reenrollment_switches_device_once_confirmed(app_client: AsyncClie
         "/auth/2fa/verify", json={"code": pyotp.TOTP(new_secret).now()}, headers=headers
     )
     assert new.status_code == 200
+
+
+async def test_pending_token_is_single_use(app_client: AsyncClient) -> None:
+    secret, _codes, pending = await _register_with_mfa(app_client)
+    first = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": pyotp.TOTP(secret).now()},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert first.status_code == 200
+
+    # A fresh, valid code does not make the spent pending token usable again.
+    replay = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": _next_code(secret)},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert replay.status_code == 401
+
+
+async def test_wrong_code_does_not_spend_pending_token(app_client: AsyncClient) -> None:
+    secret, _codes, pending = await _register_with_mfa(app_client)
+    typo = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": "000000"},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert typo.status_code == 401
+
+    retry = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": pyotp.TOTP(secret).now()},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert retry.status_code == 200
+
+
+async def test_disabling_mfa_revokes_other_sessions(app_client: AsyncClient) -> None:
+    _secret, codes, pending = await _register_with_mfa(app_client)
+
+    async def sign_in(pending_token: str, recovery_code: str) -> dict[str, str]:
+        resp = await app_client.post(
+            "/auth/2fa/verify",
+            json={"recovery_code": recovery_code},
+            headers={"Authorization": f"Bearer {pending_token}"},
+        )
+        assert resp.status_code == 200
+        return dict(app_client.cookies)
+
+    def use(cookies: dict[str, str]) -> None:
+        app_client.cookies.clear()
+        app_client.cookies.update(cookies)
+
+    here = await sign_in(pending, codes[0])
+    elsewhere = await sign_in(await _login_with_password_only(app_client), codes[1])
+
+    use(here)
+    disable = await app_client.post(
+        "/auth/2fa/disable", json={"recovery_code": codes[2]}, headers=_csrf(app_client)
+    )
+    assert disable.status_code == 200
+
+    use(elsewhere)
+    assert (await app_client.post("/auth/refresh", headers=_csrf(app_client))).status_code == 401
+
+    use(here)
+    assert (await app_client.post("/auth/refresh", headers=_csrf(app_client))).status_code == 200

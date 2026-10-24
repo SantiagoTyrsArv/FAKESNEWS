@@ -180,9 +180,15 @@ async def test_recovery_code_login_and_single_use(app_client: AsyncClient) -> No
     )
     assert reuse_resp.status_code == 401
 
-    # A never-used code (and a fresh TOTP code) should still work afterwards.
+    # A fresh TOTP code still works afterwards, on a new pending token (each
+    # one is single use).
+    new_pending = await _login_with_password_only(app_client)
     fresh_code = pyotp.TOTP(secret).now()
-    ok_resp = await app_client.post("/auth/2fa/verify", json={"code": fresh_code}, headers=headers)
+    ok_resp = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": fresh_code},
+        headers={"Authorization": f"Bearer {new_pending}"},
+    )
     assert ok_resp.status_code == 200
 
 

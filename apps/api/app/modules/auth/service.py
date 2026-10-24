@@ -324,11 +324,15 @@ async def disable_mfa(
     user: User,
     code: str | None,
     recovery_code: str | None,
+    current_refresh: str | None = None,
 ) -> User:
+    """Turn 2FA off and sign out every other session: they were opened under
+    2FA and should not outlive it. ``current_refresh`` keeps the caller's."""
     await _check_second_factor(
         db, redis_client, ip=ip, user=user, code=code, recovery_code=recovery_code
     )
 
+    await _revoke_other_sessions(db, user.id, current_refresh)
     user.mfa_enabled = False
     user.totp_secret_encrypted = None
     user.totp_pending_secret_encrypted = None
@@ -414,6 +418,20 @@ async def rotate_refresh_token(db: AsyncSession, refresh_plain: str) -> dict:
         "csrf_token": generate_opaque_token(),
         "user": user,
     }
+
+
+async def _revoke_other_sessions(
+    db: AsyncSession, user_id: uuid.UUID, keep_refresh_plain: str | None
+) -> None:
+    """Revoke every live refresh family of the user except the one holding
+    ``keep_refresh_plain`` (all of them when it is unknown). Not committed."""
+    keep = await _get_refresh_token_by_plain(db, keep_refresh_plain) if keep_refresh_plain else None
+    stmt = update(RefreshToken).where(
+        RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None)
+    )
+    if keep is not None and keep.user_id == user_id:
+        stmt = stmt.where(RefreshToken.family_id != keep.family_id)
+    await db.execute(stmt.values(revoked_at=_now()))
 
 
 async def revoke_refresh_token(db: AsyncSession, refresh_plain: str) -> None:

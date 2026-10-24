@@ -28,6 +28,7 @@ import {
   type Submission,
   type SubmissionStatus,
 } from "@/lib/cases";
+import { evidenceUrl } from "@/lib/source-url.mjs";
 import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL_MS = 2000;
@@ -335,6 +336,7 @@ function ClaimCard({ claim, index }: Readonly<{ claim: ReportClaim; index: numbe
 function EvidenceItem({ evidence }: Readonly<{ evidence: ReportEvidence }>) {
   const { source } = evidence;
   const stance = STANCE_STYLES[evidence.stance];
+  const href = evidenceUrl(evidence.url);
 
   return (
     <li className="flex flex-col gap-3 rounded-xl bg-muted/50 p-4">
@@ -366,15 +368,17 @@ function EvidenceItem({ evidence }: Readonly<{ evidence: ReportEvidence }>) {
         “{evidence.snippet}”
       </blockquote>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <a
-          href={evidence.url}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-          className="inline-flex min-w-0 items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
-        >
-          <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">Leer en {source.domain}</span>
-        </a>
+        {href && (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="inline-flex min-w-0 items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">Leer en {source.domain}</span>
+          </a>
+        )}
         {evidence.published_at && <span>Publicado: {evidence.published_at}</span>}
       </div>
     </li>

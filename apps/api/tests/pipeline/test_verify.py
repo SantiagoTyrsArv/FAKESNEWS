@@ -322,3 +322,43 @@ async def test_requests_leave_room_for_adaptive_thinking(monkeypatch: pytest.Mon
     await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
 
     assert fake_client.messages.calls[0]["max_tokens"] >= 16000
+
+
+async def test_verify_claim_drops_evidence_with_non_http_scheme(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The host is whitelisted, but the link would run script when clicked.
+    script_url = "javascript://reuters.com/%0Aalert(1)"
+    content = [
+        _search_tool_result_block([_web_search_result(script_url)]),
+        _text_block(
+            json.dumps(
+                {
+                    "verdict": "SUPPORTED",
+                    "rationale": "...",
+                    "evidence": [
+                        {
+                            "url": script_url,
+                            "snippet": "...",
+                            "published_at": None,
+                            "stance": "supports",
+                        }
+                    ],
+                }
+            )
+        ),
+    ]
+    fake_client = _FakeClient([_response(content=content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    assert result.evidence == []
+
+
+def test_evidence_item_rejects_non_http_url() -> None:
+    with pytest.raises(ValueError):
+        verify_module.EvidenceItem(
+            url="javascript:alert(1)", domain="reuters.com", snippet="...", stance="neutral"
+        )

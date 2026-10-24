@@ -24,12 +24,14 @@ requires_integration = pytest.mark.skipif(
 
 class FakeRedis:
     """Minimal in-memory stand-in for the subset of redis-py's async API the
-    app actually uses (rate limiting): incr/expire/ttl/ping/aclose.
+    app actually uses: incr/expire/ttl (rate limiting), set (single-use
+    tokens), ping/aclose.
     """
 
     def __init__(self) -> None:
         self._counters: dict[str, int] = {}
         self._ttls: dict[str, int] = {}
+        self._values: dict[str, str] = {}
 
     async def incr(self, key: str) -> int:
         self._counters[key] = self._counters.get(key, 0) + 1
@@ -37,6 +39,16 @@ class FakeRedis:
 
     async def expire(self, key: str, seconds: int) -> None:
         self._ttls[key] = seconds
+
+    async def set(
+        self, key: str, value: str, *, nx: bool = False, ex: int | None = None
+    ) -> bool | None:
+        if nx and key in self._values:
+            return None
+        self._values[key] = value
+        if ex is not None:
+            self._ttls[key] = ex
+        return True
 
     async def ttl(self, key: str) -> int:
         return self._ttls.get(key, 60)

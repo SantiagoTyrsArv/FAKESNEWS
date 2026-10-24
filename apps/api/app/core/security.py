@@ -6,6 +6,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 
 import jwt
 from argon2 import PasswordHasher
@@ -55,6 +56,12 @@ def verify_password_or_dummy(password: str, password_hash: str | None) -> bool:
 
 
 _PASSWORD_MIN_LENGTH = 10
+_COMMON_PASSWORDS_FILE = Path(__file__).parent / "data" / "common_passwords.txt"
+
+
+@lru_cache
+def _common_passwords() -> frozenset[str]:
+    return frozenset(_COMMON_PASSWORDS_FILE.read_text(encoding="utf-8").split())
 
 
 def validate_password_strength(password: str) -> list[str]:
@@ -68,6 +75,9 @@ def validate_password_strength(password: str) -> list[str]:
         violations.append("Debe incluir al menos una letra mayúscula.")
     if not re.search(r"\d", password):
         violations.append("Debe incluir al menos un número.")
+    # Rules alone let "Password123" through: also refuse the most used ones.
+    if not violations and password.lower() in _common_passwords():
+        violations.append("Es una de las contraseñas más usadas: elige otra.")
     return violations
 
 
