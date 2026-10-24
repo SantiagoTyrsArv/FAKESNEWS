@@ -38,7 +38,7 @@ export function Marquee() {
       <div className="-mx-8 -rotate-[1.5deg] bg-ink py-3 text-paper sm:py-4">
         <div
           data-marquee-track
-          className="flex w-max font-heading text-2xl font-semibold tracking-wide whitespace-nowrap sm:text-4xl"
+          className="flex w-max bg-ink font-heading text-2xl font-semibold tracking-wide whitespace-nowrap sm:text-4xl"
         >
           {Array.from({ length: REPEAT }, (_, i) => (
             <span key={i} className="flex shrink-0">

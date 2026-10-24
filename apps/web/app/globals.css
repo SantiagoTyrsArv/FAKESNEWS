@@ -113,7 +113,7 @@
   --supported-tint: oklch(0.92 0.07 155);
   --contradicted: oklch(0.52 0.17 27);
   --contradicted-tint: oklch(0.91 0.06 25);
-  --insufficient: oklch(0.58 0.12 80);
+  --insufficient: oklch(0.52 0.12 80); /* ≥ 4.5:1 on card, background and its tint */
   --insufficient-tint: oklch(0.94 0.08 92);
   --chart-1: var(--supported);
   --chart-2: var(--contradicted);
