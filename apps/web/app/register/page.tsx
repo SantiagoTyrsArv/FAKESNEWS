@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthShell } from "@/components/auth-shell";
+import { useErrorBounce, type CharacterState } from "@/components/auth/characters";
+import { PasswordInput } from "@/components/auth/password-input";
 import { register } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
@@ -19,6 +21,17 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [violations, setViolations] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  // What the characters react to; either password field counts as "password".
+  const [focus, setFocus] = useState<CharacterState["focus"]>("none");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [errorKey, setErrorKey] = useState(0);
+  const form = useRef<HTMLFormElement>(null);
+  useErrorBounce(form, errorKey);
+
+  function fail(message: string) {
+    setError(message);
+    setErrorKey((k) => k + 1);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +39,7 @@ export default function RegisterPage() {
     setViolations([]);
 
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+      fail("Las contraseñas no coinciden.");
       return;
     }
 
@@ -39,13 +52,14 @@ export default function RegisterPage() {
         const detail = (err.body as { detail?: { violations?: string[] } }).detail;
         if (detail?.violations) {
           setViolations(detail.violations);
+          setErrorKey((k) => k + 1);
         } else {
-          setError(err.message);
+          fail(err.message);
         }
       } else if (err instanceof ApiError) {
-        setError(err.message);
+        fail(err.message);
       } else {
-        setError("No se pudo completar el registro.");
+        fail("No se pudo completar el registro.");
       }
     } finally {
       setLoading(false);
@@ -56,8 +70,12 @@ export default function RegisterPage() {
     <AuthShell
       title="Crea tu cuenta"
       description="Después podrás activar la verificación en dos pasos desde Ajustes de seguridad."
+      characters={{ focus, passwordVisible, caret: email.length, errorKey }}
+      // With every password rule listed, the strip would push "Crear cuenta"
+      // below a 375×667 screen (measured: 681 px), so on phones it is left out.
+      mobileCharacters={false}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form ref={form} onSubmit={handleSubmit} className="flex flex-col gap-5">
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -85,30 +103,34 @@ export default function RegisterPage() {
             className="h-10"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onFocus={() => setFocus("email")}
+            onBlur={() => setFocus("none")}
           />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="password">Contraseña</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
-            required
-            className="h-10"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
+            visible={passwordVisible}
+            onVisibleChange={setPasswordVisible}
+            onFocus={() => setFocus("password")}
+            onBlur={() => setFocus("none")}
           />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="confirm-password">Repite la contraseña</Label>
-          <Input
+          <PasswordInput
             id="confirm-password"
-            type="password"
             autoComplete="new-password"
-            required
-            className="h-10"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={setConfirmPassword}
+            visible={passwordVisible}
+            onVisibleChange={setPasswordVisible}
+            onFocus={() => setFocus("password")}
+            onBlur={() => setFocus("none")}
           />
         </div>
         <Button type="submit" disabled={loading} className="h-10 w-full">

@@ -80,12 +80,12 @@ export default function SubmitPage() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="animated fadeIn">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <fieldset className="flex flex-col gap-3">
+        <fieldset data-pop className="flex flex-col gap-3">
           <legend className="mb-3 text-sm font-medium">Tipo de contenido</legend>
           <div className={cn("grid gap-2", VIDEO_ENABLED ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
             {INPUT_TYPES.map(({ value, label, icon: Icon }) => (
@@ -116,7 +116,7 @@ export default function SubmitPage() {
           </div>
         </fieldset>
 
-        <div className="flex flex-col gap-2">
+        <div data-pop className="flex flex-col gap-2">
           <Label htmlFor="raw-input">{inputType === "text" ? "Contenido" : "Enlace"}</Label>
           {inputType === "text" ? (
             <Textarea
@@ -151,9 +151,10 @@ export default function SubmitPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 border-t pt-6">
+        <div data-pop className="flex flex-wrap items-center gap-4 border-t pt-6">
           <Button
             type="submit"
+            data-magnetic="0.2"
             disabled={loading || !rawInput.trim()}
             className="h-11 px-6 text-[0.95rem]"
           >

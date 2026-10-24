@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Animate.css: only the pieces in use, not the ~70 KB bundle. */
+@import "animate.css/source/_vars.css";
+@import "animate.css/source/_base.css";
+@import "animate.css/source/fading_entrances/fadeIn.css";
+@import "animate.css/source/fading_entrances/fadeInUp.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -60,6 +66,7 @@
 }
 
 :root {
+  --animate-duration: 0.6s;
   --font-ui: "Public Sans Variable", "Segoe UI", system-ui, sans-serif;
   --font-quote: "Newsreader Variable", georgia, "Times New Roman", serif;
   --font-code: ui-monospace, "SFMono-Regular", consolas, "Liberation Mono", monospace;
@@ -228,6 +235,12 @@
       animation: mark-draw 700ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
       animation-delay: var(--mark-delay, 0ms);
     }
+
+    /* With JS the landing timeline starts the drawing (adds .mark-go) once
+       the card has landed; without JS it plays on load as before. */
+    html.motion .mark-draw:not(.mark-go) {
+      animation-play-state: paused;
+    }
   }
 }
 
@@ -330,5 +343,310 @@
 
   to {
     background-size: 100% 0.9em;
+  }
+}
+
+/* SSR shows everything; the `motion` class (inline script in layout.tsx) opts
+   into the hidden initial state that the motion layer then animates in. */
+@media (prefers-reduced-motion: no-preference) {
+  html.motion [data-pop],
+  html.motion [data-reveal] {
+    opacity: 0;
+  }
+}
+
+/* The landing hero's non-LCP blocks (header, kicker, lede, actions, example
+   card), only where useLandingMotion animates them in: desktop pointers. The
+   h1 and the hero image are never pre-hidden. Same query as DESKTOP in
+   components/landing/use-landing-motion.ts. */
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  html.motion [data-enter] {
+    opacity: 0;
+  }
+
+  /* The landing curtain (Curtain), up from the first paint on the first visit
+     in the session; the class comes from the inline script in layout.tsx. */
+  html.motion.curtain [data-curtain] {
+    display: flex;
+
+    /* Fail-safe: if the JS never arrives to lift it, it fades away anyway. */
+    animation: curtain-failsafe 300ms ease-out 3s forwards;
+  }
+}
+
+@keyframes curtain-failsafe {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Fail-safe for every pre-hidden state above (and the characters below): if
+   the app never hydrates (script error, blocked bundle), they show after 5 s.
+   MotionProvider adds `motion-ready` on hydration, which stands this down. */
+html.motion:not(.motion-ready) :is([data-pop], [data-reveal], [data-enter], .crew-ch) {
+  animation: motion-failsafe 1ms 5s forwards;
+}
+
+@keyframes motion-failsafe {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Custom cursor (Cursor component). The system cursor is only hidden while the
+   custom one is actually visible (`cursor-on`), never in text fields. */
+.cursor-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--ink);
+}
+
+.cursor-ring {
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+}
+
+.cursor-scale {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 3px solid var(--ink);
+}
+
+.cursor-fill,
+.cursor-blue {
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  opacity: 0;
+}
+
+.cursor-fill {
+  background: var(--collage-blue);
+}
+
+.cursor-blue {
+  border: 3px solid var(--collage-blue);
+}
+
+.cursor-label {
+  position: relative;
+  opacity: 0;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.motion.cursor-on,
+  html.motion.cursor-on a,
+  html.motion.cursor-on button,
+  html.motion.cursor-on [role="button"],
+  html.motion.cursor-on [data-tilt] {
+    cursor: none;
+  }
+}
+
+@media not all and (hover: hover) and (pointer: fine) {
+  .cursor-root {
+    display: none;
+  }
+}
+
+/* Sign-in characters (AuthCharacters). A 460×380 scene drawn in `--crew-u`
+   units, so the same crew fills the desktop stage or the 88px mobile strip:
+   the box around it is the size container. Decorative (aria-hidden). */
+.crew-box {
+  container-type: inline-size;
+}
+
+.crew {
+  --crew-u: calc(100cqw / 460);
+
+  position: relative;
+  width: 100%;
+  aspect-ratio: 460 / 380;
+}
+
+.crew-ch {
+  position: absolute;
+  bottom: 0;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 calc(6 * var(--crew-u)) 0 color-mix(in oklch, var(--ink) 12%, transparent));
+}
+
+.crew-body {
+  position: absolute;
+  inset: 0;
+}
+
+.crew-eyes {
+  position: absolute;
+  display: flex;
+  gap: calc(var(--gap, 14) * var(--crew-u));
+}
+
+.crew-eye {
+  position: relative;
+  width: calc(var(--eye, 18) * var(--crew-u));
+  height: calc(var(--eye, 18) * var(--crew-u));
+  overflow: hidden;
+  border-radius: 9999px;
+  background: #fff;
+}
+
+.crew-pupil {
+  position: absolute;
+  inset: 24%;
+  border-radius: 9999px;
+  background: var(--ink);
+}
+
+.crew-mouth {
+  position: absolute;
+  top: calc(78 * var(--crew-u));
+  left: 50%;
+  width: calc(22 * var(--crew-u));
+  height: calc(8 * var(--crew-u));
+  margin-left: calc(-11 * var(--crew-u));
+  border: calc(3 * var(--crew-u)) solid var(--ink);
+  border-top: 0;
+  border-radius: 0 0 calc(14 * var(--crew-u)) calc(14 * var(--crew-u));
+}
+
+/* Hands over the eyes of the two at the back (inside .crew-eyes, one per
+   eye); down and invisible at rest. */
+.crew-hands {
+  position: absolute;
+  inset: calc(-5 * var(--crew-u)) calc(-6 * var(--crew-u));
+  display: flex;
+  justify-content: space-between;
+}
+
+.crew-hand {
+  width: calc((var(--eye, 18) + 10) * var(--crew-u));
+  height: calc((var(--eye, 18) + 10) * var(--crew-u));
+  border-radius: calc(12 * var(--crew-u));
+  background: var(--hand);
+  opacity: 0;
+  transform: translateY(160%);
+}
+
+.crew-ch[data-char="blue"] {
+  --hand: color-mix(in oklch, var(--collage-blue) 82%, #000);
+
+  left: calc(40 * var(--crew-u));
+  width: calc(120 * var(--crew-u));
+  height: calc(300 * var(--crew-u));
+}
+
+.crew-ch[data-char="blue"] .crew-body {
+  border-radius: calc(10 * var(--crew-u)) calc(10 * var(--crew-u)) 0 0;
+  background: var(--collage-blue);
+  clip-path: polygon(0 4%, 100% 0, 100% 100%, 0 100%);
+}
+
+.crew-ch[data-char="blue"] .crew-eyes {
+  top: calc(46 * var(--crew-u));
+  left: calc(26 * var(--crew-u));
+}
+
+.crew-ch[data-char="ink"] {
+  --hand: color-mix(in oklch, var(--ink) 85%, #fff);
+
+  z-index: 1;
+  left: calc(200 * var(--crew-u));
+  width: calc(110 * var(--crew-u));
+  height: calc(230 * var(--crew-u));
+}
+
+.crew-ch[data-char="ink"] .crew-body {
+  border-radius: calc(6 * var(--crew-u)) calc(6 * var(--crew-u)) 0 0;
+  background: var(--ink);
+  clip-path: polygon(6% 0, 100% 3%, 96% 100%, 0 100%);
+}
+
+.crew-ch[data-char="ink"] .crew-eyes {
+  --eye: 16;
+  --gap: 18;
+
+  top: calc(40 * var(--crew-u));
+  left: calc(22 * var(--crew-u));
+}
+
+.crew-ch[data-char="striped"] {
+  z-index: 2;
+  left: calc(330 * var(--crew-u));
+  width: calc(96 * var(--crew-u));
+  height: calc(170 * var(--crew-u));
+}
+
+.crew-ch[data-char="striped"] .crew-body {
+  border: calc(2 * var(--crew-u)) solid var(--ink);
+  border-bottom: 0;
+  border-radius: calc(48 * var(--crew-u)) calc(48 * var(--crew-u)) 0 0;
+  background: repeating-linear-gradient(
+    -12deg,
+    #fff 0 calc(14 * var(--crew-u)),
+    oklch(0.9 0.02 85) calc(14 * var(--crew-u)) calc(16 * var(--crew-u))
+  );
+}
+
+.crew-ch[data-char="striped"] .crew-eyes {
+  --eye: 16;
+
+  top: calc(44 * var(--crew-u));
+  left: calc(20 * var(--crew-u));
+}
+
+.crew-ch[data-char="striped"] .crew-eye {
+  border: calc(2 * var(--crew-u)) solid var(--ink);
+}
+
+.crew-ch[data-char="orange"] {
+  z-index: 3;
+  left: calc(170 * var(--crew-u));
+  width: calc(220 * var(--crew-u));
+  height: calc(130 * var(--crew-u));
+}
+
+.crew-ch[data-char="orange"] .crew-body {
+  border-radius: calc(110 * var(--crew-u)) calc(110 * var(--crew-u)) 0 0;
+  background: var(--collage-orange);
+}
+
+.crew-ch[data-char="orange"] .crew-eyes {
+  --gap: 28;
+
+  top: calc(42 * var(--crew-u));
+  left: calc(72 * var(--crew-u));
+}
+
+/* Their entrance from below, hidden from the first paint only where the
+   motion layer will raise them (same rule as [data-pop]). */
+@media (prefers-reduced-motion: no-preference) {
+  html.motion .crew-ch {
+    transform: translateY(110%);
   }
 }

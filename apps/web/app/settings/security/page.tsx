@@ -107,7 +107,7 @@ export default function SecuritySettingsPage() {
       {loadingUser ? (
         <LoadingLine />
       ) : (
-        <section className="flex flex-col gap-6 rounded-2xl border bg-card p-5 sm:p-7">
+        <section className="animated fadeIn flex flex-col gap-6 rounded-2xl border bg-card p-5 sm:p-7">
           <div className="flex items-start gap-4">
             <span
               className={
@@ -129,7 +129,7 @@ export default function SecuritySettingsPage() {
           </div>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="animated fadeIn">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

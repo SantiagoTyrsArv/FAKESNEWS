@@ -1,11 +1,16 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Wordmark } from "@/components/brand";
+import { useMotion } from "@/components/motion/motion-provider";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/auth";
+import { onceInSession } from "@/lib/motion/env.mjs";
+import { gsap } from "@/lib/motion/gsap";
+import { DURATION, EASE, scaled } from "@/lib/motion/tokens.mjs";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -14,6 +19,11 @@ const LINKS = [
   { href: "/sources", label: "Fuentes" },
   { href: "/settings/security", label: "Seguridad" },
 ];
+
+const HEADER_DROP = 20;
+// Never fully transparent: whether the header animates is only known after
+// hydration (a once-per-session flag), so it can't be pre-hidden by CSS.
+const HEADER_FROM_OPACITY = 0.6;
 
 export type HeaderVariant = "app" | "public" | "pending";
 
@@ -24,6 +34,26 @@ export type HeaderVariant = "app" | "public" | "pending";
 export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { reduced, intensity, ready } = useMotion();
+  const ref = useRef<HTMLElement>(null);
+  // Decided once per mount (a ref survives StrictMode's double effect): the
+  // header drops in the first time it shows in the session, then stays put.
+  const drops = useRef<boolean | null>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!ready || reduced || !el) return;
+    drops.current ??= onceInSession("fn-header", () => sessionStorage);
+    if (!drops.current) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { y: scaled(-HEADER_DROP, intensity), opacity: HEADER_FROM_OPACITY },
+        { y: 0, opacity: 1, duration: DURATION.enter * 0.7, ease: EASE.out, clearProps: "transform,opacity" },
+      );
+    }, el);
+    return () => ctx.revert();
+  }, [ready, reduced, intensity]);
 
   async function handleLogout() {
     try {
@@ -34,7 +64,7 @@ export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
   }
 
   return (
-    <header className="rule-double sticky top-0 z-30 bg-background/80 backdrop-blur">
+    <header ref={ref} className="rule-double sticky top-0 z-30 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4 sm:gap-6 sm:px-6">
         <Wordmark compact={variant !== "public"} />
         {variant === "app" ? (

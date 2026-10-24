@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand";
+import { Curtain } from "@/components/landing/curtain";
 import { HeroMedia } from "@/components/landing/hero-media";
+import { Marquee } from "@/components/landing/marquee";
 import { SourcesSection } from "@/components/landing/sources-section";
+import { useLandingMotion } from "@/components/landing/use-landing-motion";
 import { Button } from "@/components/ui/button";
 import { VERDICTS, VERDICT_ORDER, VerdictLabel } from "@/components/verdict";
 import { me, type UserResponse } from "@/lib/auth";
@@ -59,6 +62,8 @@ const STEPS = [
 export default function Home() {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [checked, setChecked] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useLandingMotion(root);
 
   useEffect(() => {
     me()
@@ -70,10 +75,15 @@ export default function Home() {
   const claims = SAMPLE.filter((part) => part.verdict);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+    <div ref={root} className="flex min-h-screen flex-col">
+      <Curtain />
+      <header
+        data-enter="header"
+        className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6"
+      >
         <Wordmark />
-        <nav className={cn("flex items-center gap-2 transition-opacity", !checked && "opacity-0")}>
+        {/* Hidden until the session is known, only when JS can reveal it. */}
+        <nav className={cn("flex items-center gap-2 transition-opacity", !checked && "[.js_&]:opacity-0")}>
           <Button variant="ghost" size="sm" render={<Link href="/sources" />}>
             Fuentes
           </Button>
@@ -93,22 +103,30 @@ export default function Home() {
         <section className="mx-auto grid w-full max-w-6xl gap-12 px-4 pt-8 pb-16 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16 lg:pt-16 lg:pb-24">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-3">
-              <p className="kicker">Verificación de noticias</p>
+              <p data-enter="kicker" className="kicker">
+                Verificación de noticias
+              </p>
               <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
                 Antes de reenviarlo, mira qué dicen las fuentes.
               </h1>
             </div>
-            <p className="max-w-[46ch] text-lg leading-relaxed text-pretty text-muted-foreground">
+            <p data-enter="lede" className="max-w-[46ch] text-lg leading-relaxed text-pretty text-muted-foreground">
               FakesNews separa un mensaje en afirmaciones comprobables y busca cada una en medios
               y organismos de confianza. No te damos un “verdadero” o “falso”: te damos las citas.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div data-enter="actions" className="flex flex-wrap gap-3">
               {checked && user ? (
                 <>
-                  <Button size="lg" className="h-11 px-5 text-[0.95rem]" render={<Link href="/submit" />}>
+                  <Button
+                    data-magnetic="0.35"
+                    size="lg"
+                    className="h-11 px-5 text-[0.95rem]"
+                    render={<Link href="/submit" />}
+                  >
                     Verificar un contenido
                   </Button>
                   <Button
+                    data-magnetic="0.35"
                     size="lg"
                     variant="outline"
                     className="h-11 px-5 text-[0.95rem]"
@@ -119,10 +137,16 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <Button size="lg" className="h-11 px-5 text-[0.95rem]" render={<Link href="/register" />}>
+                  <Button
+                    data-magnetic="0.35"
+                    size="lg"
+                    className="h-11 px-5 text-[0.95rem]"
+                    render={<Link href="/register" />}
+                  >
                     Crear una cuenta gratis
                   </Button>
                   <Button
+                    data-magnetic="0.35"
                     size="lg"
                     variant="outline"
                     className="h-11 px-5 text-[0.95rem]"
@@ -139,7 +163,10 @@ export default function Home() {
           </div>
 
           <HeroMedia>
-            <figure className="cutout relative rounded-xl border bg-card p-6 [--cutout-rotate:-1.2deg] sm:p-8">
+            <figure
+              data-tilt="3d"
+              className="cutout relative rounded-xl border bg-card p-6 [--cutout-rotate:-1.2deg] sm:p-8"
+            >
               <figcaption className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
                 <span>Mensaje reenviado muchas veces</span>
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs">Ejemplo</span>
@@ -176,6 +203,8 @@ export default function Home() {
           </HeroMedia>
         </section>
 
+        <Marquee />
+
         <section className="torn-top bg-card">
           <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
             <div className="flex flex-col gap-3">
@@ -190,14 +219,16 @@ export default function Home() {
             </div>
             <ol className="grid gap-x-10 gap-y-12 sm:grid-cols-2">
               {STEPS.map((step, i) => (
-                <li key={step.title} className="flex flex-col gap-6">
+                <li key={step.title} data-reveal className="flex flex-col gap-6">
                   <div
+                    data-tilt="3d"
                     className="cutout overflow-hidden rounded-lg border bg-paper"
                     style={{ "--cutout-rotate": i % 2 ? "1deg" : "-1deg" } as React.CSSProperties}
                   >
                     <Image
                       src={`/media/step-${i + 1}.webp`}
                       alt=""
+                      data-parallax
                       width={800}
                       height={600}
                       sizes="(min-width: 1152px) 300px, (min-width: 640px) 45vw, 100vw"
@@ -227,7 +258,7 @@ export default function Home() {
           </h2>
           <dl className="flex flex-col divide-y">
             {VERDICT_ORDER.map((verdict) => (
-              <div key={verdict} className="grid gap-1 py-4 first:pt-0 sm:grid-cols-[14rem_1fr] sm:gap-6">
+              <div key={verdict} data-reveal className="grid gap-1 py-4 first:pt-0 sm:grid-cols-[14rem_1fr] sm:gap-6">
                 <dt>
                   <VerdictLabel verdict={verdict} />
                 </dt>

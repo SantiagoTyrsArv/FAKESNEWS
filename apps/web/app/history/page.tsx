@@ -70,7 +70,7 @@ export default function HistoryPage() {
         title="Mis casos"
         description="Todo lo que enviaste a verificar, del más reciente al más antiguo."
         actions={
-          <Button className="h-10 px-4" render={<Link href="/submit" />}>
+          <Button className="h-10 px-4" data-magnetic="0.2" render={<Link href="/submit" />}>
             <Plus />
             Nuevo caso
           </Button>
@@ -78,7 +78,7 @@ export default function HistoryPage() {
       />
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animated fadeIn">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -86,7 +86,7 @@ export default function HistoryPage() {
       {submissions === null && !error && <LoadingLine />}
 
       {submissions?.length === 0 && (
-        <div className="relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-dashed p-8 sm:p-10">
+        <div className="animated fadeIn relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-dashed p-8 sm:p-10">
           <div
             aria-hidden="true"
             className="halftone pointer-events-none absolute -top-6 -right-6 size-40 rounded-full text-collage-blue/15"
@@ -96,14 +96,14 @@ export default function HistoryPage() {
             Pega un mensaje sospechoso, el enlace a un artículo o un video. El reporte aparecerá
             aquí cuando esté listo.
           </p>
-          <Button className="h-10 px-4" render={<Link href="/submit" />}>
+          <Button className="h-10 px-4" data-magnetic="0.2" render={<Link href="/submit" />}>
             Verificar mi primer contenido
           </Button>
         </div>
       )}
 
       {submissions && submissions.length > 0 && (
-        <ul className="flex flex-col overflow-hidden rounded-2xl border bg-card">
+        <ul className="animated fadeIn flex flex-col overflow-hidden rounded-2xl border bg-card">
           {submissions.map((s) => {
             const Icon = TYPE_ICONS[s.input_type];
             return (

@@ -47,7 +47,7 @@ export function MfaNudge() {
   }
 
   return (
-    <Alert className="pr-10">
+    <Alert className="animated fadeIn pr-10">
       <ShieldAlert aria-hidden="true" />
       <AlertTitle>Tu cuenta no tiene verificación en dos pasos</AlertTitle>
       <AlertDescription>

@@ -22,3 +22,6 @@ Thumbs.db
 
 # Brainstorming companion mockups
 .superpowers/
+
+# Browser-automation artifacts
+.playwright-mcp/
