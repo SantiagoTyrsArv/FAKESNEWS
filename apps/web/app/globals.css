@@ -71,8 +71,10 @@
 
 :root {
   --animate-duration: 0.6s;
-  --font-ui: "Public Sans Variable", "Segoe UI", system-ui, sans-serif;
-  --font-quote: "Newsreader Variable", georgia, "Times New Roman", serif;
+
+  /* --font-public-sans / --font-newsreader come from next/font (app/fonts.ts). */
+  --font-ui: var(--font-public-sans), "Segoe UI", system-ui, sans-serif;
+  --font-quote: var(--font-newsreader), georgia, "Times New Roman", serif;
   --font-code: ui-monospace, "SFMono-Regular", consolas, "Liberation Mono", monospace;
 
   /* Paper, ink and the evidence blue that marks actions. */

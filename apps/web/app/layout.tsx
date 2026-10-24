@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-// Self-hosted via Fontsource so builds never depend on reaching Google Fonts.
-import "@fontsource-variable/public-sans";
-import "@fontsource-variable/newsreader";
+import { newsreader, publicSans } from "@/app/fonts";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -26,7 +24,11 @@ const motionClassScript = `try{var d=document.documentElement;d.classList.add("j
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="es"
+      className={`${publicSans.variable} ${newsreader.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: motionClassScript }} />
       </head>
