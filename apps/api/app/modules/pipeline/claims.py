@@ -1,7 +1,12 @@
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
-from app.core.llm import get_anthropic_client
+from app.core.llm import (
+    MAX_OUTPUT_TOKENS,
+    UNFINISHED_STOP_REASONS,
+    get_anthropic_client,
+    log_usage,
+)
 from app.core.logging import get_logger
 
 settings = get_settings()
@@ -56,13 +61,11 @@ async def extract_claims(
         try:
             response = await client.messages.parse(
                 model=model_name,
-                max_tokens=2048,
+                max_tokens=MAX_OUTPUT_TOKENS,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": _build_user_message(text)}],
                 output_format=ClaimsExtractionResult,
             )
-            claims = [c.text.strip() for c in response.parsed_output.claims if c.text.strip()]
-            return claims[: settings.max_claims_per_submission]
         except Exception as exc:  # broad: any failure here is retried, then raised
             last_error = exc
             logger.warning(
@@ -71,6 +74,15 @@ async def extract_claims(
                 max_attempts=max_attempts,
                 error=str(exc),
             )
+            continue
+
+        log_usage("claims", response)
+        if response.stop_reason in UNFINISHED_STOP_REASONS:
+            raise ClaimsExtractionError(
+                f"La extracción terminó sin respuesta completa ({response.stop_reason})."
+            )
+        claims = [c.text.strip() for c in response.parsed_output.claims if c.text.strip()]
+        return claims[: settings.max_claims_per_submission]
 
     raise ClaimsExtractionError(
         f"No se pudieron extraer afirmaciones tras {max_attempts} intentos: {last_error}"

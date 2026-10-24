@@ -15,7 +15,7 @@ limitations (circularity, conformity bias).
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.sources.models import Source, SourceScoreEvent
@@ -128,11 +128,19 @@ async def update_reputation_for_claim(
 
         outcome = "hit" if stance == consensus else "miss"
         db.add(SourceScoreEvent(source_id=source.id, claim_id=claim_id, outcome=outcome))
-        if outcome == "hit":
-            source.alpha += 1
-        else:
-            source.beta += 1
-        source.cases_count += 1
-        source.last_updated = _utcnow()
+        # Incremented in SQL, not on the loaded row: other workers score the
+        # same sources concurrently, and writing back a value read earlier
+        # would drop their updates.
+        await db.execute(
+            update(Source)
+            .where(Source.id == source.id)
+            .values(
+                alpha=Source.alpha + (1 if outcome == "hit" else 0),
+                beta=Source.beta + (0 if outcome == "hit" else 1),
+                cases_count=Source.cases_count + 1,
+                last_updated=_utcnow(),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
     await db.commit()

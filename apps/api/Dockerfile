@@ -11,8 +11,12 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
 
+# UV_NO_DEV keeps the dev group (pytest, ruff, ...) out of the image, and it
+# also applies to every later "uv run" (CMD, Railway's pre-deploy and worker
+# commands, docker-compose), so none of them installs it at start-up.
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    UV_NO_DEV=1 \
     PYTHONUNBUFFERED=1
 
 COPY pyproject.toml uv.lock ./
@@ -20,6 +24,11 @@ RUN uv sync --frozen --no-install-project
 
 COPY . .
 RUN uv sync --frozen
+
+# Unprivileged runtime user. It needs a home: the worker caches the Whisper
+# model under ~/.cache when it processes a video.
+RUN useradd --create-home --uid 10001 app && chown -R app:app /app
+USER app
 
 EXPOSE 8000
 

@@ -4,7 +4,12 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import get_settings
-from app.core.llm import get_anthropic_client
+from app.core.llm import (
+    MAX_OUTPUT_TOKENS,
+    UNFINISHED_STOP_REASONS,
+    get_anthropic_client,
+    log_usage,
+)
 from app.core.logging import get_logger
 from app.modules.sources.service import normalize_domain
 
@@ -13,6 +18,9 @@ logger = get_logger(__name__)
 
 WEB_SEARCH_TOOL_TYPE = "web_search_20260209"
 WEB_SEARCH_MAX_USES = 5
+# How many times a turn paused by the server-side search loop is resumed
+# before giving up on the claim.
+MAX_PAUSE_CONTINUATIONS = 2
 
 SYSTEM_PROMPT = """Eres un asistente de verificación de hechos. Tu única tarea es \
 investigar UNA afirmación usando la herramienta de búsqueda web (restringida a un \
@@ -142,29 +150,47 @@ async def verify_claim(
 
     last_error: str = "error desconocido"
 
+    tools = [
+        {
+            "type": WEB_SEARCH_TOOL_TYPE,
+            "name": "web_search",
+            "max_uses": WEB_SEARCH_MAX_USES,
+            "allowed_domains": allowed_domains,
+            "allowed_callers": ["direct"],
+        }
+    ]
+
     for attempt in range(max_attempts):
+        messages: list[dict] = [{"role": "user", "content": _build_user_message(claim_text)}]
+        # Every block across the paused turns: search results returned before
+        # a pause are as real as the ones in the final response.
+        content: list = []
         try:
-            response = await client.messages.create(
-                model=model_name,
-                max_tokens=4096,
-                system=SYSTEM_PROMPT,
-                tools=[
-                    {
-                        "type": WEB_SEARCH_TOOL_TYPE,
-                        "name": "web_search",
-                        "max_uses": WEB_SEARCH_MAX_USES,
-                        "allowed_domains": allowed_domains,
-                        "allowed_callers": ["direct"],
-                    }
-                ],
-                messages=[{"role": "user", "content": _build_user_message(claim_text)}],
-            )
+            for _ in range(MAX_PAUSE_CONTINUATIONS + 1):
+                response = await client.messages.create(
+                    model=model_name,
+                    max_tokens=MAX_OUTPUT_TOKENS,
+                    system=SYSTEM_PROMPT,
+                    tools=tools,
+                    messages=messages,
+                )
+                log_usage("verify", response)
+                content.extend(response.content)
+                if response.stop_reason != "pause_turn":
+                    break
+                # The server-side search loop hit its iteration limit; sending
+                # the paused turn back lets it resume where it stopped.
+                messages = [*messages, {"role": "assistant", "content": response.content}]
         except Exception as exc:  # noqa: BLE001 - network/API errors, retried then INSUFFICIENT
             last_error = str(exc)
             logger.warning("verify_claim_api_error", attempt=attempt + 1, error=last_error)
             continue
 
-        real_results = _extract_real_results(response.content)
+        if response.stop_reason in (*UNFINISHED_STOP_REASONS, "pause_turn"):
+            logger.warning("verify_claim_unfinished", stop_reason=response.stop_reason)
+            return _insufficient("No se pudo completar la verificación de esta afirmación.")
+
+        real_results = _extract_real_results(content)
         raw_json = _extract_final_json_text(response.content)
 
         if raw_json is None:

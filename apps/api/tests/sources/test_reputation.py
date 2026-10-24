@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.sources import reputation
@@ -226,3 +226,30 @@ def test_score_interval_is_wide_for_small_samples_narrow_for_large() -> None:
 
     assert small_high - small_low > large_high - large_low
     assert 0.0 <= small_low <= small_high <= 1.0
+
+
+async def test_score_update_keeps_a_concurrent_workers_increment(
+    db_session: AsyncSession, db_session_factory
+) -> None:
+    a = await _make_source(db_session, alpha=8, beta=2)
+    b = await _make_source(db_session, alpha=8, beta=2)
+
+    # Another worker scores `a` for a different claim after this session
+    # loaded it, so the in-memory row is stale.
+    async with db_session_factory() as other:
+        await other.execute(
+            update(Source).where(Source.id == a.id).values(alpha=Source.alpha + 5, cases_count=5)
+        )
+        await other.commit()
+
+    await reputation.update_reputation_for_claim(
+        db_session,
+        claim_id=uuid.uuid4(),
+        verdict="SUPPORTED",
+        evidence=[(a.id, "supports"), (b.id, "supports")],
+    )
+
+    async with db_session_factory() as fresh:
+        stored = await fresh.get(Source, a.id)
+        assert stored.alpha == 14
+        assert stored.cases_count == 6

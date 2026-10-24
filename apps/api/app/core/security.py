@@ -9,12 +9,14 @@ from functools import lru_cache
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 
 settings = get_settings()
+logger = get_logger(__name__)
 
 _password_hasher = PasswordHasher()
 
@@ -31,9 +33,12 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         return _password_hasher.verify(password_hash, password)
-    except VerifyMismatchError:
+    except VerificationError:
         return False
-    except Exception:
+    except InvalidHashError:
+        # A stored hash argon2 can't parse never matches, but it means the
+        # row is corrupt, which someone should hear about.
+        logger.error("password_hash_unreadable")
         return False
 
 

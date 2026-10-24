@@ -49,7 +49,8 @@ async def test_get_source_detail_includes_interval_and_events(
     assert 0.0 <= body["score_interval_low"] <= body["score"] <= body["score_interval_high"] <= 1.0
     assert len(body["recent_events"]) == 1
     assert body["recent_events"][0]["outcome"] == "hit"
-    assert body["recent_events"][0]["claim_id"] == str(claim_id)
+    # Public endpoint: never expose which private case produced the event.
+    assert "claim_id" not in body["recent_events"][0]
 
 
 async def test_get_source_detail_accepts_url_and_strips_www(
