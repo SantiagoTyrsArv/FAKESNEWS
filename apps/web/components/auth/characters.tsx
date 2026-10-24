@@ -352,11 +352,13 @@ export function AuthCharacters({
           paused: true,
         });
         const schedule = () => {
+          // Only when a decorative blink happens: nothing security-related.
+          const delay = BLINK_MIN + Math.random() * BLINK_SPREAD; // NOSONAR
           const id = window.setTimeout(() => {
             timers.delete(id);
             blink.restart();
             schedule();
-          }, BLINK_MIN + Math.random() * BLINK_SPREAD);
+          }, delay);
           timers.add(id);
         };
         schedule();

@@ -94,7 +94,8 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
       }
     }
 
-    poll();
+    // poll handles its own errors, so the returned promise never rejects.
+    void poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);

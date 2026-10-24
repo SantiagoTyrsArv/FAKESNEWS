@@ -35,7 +35,13 @@ async def test_ingest_text_caps_length(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_ingest_url_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import trafilatura
 
-    monkeypatch.setattr(trafilatura, "fetch_url", lambda url: "<html>raw</html>")
+    fetched: list[str] = []
+
+    def fake_fetch(url: str) -> str:
+        fetched.append(url)
+        return "<html>raw</html>"
+
+    monkeypatch.setattr(ingest_module, "fetch_public_page", fake_fetch)
     monkeypatch.setattr(
         trafilatura, "extract", lambda html, favor_recall=True: "Texto extraído del artículo."
     )
@@ -43,12 +49,17 @@ async def test_ingest_url_success(monkeypatch: pytest.MonkeyPatch) -> None:
     result = await ingest_module.ingest_url("https://example.com/article")
 
     assert result == "Texto extraído del artículo."
+    # Downloaded through the SSRF-safe fetcher, not trafilatura's own client.
+    assert fetched == ["https://example.com/article"]
 
 
 async def test_ingest_url_fetch_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    import trafilatura
+    import httpx
 
-    monkeypatch.setattr(trafilatura, "fetch_url", lambda url: None)
+    def failing_fetch(url: str) -> str:
+        raise httpx.ConnectError("unreachable")
+
+    monkeypatch.setattr(ingest_module, "fetch_public_page", failing_fetch)
 
     with pytest.raises(IngestError):
         await ingest_module.ingest_url("https://example.com/unreachable")
@@ -57,7 +68,7 @@ async def test_ingest_url_fetch_failure_raises(monkeypatch: pytest.MonkeyPatch) 
 async def test_ingest_url_extract_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     import trafilatura
 
-    monkeypatch.setattr(trafilatura, "fetch_url", lambda url: "<html></html>")
+    monkeypatch.setattr(ingest_module, "fetch_public_page", lambda url: "<html></html>")
     monkeypatch.setattr(trafilatura, "extract", lambda html, favor_recall=True: None)
 
     with pytest.raises(IngestError):
@@ -117,3 +128,34 @@ async def test_ingest_video_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result == "Esto dijo el video."
     assert transcriber.received_path == _FakeYoutubeDL.filename
+
+
+async def test_ingest_url_rejects_an_unsafe_redirect(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.modules.pipeline.url_safety import UnsafeUrlError
+
+    def unsafe_fetch(url: str) -> str:
+        raise UnsafeUrlError("El host 'internal' resuelve a una dirección de red no pública.")
+
+    monkeypatch.setattr(ingest_module, "fetch_public_page", unsafe_fetch)
+
+    with pytest.raises(IngestError, match="no pública"):
+        await ingest_module.ingest_url("https://example.com/redirects-inside")
+
+
+async def test_a_blocked_url_is_logged(monkeypatch: pytest.MonkeyPatch) -> None:
+    from structlog.testing import capture_logs
+
+    from app.modules.pipeline.url_safety import UnsafeUrlError
+
+    def unsafe_fetch(url: str) -> str:
+        raise UnsafeUrlError("Host https://example.com/private?token=abc", "private_address")
+
+    monkeypatch.setattr(ingest_module, "fetch_public_page", unsafe_fetch)
+
+    with capture_logs() as logs, pytest.raises(IngestError):
+        await ingest_module.ingest_url("https://example.com/private?token=abc")
+
+    [event] = [e for e in logs if e["event"] == "ssrf.blocked"]
+    assert event["host"] == "example.com"  # the host only: no path or query
+    assert event["reason"] == "private_address"  # a fixed code, not the message
+    assert "token=abc" not in repr(logs)

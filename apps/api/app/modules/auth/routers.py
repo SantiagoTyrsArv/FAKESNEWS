@@ -70,7 +70,9 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         CSRF_COOKIE,
         session["csrf_token"],
         max_age=settings.refresh_token_expire_days * 86400,
-        httponly=False,
+        # Readable by JS on purpose: the double-submit CSRF check needs the
+        # page to copy this value into the X-CSRF-Token header.
+        httponly=False,  # NOSONAR
         secure=secure,
         samesite="lax",
         domain=settings.cookie_domain,

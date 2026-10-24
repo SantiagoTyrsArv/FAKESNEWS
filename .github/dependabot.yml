@@ -1,0 +1,16 @@
+# Weekly update PRs. Actions are pinned to commit SHAs (supply-chain safety),
+# so Dependabot is what keeps those SHAs moving.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+  - package-ecosystem: uv
+    directory: /apps/api
+    schedule:
+      interval: weekly

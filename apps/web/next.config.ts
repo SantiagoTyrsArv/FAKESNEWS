@@ -1,10 +1,18 @@
 import type { NextConfig } from "next";
+import { buildCsp } from "./lib/csp.mjs";
 
 // The /api -> API_PROXY_TARGET forwarding lives in proxy.ts, not in a rewrite
 // here: it has to add the X-Client-IP / X-Proxy-Secret request headers.
-// The API sends its own security headers; these cover the pages. No CSP yet:
-// app/layout.tsx runs an inline script, so one needs a per-request nonce.
+// The API sends its own security headers; these cover the pages. The CSP is
+// static so pages stay prerendered (see lib/csp.mjs for what that trades).
 const securityHeaders = [
+  {
+    key: "Content-Security-Policy",
+    value: buildCsp({
+      dev: process.env.NODE_ENV === "development",
+      apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+    }),
+  },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -13,6 +21,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // No "X-Powered-By: Next.js": don't advertise the stack.
+  poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

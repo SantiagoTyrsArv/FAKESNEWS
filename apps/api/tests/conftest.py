@@ -3,12 +3,13 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-at-least-32-bytes-long-for-hs256")
-os.environ.setdefault("TOTP_SECRET_ENCRYPTION_KEY", "MvSmxncXq52PBWdowkbPhAN6d_-YFDdWLvT3GIwtQL0=")
+os.environ.setdefault("TOTP_SECRET_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
 
 def pytest_configure(config: pytest.Config) -> None:
