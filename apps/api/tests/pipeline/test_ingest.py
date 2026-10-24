@@ -148,7 +148,7 @@ async def test_a_blocked_url_is_logged(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.modules.pipeline.url_safety import UnsafeUrlError
 
     def unsafe_fetch(url: str) -> str:
-        raise UnsafeUrlError("no pública")
+        raise UnsafeUrlError("Host https://example.com/private?token=abc", "private_address")
 
     monkeypatch.setattr(ingest_module, "fetch_public_page", unsafe_fetch)
 
@@ -157,4 +157,5 @@ async def test_a_blocked_url_is_logged(monkeypatch: pytest.MonkeyPatch) -> None:
 
     [event] = [e for e in logs if e["event"] == "ssrf.blocked"]
     assert event["host"] == "example.com"  # the host only: no path or query
+    assert event["reason"] == "private_address"  # a fixed code, not the message
     assert "token=abc" not in repr(logs)

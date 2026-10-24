@@ -46,7 +46,7 @@ def _fetch_and_extract_url(url: str) -> str | None:
 
 def _log_blocked(url: str, exc: UnsafeUrlError) -> None:
     # The host only: a path or query string can carry a user's tokens.
-    logger.warning("ssrf.blocked", host=urlparse(url).hostname, reason=str(exc))
+    logger.warning("ssrf.blocked", host=urlparse(url).hostname, reason=exc.reason)
 
 
 async def ingest_url(url: str) -> str:
