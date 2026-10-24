@@ -18,11 +18,18 @@ def _text_block(text: str):
     return SimpleNamespace(type="text", text=text)
 
 
+def _response(content: list, stop_reason: str = "end_turn"):
+    usage = SimpleNamespace(input_tokens=10, output_tokens=5, server_tool_use=None)
+    return SimpleNamespace(content=content, stop_reason=stop_reason, usage=usage)
+
+
 class _FakeMessages:
     def __init__(self, side_effects: list) -> None:
         self._side_effects = list(side_effects)
+        self.calls: list[dict] = []
 
-    async def create(self, **_kwargs):
+    async def create(self, **kwargs):
+        self.calls.append(kwargs)
         effect = self._side_effects.pop(0)
         if isinstance(effect, Exception):
             raise effect
@@ -56,7 +63,7 @@ async def test_verify_claim_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
             )
         ),
     ]
-    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim(
@@ -92,7 +99,7 @@ async def test_verify_claim_drops_hallucinated_evidence(monkeypatch: pytest.Monk
             )
         ),
     ]
-    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
@@ -124,7 +131,7 @@ async def test_verify_claim_drops_evidence_outside_whitelist(
             )
         ),
     ]
-    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
@@ -135,10 +142,10 @@ async def test_verify_claim_drops_evidence_outside_whitelist(
 
 async def test_verify_claim_retries_on_invalid_json(monkeypatch: pytest.MonkeyPatch) -> None:
     url = "https://reuters.com/a"
-    bad_response = SimpleNamespace(
+    bad_response = _response(
         content=[_search_tool_result_block([_web_search_result(url)]), _text_block("no es json")]
     )
-    good_response = SimpleNamespace(
+    good_response = _response(
         content=[
             _search_tool_result_block([_web_search_result(url)]),
             _text_block(
@@ -218,7 +225,7 @@ async def test_directional_verdict_needs_matching_evidence(
     monkeypatch: pytest.MonkeyPatch, verdict: str, stances: list[str]
 ) -> None:
     content = _verdict_with_evidence(verdict, stances)
-    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
@@ -236,7 +243,7 @@ async def test_directional_verdict_kept_with_matching_evidence(
     monkeypatch: pytest.MonkeyPatch, verdict: str, stances: list[str]
 ) -> None:
     content = _verdict_with_evidence(verdict, stances)
-    fake_client = _FakeClient([SimpleNamespace(content=content)])
+    fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
@@ -253,3 +260,65 @@ async def test_api_error_rationale_hides_provider_details(monkeypatch: pytest.Mo
     assert result.verdict == "INSUFFICIENT"
     assert "credit" not in result.rationale
     assert "400" not in result.rationale
+
+
+def _supported_json(url: str) -> str:
+    return json.dumps(
+        {
+            "verdict": "SUPPORTED",
+            "rationale": "La fuente confirma el hecho.",
+            "evidence": [{"url": url, "snippet": "x", "published_at": None, "stance": "supports"}],
+        }
+    )
+
+
+async def test_pause_turn_is_resumed_with_the_paused_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://reuters.com/a"
+    paused_content = [_search_tool_result_block([_web_search_result(url)])]
+    paused = _response(content=paused_content, stop_reason="pause_turn")
+    final = _response(content=[_text_block(_supported_json(url))])
+    fake_client = _FakeClient([paused, final])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    # The search results from the paused turn still count as real results.
+    assert result.verdict == "SUPPORTED"
+    assert [e.url for e in result.evidence] == [url]
+    resumed = fake_client.messages.calls[1]["messages"]
+    assert resumed[-1] == {"role": "assistant", "content": paused_content}
+
+
+@pytest.mark.parametrize("stop_reason", ["max_tokens", "refusal"])
+async def test_truncated_or_refused_answer_is_insufficient_without_retrying(
+    monkeypatch: pytest.MonkeyPatch, stop_reason: str
+) -> None:
+    url = "https://reuters.com/a"
+    content = [
+        _search_tool_result_block([_web_search_result(url)]),
+        _text_block(_supported_json(url)),
+    ]
+    fake_client = _FakeClient([_response(content=content, stop_reason=stop_reason)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    assert result.evidence == []
+    assert len(fake_client.messages.calls) == 1
+
+
+async def test_requests_leave_room_for_adaptive_thinking(monkeypatch: pytest.MonkeyPatch) -> None:
+    url = "https://reuters.com/a"
+    content = [
+        _search_tool_result_block([_web_search_result(url)]),
+        _text_block(_supported_json(url)),
+    ]
+    fake_client = _FakeClient([_response(content=content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert fake_client.messages.calls[0]["max_tokens"] >= 16000
