@@ -306,6 +306,10 @@ pnpm run lint
 Ver `.env.example` en la raíz — cada variable está documentada ahí mismo. Nunca commitees el
 archivo `.env` real.
 
+## Documentación
+
+El índice está en [docs/README.md](docs/README.md). Para retomar el trabajo, empieza por [docs/ESTADO.md](docs/ESTADO.md): estado actual, historial de PR y pendientes. La auditoría técnica está en [docs/AUDITORIA.md](docs/AUDITORIA.md) y el análisis de seguridad en [docs/SEGURIDAD.md](docs/SEGURIDAD.md).
+
 ## Limitaciones conocidas
 
 Lista consolidada, agrupada por la fase en que se introdujo cada componente.
