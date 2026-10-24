@@ -1,7 +1,8 @@
 // Three paper strips (orange, blue, ink) covering the landing on its first
-// visit in the session. Hidden by default: useLandingMotion shows it and lifts
-// it (≤ 0.9 s) only when onceInSession("fn-curtain") and motion is allowed.
-// It never takes clicks.
+// visit in the session. Hidden by default; shown from the first paint by CSS
+// under html.motion.curtain (set by the inline script in app/layout.tsx on
+// desktop pointers) and lifted (≤ 0.9 s) by useLandingMotion. It never takes
+// clicks.
 export function Curtain() {
   return (
     <div

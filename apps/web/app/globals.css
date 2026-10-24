@@ -363,6 +363,21 @@
   html.motion [data-enter] {
     opacity: 0;
   }
+
+  /* The landing curtain (Curtain), up from the first paint on the first visit
+     in the session; the class comes from the inline script in layout.tsx. */
+  html.motion.curtain [data-curtain] {
+    display: flex;
+
+    /* Fail-safe: if the JS never arrives to lift it, it fades away anyway. */
+    animation: curtain-failsafe 300ms ease-out 3s forwards;
+  }
+}
+
+@keyframes curtain-failsafe {
+  to {
+    opacity: 0;
+  }
 }
 
 /* Custom cursor (Cursor component). The system cursor is only hidden while the

@@ -7,9 +7,12 @@ import { onceInSession } from "@/lib/motion/env.mjs";
 import { gsap, SplitText } from "@/lib/motion/gsap";
 import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
 
-// Same query as the `[data-enter]` pre-hide in globals.css: only where CSS hid
-// the hero blocks does the entrance animate them from hidden.
+// Same query as the `[data-enter]` pre-hide and the curtain in globals.css (and
+// the inline script in app/layout.tsx): only where CSS hid the hero blocks does
+// the entrance animate them from hidden.
 const DESKTOP = "(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)";
+// Set on <html> before first paint by app/layout.tsx when the curtain is due.
+const CURTAIN_CLASS = "curtain";
 
 const ENTRANCE_MAX = 1.5; // the whole entrance, curtain included
 const CURTAIN_TOTAL = 0.9;
@@ -45,27 +48,35 @@ export function useLandingMotion(root: RefObject<HTMLElement | null>) {
     const el = root.current;
     if (!ready || !el) return;
 
-    const one = (selector: string) => el.querySelector<HTMLElement>(selector);
     const enterEls = gsap.utils.toArray<HTMLElement>("[data-enter]", el);
     const startMarks = () =>
       el.querySelectorAll(".mark-draw").forEach((m) => m.classList.add(MARK_START));
 
+    // The curtain is painted from the first frame when the inline script found
+    // the session fresh; lifting it is the only way it goes away.
+    const html = document.documentElement;
+    const curtainDue = html.classList.contains(CURTAIN_CLASS);
+    const dropCurtain = () => html.classList.remove(CURTAIN_CLASS);
+
     let entrance: gsap.core.Timeline | undefined;
     if (entered.current) {
+      dropCurtain();
       gsap.set(enterEls, { opacity: 1 });
       startMarks();
     } else {
       entered.current = true;
       const desktop = window.matchMedia(DESKTOP).matches;
+      const curtain = el.querySelector<HTMLElement>("[data-curtain]");
+      const liftCurtain =
+        desktop && documentLoad && curtainDue && !!curtain && onceInSession("fn-curtain", sessionStorage);
+      if (!liftCurtain) dropCurtain();
       if (!desktop) {
         // Touch / reduced motion: nothing was pre-hidden and the title stays put.
         startMarks();
       } else if (!documentLoad) {
         entrance = pop(enterEls, startMarks);
       } else {
-        const curtain = one("[data-curtain]");
-        const showCurtain = !!curtain && onceInSession("fn-curtain", sessionStorage);
-        entrance = choreograph(el, showCurtain ? curtain : null, intensity, startMarks);
+        entrance = choreograph(el, liftCurtain ? curtain : null, dropCurtain, intensity, startMarks);
       }
     }
 
@@ -115,6 +126,7 @@ export function useLandingMotion(root: RefObject<HTMLElement | null>) {
       // Jump to the end (callbacks included): blocks visible, title split
       // reverted, curtain gone, marks drawing.
       entrance?.progress(1).kill();
+      dropCurtain();
       ctx.revert();
     };
   }, [root, ready, reduced, touch, intensity, documentLoad]);
@@ -144,6 +156,7 @@ function pop(els: HTMLElement[], onComplete: () => void) {
 function choreograph(
   root: HTMLElement,
   curtain: HTMLElement | null,
+  dropCurtain: () => void,
   intensity: number,
   onComplete: () => void,
 ) {
@@ -153,7 +166,6 @@ function choreograph(
 
   let at = 0;
   if (curtain) {
-    gsap.set(curtain, { display: "flex" });
     tl.fromTo(
       curtain.children,
       { yPercent: 0 },
@@ -165,7 +177,7 @@ function choreograph(
       },
       0,
     );
-    tl.set(curtain, { display: "none" });
+    tl.call(dropCurtain);
     at = CURTAIN_LEAD;
   }
 
