@@ -106,10 +106,10 @@ function useOnScreen(compact: boolean) {
 export function AuthCharacters({
   state,
   compact = false,
-}: {
+}: Readonly<{
   state: CharacterState;
   compact?: boolean;
-}) {
+}>) {
   const ref = useRef<HTMLDivElement>(null);
   const { reduced, touch, intensity, ready } = useMotion();
   const onScreen = useOnScreen(compact);
@@ -455,11 +455,11 @@ function Character({
   name,
   hands = false,
   mouth = false,
-}: {
+}: Readonly<{
   name: CharacterName;
   hands?: boolean;
   mouth?: boolean;
-}) {
+}>) {
   const outfit = OUTFIT[name];
   return (
     <div className="crew-ch" data-char={name}>

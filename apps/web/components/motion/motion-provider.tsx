@@ -55,7 +55,7 @@ function getSnapshot() {
 
 const noopSubscribe = () => () => {};
 
-export function MotionProvider({ children }: { children: ReactNode }) {
+export function MotionProvider({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => "00");
   const ready = useSyncExternalStore(

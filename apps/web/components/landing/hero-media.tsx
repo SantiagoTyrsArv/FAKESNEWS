@@ -3,7 +3,7 @@ import Image from "next/image";
 
 // The hero's collage, with the worked example pasted on top of it like a
 // clipping. The collage pans slowly unless the visitor asked for less motion.
-export function HeroMedia({ children }: { children: ReactNode }) {
+export function HeroMedia({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="relative">
       <div data-collage className="relative aspect-[16/10] overflow-hidden rounded-2xl border bg-paper">

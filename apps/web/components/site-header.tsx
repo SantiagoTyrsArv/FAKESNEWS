@@ -31,7 +31,7 @@ export type HeaderVariant = "app" | "public" | "pending";
 // it offers sign-in instead of the session navigation and logout. "pending"
 // shows only the wordmark while such a page is still checking the session,
 // so a signed-in user never sees a flash of the sign-in buttons.
-export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
+export function SiteHeader({ variant = "app" }: Readonly<{ variant?: HeaderVariant }>) {
   const router = useRouter();
   const pathname = usePathname();
   const { reduced, intensity, ready } = useMotion();

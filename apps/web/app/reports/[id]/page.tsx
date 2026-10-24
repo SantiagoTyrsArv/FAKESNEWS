@@ -159,7 +159,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
   );
 }
 
-function PipelineProgress({ submission }: { submission: Submission }) {
+function PipelineProgress({ submission }: Readonly<{ submission: Submission }>) {
   const steps = PIPELINE_STEPS.filter(
     (step) => step !== "transcribing" || submission.input_type === "video",
   );
@@ -209,7 +209,7 @@ function PipelineProgress({ submission }: { submission: Submission }) {
   );
 }
 
-function ReportView({ report }: { report: Report }) {
+function ReportView({ report }: Readonly<{ report: Report }>) {
   const { submission, summary, claims, disclaimer } = report;
   const counts = {
     SUPPORTED: summary.supported,
@@ -289,7 +289,7 @@ function ReportView({ report }: { report: Report }) {
   );
 }
 
-function ClaimCard({ claim, index }: { claim: ReportClaim; index: number }) {
+function ClaimCard({ claim, index }: Readonly<{ claim: ReportClaim; index: number }>) {
   const verdict = VERDICTS[claim.verdict];
 
   return (
@@ -329,7 +329,7 @@ function ClaimCard({ claim, index }: { claim: ReportClaim; index: number }) {
   );
 }
 
-function EvidenceItem({ evidence }: { evidence: ReportEvidence }) {
+function EvidenceItem({ evidence }: Readonly<{ evidence: ReportEvidence }>) {
   const { source } = evidence;
   const stance = STANCE_STYLES[evidence.stance];
 

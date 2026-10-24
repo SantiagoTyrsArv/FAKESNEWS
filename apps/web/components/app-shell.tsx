@@ -13,11 +13,11 @@ export function AppShell({
   children,
   variant = "app",
   width = "default",
-}: {
+}: Readonly<{
   children: ReactNode;
   variant?: HeaderVariant;
   width?: "default" | "narrow";
-}) {
+}>) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader variant={variant} />
@@ -37,11 +37,11 @@ export function PageHeading({
   title,
   description,
   actions,
-}: {
+}: Readonly<{
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-}) {
+}>) {
   const ref = useRef<HTMLHeadingElement>(null);
   const { reduced, touch, intensity, ready } = useMotion();
 
@@ -88,7 +88,7 @@ export function PageHeading({
   );
 }
 
-export function LoadingLine({ children = "Cargando…" }: { children?: ReactNode }) {
+export function LoadingLine({ children = "Cargando…" }: Readonly<{ children?: ReactNode }>) {
   return (
     <p className="animate-pulse text-sm text-muted-foreground" role="status">
       {children}

@@ -25,7 +25,7 @@ const TYPE_ICONS: Record<InputType, typeof FileText> = {
   video: Video,
 };
 
-function StatusPill({ status }: { status: SubmissionStatus }) {
+function StatusPill({ status }: Readonly<{ status: SubmissionStatus }>) {
   const done = status === "done";
   const failed = status === "failed";
   return (

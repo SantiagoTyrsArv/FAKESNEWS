@@ -143,7 +143,7 @@ export default function SourcesPage() {
 
 // The source's name links to its own site, in a new tab, so a reader can go
 // check it without copying the address.
-function SourceName({ name, domain }: { name: string; domain: string }) {
+function SourceName({ name, domain }: Readonly<{ name: string; domain: string }>) {
   const href = sourceUrl(domain);
   if (!href) return <div className="font-semibold">{name}</div>;
   return (

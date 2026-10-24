@@ -9,7 +9,7 @@ const BASE = 38;
 const BIG = 84;
 const MID = 56;
 
-export function Cursor({ label }: { label: boolean }) {
+export function Cursor({ label }: Readonly<{ label: boolean }>) {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef<HTMLDivElement>(null);

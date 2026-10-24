@@ -26,7 +26,7 @@ function inFirstScreen(el: Element) {
  * network) get the same treatment once. Everything lives in one gsap.context
  * reverted on unmount.
  */
-export default function Template({ children }: { children: ReactNode }) {
+export default function Template({ children }: Readonly<{ children: ReactNode }>) {
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { reduced, touch, intensity, ready } = useMotion();

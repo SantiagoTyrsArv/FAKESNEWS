@@ -10,11 +10,11 @@ export function QrEnrollment({
   qrCodeBase64,
   otpauthUri,
   onContinue,
-}: {
+}: Readonly<{
   qrCodeBase64: string;
   otpauthUri: string | null;
   onContinue: () => void;
-}) {
+}>) {
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm leading-relaxed text-muted-foreground">
@@ -46,7 +46,7 @@ export function QrEnrollment({
   );
 }
 
-export function RecoveryCodes({ codes }: { codes: string[] }) {
+export function RecoveryCodes({ codes }: Readonly<{ codes: string[] }>) {
   function download() {
     const blob = new Blob([codes.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
