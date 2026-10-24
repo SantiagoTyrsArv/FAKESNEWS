@@ -101,6 +101,49 @@ async def run_pipeline(_ctx: dict, submission_id: str) -> None:
         raise
 
 
+ClaimEvidence = tuple[uuid.UUID, str, list[tuple[uuid.UUID, str]]]
+
+
+async def _save_claims(
+    db: Any,
+    submission: Submission,
+    claim_texts: list[str],
+    results: list[verify_module.VerifyResult],
+) -> list[ClaimEvidence]:
+    """Add each claim with its evidence (only from known sources) and return,
+    per claim, its id, verdict and the (source id, stance) pairs to score."""
+    claim_evidence: list[ClaimEvidence] = []
+    for claim_text, result in zip(claim_texts, results, strict=True):
+        claim = Claim(
+            submission_id=submission.id,
+            text=claim_text,
+            verdict=result.verdict,
+            rationale=result.rationale,
+        )
+        db.add(claim)
+        await db.flush()
+
+        source_stances: list[tuple[uuid.UUID, str]] = []
+        for ev in result.evidence:
+            source = await sources_service.get_source_by_domain(db, ev.domain)
+            if source is None:
+                continue
+            db.add(
+                Evidence(
+                    claim_id=claim.id,
+                    source_id=source.id,
+                    url=ev.url,
+                    snippet=ev.snippet,
+                    published_at=ev.published_at,
+                    stance=ev.stance,
+                )
+            )
+            source_stances.append((source.id, ev.stance))
+
+        claim_evidence.append((claim.id, result.verdict, source_stances))
+    return claim_evidence
+
+
 async def _run_pipeline(submission_id: str) -> None:
     async with async_session_factory() as db:
         submission = await db.get(Submission, uuid.UUID(submission_id))
@@ -137,37 +180,7 @@ async def _run_pipeline(submission_id: str) -> None:
                 *[_verify_one(semaphore, text, allowed_domains) for text in claim_texts]
             )
 
-            claim_evidence: list[tuple[uuid.UUID, str, list[tuple[uuid.UUID, str]]]] = []
-
-            for claim_text, result in zip(claim_texts, results, strict=True):
-                claim = Claim(
-                    submission_id=submission.id,
-                    text=claim_text,
-                    verdict=result.verdict,
-                    rationale=result.rationale,
-                )
-                db.add(claim)
-                await db.flush()
-
-                source_stances: list[tuple[uuid.UUID, str]] = []
-                for ev in result.evidence:
-                    source = await sources_service.get_source_by_domain(db, ev.domain)
-                    if source is None:
-                        continue
-                    db.add(
-                        Evidence(
-                            claim_id=claim.id,
-                            source_id=source.id,
-                            url=ev.url,
-                            snippet=ev.snippet,
-                            published_at=ev.published_at,
-                            stance=ev.stance,
-                        )
-                    )
-                    source_stances.append((source.id, ev.stance))
-
-                claim_evidence.append((claim.id, result.verdict, source_stances))
-
+            claim_evidence = await _save_claims(db, submission, claim_texts, results)
             await db.commit()
 
             await _set_status(db, submission, "scoring")

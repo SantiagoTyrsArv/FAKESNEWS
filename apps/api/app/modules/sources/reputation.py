@@ -86,61 +86,82 @@ async def update_reputation_for_claim(
     result = await db.execute(select(Source).where(Source.id.in_(source_ids)))
     sources_by_id = {s.id: s for s in result.scalars().all()}
 
-    # One vote per source (first stance wins if the same source shows up
-    # more than once in this claim's evidence).
-    per_source_stance: dict[uuid.UUID, tuple[Source, str]] = {}
-    for source_id, stance in directional:
-        source = sources_by_id.get(source_id)
-        if source is not None and source_id not in per_source_stance:
-            per_source_stance[source_id] = (source, stance)
-
-    # Group by independence key so syndicated re-reports of the same wire
-    # story count as one voice, both for the >=2 threshold and the
-    # weighted-consensus vote below.
-    groups: dict[str, list[tuple[Source, str]]] = {}
-    for source, stance in per_source_stance.values():
-        groups.setdefault(_independence_key(source), []).append((source, stance))
-
+    per_source_stance = _one_vote_per_source(directional, sources_by_id)
+    groups = _independent_groups(per_source_stance)
     if len(groups) < 2:
         return
 
+    consensus = _weighted_consensus(groups)
+    if consensus is None:
+        return  # exact tie: no clear consensus to score against
+
+    for source, stance in per_source_stance.values():
+        await _score_source(db, source, claim_id, "hit" if stance == consensus else "miss")
+
+    await db.commit()
+
+
+def _one_vote_per_source(
+    directional: list[tuple[uuid.UUID, str]], sources_by_id: dict[uuid.UUID, Source]
+) -> dict[uuid.UUID, tuple[Source, str]]:
+    """First stance wins if the same source shows up more than once in this
+    claim's evidence; unknown sources are skipped."""
+    per_source: dict[uuid.UUID, tuple[Source, str]] = {}
+    for source_id, stance in directional:
+        source = sources_by_id.get(source_id)
+        if source is not None and source_id not in per_source:
+            per_source[source_id] = (source, stance)
+    return per_source
+
+
+def _independent_groups(
+    per_source: dict[uuid.UUID, tuple[Source, str]],
+) -> dict[str, list[tuple[Source, str]]]:
+    """Syndicated re-reports of the same wire story count as one voice, both
+    for the >=2 threshold and the weighted-consensus vote."""
+    groups: dict[str, list[tuple[Source, str]]] = {}
+    for source, stance in per_source.values():
+        groups.setdefault(_independence_key(source), []).append((source, stance))
+    return groups
+
+
+def _weighted_consensus(groups: dict[str, list[tuple[Source, str]]]) -> str | None:
+    """Each group's first source votes, weighted by its score; None on a tie."""
     weighted_sum = 0.0
     for items in groups.values():
         rep_source, rep_stance = items[0]
         weight = max(compute_score(rep_source), MIN_WEIGHT)
-        value = 1.0 if rep_stance == "supports" else -1.0
-        weighted_sum += value * weight
-
+        weighted_sum += (1.0 if rep_stance == "supports" else -1.0) * weight
     if weighted_sum == 0:
-        return  # exact tie: no clear consensus to score against
+        return None
+    return "supports" if weighted_sum > 0 else "contradicts"
 
-    consensus = "supports" if weighted_sum > 0 else "contradicts"
 
-    for source, stance in per_source_stance.values():
-        existing = await db.execute(
-            select(SourceScoreEvent.id).where(
-                SourceScoreEvent.source_id == source.id,
-                SourceScoreEvent.claim_id == claim_id,
-            )
+async def _score_source(
+    db: AsyncSession, source: Source, claim_id: uuid.UUID, outcome: str
+) -> None:
+    """Record a hit or miss for one source on one claim, once."""
+    existing = await db.execute(
+        select(SourceScoreEvent.id).where(
+            SourceScoreEvent.source_id == source.id,
+            SourceScoreEvent.claim_id == claim_id,
         )
-        if existing.scalar_one_or_none() is not None:
-            continue  # already scored this source for this claim
+    )
+    if existing.scalar_one_or_none() is not None:
+        return  # already scored this source for this claim
 
-        outcome = "hit" if stance == consensus else "miss"
-        db.add(SourceScoreEvent(source_id=source.id, claim_id=claim_id, outcome=outcome))
-        # Incremented in SQL, not on the loaded row: other workers score the
-        # same sources concurrently, and writing back a value read earlier
-        # would drop their updates.
-        await db.execute(
-            update(Source)
-            .where(Source.id == source.id)
-            .values(
-                alpha=Source.alpha + (1 if outcome == "hit" else 0),
-                beta=Source.beta + (0 if outcome == "hit" else 1),
-                cases_count=Source.cases_count + 1,
-                last_updated=_utcnow(),
-            )
-            .execution_options(synchronize_session="fetch")
+    db.add(SourceScoreEvent(source_id=source.id, claim_id=claim_id, outcome=outcome))
+    # Incremented in SQL, not on the loaded row: other workers score the same
+    # sources concurrently, and writing back a value read earlier would drop
+    # their updates.
+    await db.execute(
+        update(Source)
+        .where(Source.id == source.id)
+        .values(
+            alpha=Source.alpha + (1 if outcome == "hit" else 0),
+            beta=Source.beta + (0 if outcome == "hit" else 1),
+            cases_count=Source.cases_count + 1,
+            last_updated=_utcnow(),
         )
-
-    await db.commit()
+        .execution_options(synchronize_session="fetch")
+    )
