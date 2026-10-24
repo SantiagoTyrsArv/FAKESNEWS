@@ -115,3 +115,38 @@ async def test_reenrollment_switches_device_once_confirmed(app_client: AsyncClie
         "/auth/2fa/verify", json={"code": pyotp.TOTP(new_secret).now()}, headers=headers
     )
     assert new.status_code == 200
+
+
+async def test_pending_token_is_single_use(app_client: AsyncClient) -> None:
+    secret, _codes, pending = await _register_with_mfa(app_client)
+    first = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": pyotp.TOTP(secret).now()},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert first.status_code == 200
+
+    # A fresh, valid code does not make the spent pending token usable again.
+    replay = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": _next_code(secret)},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert replay.status_code == 401
+
+
+async def test_wrong_code_does_not_spend_pending_token(app_client: AsyncClient) -> None:
+    secret, _codes, pending = await _register_with_mfa(app_client)
+    typo = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": "000000"},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert typo.status_code == 401
+
+    retry = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": pyotp.TOTP(secret).now()},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert retry.status_code == 200

@@ -1,3 +1,5 @@
+import time
+from dataclasses import dataclass
 from typing import Annotated
 
 import redis.asyncio as redis_asyncio
@@ -99,10 +101,17 @@ def _get_bearer_token(
     return authorization.split(" ", 1)[1]
 
 
+@dataclass(frozen=True)
+class PendingLogin:
+    user: User
+    jti: str
+    exp: int
+
+
 async def require_pending_actor(
     token: Annotated[str | None, Depends(_get_bearer_token)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> User:
+) -> PendingLogin:
     """Resolve the user behind an mfa_pending bearer token (/2fa/verify)."""
     if token is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "falta token de autenticación")
@@ -115,7 +124,16 @@ async def require_pending_actor(
     user = await service.get_user_by_id(db, parse_user_id(payload.sub))
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token inválido o expirado")
-    return user
+    return PendingLogin(user=user, jti=payload.jti, exp=payload.exp)
+
+
+async def _spend_pending_token(redis_client: redis_asyncio.Redis, pending: PendingLogin) -> bool:
+    """Mark the mfa_pending token as used; False if it already was. Kept until
+    the token would have expired anyway."""
+    ttl = max(pending.exp - int(time.time()), 1)
+    return bool(
+        await redis_client.set(f"auth:mfa_pending_used:{pending.jti}", "1", nx=True, ex=ttl)
+    )
 
 
 def _user_response(user: User) -> UserResponse:
@@ -219,7 +237,7 @@ async def verify_totp(
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
-    user: Annotated[User, Depends(require_pending_actor)],
+    pending: Annotated[PendingLogin, Depends(require_pending_actor)],
 ):
     _require_second_factor(body)
 
@@ -228,7 +246,7 @@ async def verify_totp(
             db,
             redis_client,
             ip=client_ip(request),
-            user=user,
+            user=pending.user,
             code=body.code,
             recovery_code=body.recovery_code,
         )
@@ -242,6 +260,10 @@ async def verify_totp(
         ) from exc
     except service.InvalidCodeError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, GENERIC_AUTH_ERROR) from exc
+
+    # Spent only on success, so a mistyped code doesn't force a new login.
+    if not await _spend_pending_token(redis_client, pending):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, GENERIC_AUTH_ERROR)
 
     session = await service.issue_session(db, user)
     _set_session_cookies(response, session)
