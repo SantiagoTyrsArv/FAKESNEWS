@@ -43,7 +43,7 @@
     "stylelint": "^17.16.0",
     "stylelint-config-standard": "^40.0.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^6"
   },
   "packageManager": "pnpm@11.22.0"
 }
