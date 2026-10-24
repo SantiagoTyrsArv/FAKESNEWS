@@ -181,7 +181,8 @@ async def verify_claim(
                 # The server-side search loop hit its iteration limit; sending
                 # the paused turn back lets it resume where it stopped.
                 messages = [*messages, {"role": "assistant", "content": response.content}]
-        except Exception as exc:  # noqa: BLE001 - network/API errors, retried then INSUFFICIENT
+        # Network/API errors: retried, then INSUFFICIENT.
+        except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             logger.warning("verify_claim_api_error", attempt=attempt + 1, error=last_error)
             continue

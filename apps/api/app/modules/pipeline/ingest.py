@@ -23,7 +23,7 @@ class IngestError(Exception):
     pass
 
 
-async def ingest_text(raw_text: str) -> str:
+def ingest_text(raw_text: str) -> str:
     sanitized = raw_text.strip()
     if not sanitized:
         raise IngestError("El texto enviado está vacío.")

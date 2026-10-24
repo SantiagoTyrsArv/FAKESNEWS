@@ -39,7 +39,7 @@ async def test_run_pipeline_happy_path(db_session_factory, monkeypatch: pytest.M
     )
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def fake_ingest_text(_raw_text: str) -> str:
+    def fake_ingest_text(_raw_text: str) -> str:
         return "texto extraído del caso"
 
     async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:
@@ -95,7 +95,7 @@ async def test_run_pipeline_marks_failed_on_ingest_error(
     submission_id = await _create_user_and_submission(db_session_factory, email="fail@example.com")
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def failing_ingest(_raw_text: str) -> str:
+    def failing_ingest(_raw_text: str) -> str:
         raise IngestError("no se pudo procesar")
 
     monkeypatch.setattr(ingest_module, "ingest_text", failing_ingest)
@@ -116,7 +116,7 @@ async def test_run_pipeline_partial_verify_failure_still_completes(
     )
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def fake_ingest_text(_raw_text: str) -> str:
+    def fake_ingest_text(_raw_text: str) -> str:
         return "texto"
 
     async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:
@@ -171,7 +171,7 @@ async def test_run_pipeline_scores_source_reputation_end_to_end(
 
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def fake_ingest_text(_raw_text: str) -> str:
+    def fake_ingest_text(_raw_text: str) -> str:
         return "texto"
 
     async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:
@@ -246,7 +246,7 @@ async def test_run_pipeline_marks_failed_when_cancelled(
     )
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def hanging_ingest(_raw_text: str) -> str:
+    def hanging_ingest(_raw_text: str) -> str:
         raise asyncio.CancelledError
 
     monkeypatch.setattr(ingest_module, "ingest_text", hanging_ingest)
@@ -272,7 +272,7 @@ async def test_run_pipeline_does_not_reprocess_an_interrupted_case(
         submission.status = "verifying"
         await db.commit()
 
-    async def must_not_run(*_args, **_kwargs):
+    def must_not_run(*_args, **_kwargs):
         raise AssertionError("an interrupted case must not be reprocessed")
 
     monkeypatch.setattr(ingest_module, "ingest_text", must_not_run)
@@ -291,7 +291,7 @@ async def test_run_pipeline_hides_internal_error_details(
     submission_id = await _create_user_and_submission(db_session_factory, email="leak@example.com")
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def fake_ingest_text(_raw_text: str) -> str:
+    def fake_ingest_text(_raw_text: str) -> str:
         return "texto"
 
     async def exploding_extract(_text: str, **_kwargs) -> list[str]:
@@ -315,7 +315,7 @@ async def test_failed_verify_rationale_hides_exception_text(
     submission_id = await _create_user_and_submission(db_session_factory, email="rat@example.com")
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
-    async def fake_ingest_text(_raw_text: str) -> str:
+    def fake_ingest_text(_raw_text: str) -> str:
         return "texto"
 
     async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:

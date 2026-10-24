@@ -10,6 +10,8 @@ from app.core.security import TokenError, decode_token
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User
 
+_INVALID_SESSION = "sesión inválida o expirada"
+
 ACCESS_COOKIE = "access_token"
 CSRF_COOKIE = "csrf_token"
 CSRF_ERROR = "Token CSRF inválido o ausente."
@@ -27,20 +29,20 @@ async def get_current_user(
     access_token: Annotated[str | None, Cookie()] = None,
 ) -> User:
     if access_token is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sesión inválida o expirada")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, _INVALID_SESSION)
 
     try:
         payload = decode_token(access_token, expected_scope="access")
     except TokenError as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sesión inválida o expirada") from exc
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, _INVALID_SESSION) from exc
 
     user = await auth_service.get_user_by_id(db, parse_user_id(payload.sub))
     if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sesión inválida o expirada")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, _INVALID_SESSION)
     return user
 
 
-async def require_csrf(
+def require_csrf(
     csrf_token: Annotated[str | None, Cookie()] = None,
     x_csrf_token: Annotated[str | None, Header()] = None,
 ) -> None:

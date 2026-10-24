@@ -70,7 +70,7 @@ def _get_transcriber() -> FasterWhisperTranscriber:
 
 async def _ingest(submission: Submission, db: Any) -> str:
     if submission.input_type == "text":
-        return await ingest_module.ingest_text(submission.raw_input)
+        return ingest_module.ingest_text(submission.raw_input)
     if submission.input_type == "url":
         return await ingest_module.ingest_url(submission.raw_input)
 
@@ -177,7 +177,8 @@ async def _run_pipeline(submission_id: str) -> None:
                 )
 
             await _set_status(db, submission, "done")
-        except Exception as exc:  # noqa: BLE001 - top-level guard: mark the case failed, don't crash the worker
+        # Top-level guard: mark the case failed, don't crash the worker.
+        except Exception as exc:  # noqa: BLE001
             logger.error("run_pipeline_failed", submission_id=submission_id, error=str(exc))
             # IngestError messages are written for the user (empty text, video
             # too long, URL not allowed); anything else stays in the logs.

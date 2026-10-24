@@ -66,13 +66,13 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         domain=settings.cookie_domain,
         path=f"{settings.cookie_path_prefix}/auth",
     )
-    response.set_cookie(
+    response.set_cookie(  # NOSONAR: JS must read it (double-submit CSRF, see below)
         CSRF_COOKIE,
         session["csrf_token"],
         max_age=settings.refresh_token_expire_days * 86400,
         # Readable by JS on purpose: the double-submit CSRF check needs the
         # page to copy this value into the X-CSRF-Token header.
-        httponly=False,  # NOSONAR
+        httponly=False,
         secure=secure,
         samesite="lax",
         domain=settings.cookie_domain,
@@ -90,7 +90,7 @@ def _clear_session_cookies(response: Response) -> None:
     response.delete_cookie(CSRF_COOKIE, path="/", domain=domain)
 
 
-async def _get_bearer_token(
+def _get_bearer_token(
     authorization: Annotated[str | None, Header()] = None,
 ) -> str | None:
     if not authorization or not authorization.lower().startswith("bearer "):
