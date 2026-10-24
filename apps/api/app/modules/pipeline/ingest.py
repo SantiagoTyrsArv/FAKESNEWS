@@ -2,6 +2,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 
+import httpx
+
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.modules.pipeline.transcribe import Transcriber
@@ -9,6 +11,7 @@ from app.modules.pipeline.url_safety import (
     UnsafeUrlError,
     assert_allowed_video_host,
     assert_public_http_url,
+    fetch_public_page,
 )
 
 settings = get_settings()
@@ -29,8 +32,12 @@ async def ingest_text(raw_text: str) -> str:
 def _fetch_and_extract_url(url: str) -> str | None:
     import trafilatura
 
-    assert_public_http_url(url)
-    downloaded = trafilatura.fetch_url(url)
+    # Our own SSRF-safe download (every redirect checked, validated IP
+    # pinned); trafilatura only extracts the text.
+    try:
+        downloaded = fetch_public_page(url)
+    except httpx.HTTPError:
+        return None
     if not downloaded:
         return None
     return trafilatura.extract(downloaded, favor_recall=True)

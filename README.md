@@ -332,10 +332,11 @@ Lista consolidada, agrupada por la fase en que se introdujo cada componente.
   `169.254.169.254`); video además restringido a una lista blanca de plataformas conocidas
   (`ALLOWED_VIDEO_HOSTS`). Validado en vivo contra el stack en Docker apuntando a un servicio
   interno (`postgres:5432`), un endpoint de metadata y `localhost` — los tres se bloquean antes de
-  hacer ninguna petición. Limitación conocida: la validación no cubre redirecciones HTTP (un host
-  público validado podría redirigir a una dirección interna en un salto posterior); mitigarlo del
-  todo requeriría deshabilitar redirecciones en `trafilatura`/`yt-dlp` y revalidar cada salto
-  manualmente, fuera de alcance para este MVP.
+  hacer ninguna petición. Las páginas se descargan con `fetch_public_page`: cada redirección se
+  revalida (hasta 5) y la conexión va a la misma IP que se validó (el `Host` y el SNI llevan el
+  dominio, así que el certificado se sigue verificando), lo que también cierra el DNS rebinding;
+  `trafilatura` solo extrae el texto. Limitación que queda: yt-dlp sigue sus propias
+  redirecciones; lo acota la lista blanca de plataformas de video.
 - Fase 4: el sistema de reputación tiene una circularidad de diseño conocida y documentada en
   detalle en `docs/reputation.md` — el peso de cada fuente en el consenso es su propio score
   actual, lo que puede autoreforzar sesgos iniciales en vez de corregirlos, y el sistema mide
