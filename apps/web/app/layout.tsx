@@ -15,13 +15,14 @@ export const metadata: Metadata = {
     "Verificación asistida por IA de noticias sospechosas, con citas de fuentes de confianza y su historial de confiabilidad.",
 };
 
-// Runs before first paint: only with JS and without reduced-motion does the
-// page opt in to the pre-hidden "from" states in globals.css. On the landing's
+// Runs before first paint. `js` only says scripts run at all; without
+// reduced-motion it also adds `motion`, which opts the page in to the
+// pre-hidden "from" states in globals.css. On the landing's
 // first visit in the session, on desktop pointers, it also raises the curtain
 // (`curtain` class) so it covers the page from the first frame; blocked
 // storage throws and simply means no curtain. useLandingMotion lifts it and
 // records the visit (onceInSession "fn-curtain").
-const motionClassScript = `try{var d=document.documentElement;if(!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("motion");if(location.pathname==="/"&&matchMedia("(hover: hover) and (pointer: fine)").matches&&sessionStorage.getItem("fn-curtain")===null)d.classList.add("curtain")}}catch(e){}`;
+const motionClassScript = `try{var d=document.documentElement;d.classList.add("js");if(!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("motion");if(location.pathname==="/"&&matchMedia("(hover: hover) and (pointer: fine)").matches&&sessionStorage.getItem("fn-curtain")===null)d.classList.add("curtain")}}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

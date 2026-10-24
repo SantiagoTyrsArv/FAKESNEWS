@@ -84,8 +84,15 @@ export function MotionProvider({ children }: { children: ReactNode }) {
       gsap.ticker.remove(tick);
       lenis.off("scroll", onScroll);
       lenis.destroy();
+      gsap.ticker.lagSmoothing(500, 33); // GSAP's default
     };
   }, [lenisAllowed]);
+
+  // From here on the motion layer owns the pre-hidden states, so the CSS
+  // fail-safe in globals.css (for when the JS never arrives) stands down.
+  useEffect(() => {
+    if (ready) document.documentElement.classList.add("motion-ready");
+  }, [ready]);
 
   const value = useMemo<MotionState>(
     () => ({ reduced, touch, intensity: intensityFor(pathname), ready }),

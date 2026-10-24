@@ -340,7 +340,6 @@ export function AuthCharacters({
   );
 }
 
-
 function Character({ name, hands = false, mouth = false }: { name: string; hands?: boolean; mouth?: boolean }) {
   return (
     <div className="crew-ch" data-char={name}>

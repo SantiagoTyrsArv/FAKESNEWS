@@ -162,6 +162,6 @@ original era +200 ms).
   carga en todas las páginas por imports estáticos, más ~27 KB de código de la app. El elemento LCP
   es la imagen del hero. Quitando gsap y Lenis por completo en un experimento, el LCP baja solo a
   3,7 s.
-- **Decisión:** el 2026-10-23 se aceptó el +400 ms de LCP (el límite de la spec pasó a +400 ms).
+- **Decisión:** el 2026-10-23 el usuario aceptó el +400 ms de LCP (el límite de la spec pasó a +400 ms).
 - **Pendiente:** cargar las librerías de animación de forma diferida (import dinámico tras la
   hidratación); en el mejor caso medido, ~3,7 s.

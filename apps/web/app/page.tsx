@@ -82,7 +82,8 @@ export default function Home() {
         className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6"
       >
         <Wordmark />
-        <nav className={cn("flex items-center gap-2 transition-opacity", !checked && "opacity-0")}>
+        {/* Hidden until the session is known, only when JS can reveal it. */}
+        <nav className={cn("flex items-center gap-2 transition-opacity", !checked && "[.js_&]:opacity-0")}>
           <Button variant="ghost" size="sm" render={<Link href="/sources" />}>
             Fuentes
           </Button>

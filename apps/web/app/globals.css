@@ -380,6 +380,20 @@
   }
 }
 
+/* Fail-safe for every pre-hidden state above (and the characters below): if
+   the app never hydrates (script error, blocked bundle), they show after 5 s.
+   MotionProvider adds `motion-ready` on hydration, which stands this down. */
+html.motion:not(.motion-ready) :is([data-pop], [data-reveal], [data-enter], .crew-ch) {
+  animation: motion-failsafe 1ms 5s forwards;
+}
+
+@keyframes motion-failsafe {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Custom cursor (Cursor component). The system cursor is only hidden while the
    custom one is actually visible (`cursor-on`), never in text fields. */
 .cursor-root {
