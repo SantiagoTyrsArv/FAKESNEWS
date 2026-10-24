@@ -44,6 +44,10 @@ const LENS_TILT = 30; // degrees, at intensity 1
 const LENS_DRIFT = 6; // scene px the glass slides toward the target
 const LENS_ZOOM = 1.6; // the pupil behind the glass
 const LENS_POCKET = 180; // yPercent: down into the gabardine
+const PAW_DOWN = 160; // yPercent: the orange one's paw, out of sight
+const PAW_UP = -60; // yPercent: the paw over the monocle
+const MONOCLE_OFF = 150; // yPercent: taken off with the paw
+const SWAP = 0.25; // each move of the monocle swap
 
 // AuthShell shows the full stage from Tailwind's `lg` up and the compact strip
 // below it; only the copy on screen animates.
@@ -241,6 +245,28 @@ export function AuthCharacters({
         failure
           .fromTo(mouth, { scaleY: 1 }, { scaleY: -1, duration: 0.2, ease: "power2.out" }, 0)
           .to(mouth, { scaleY: 1, duration: 0.3, ease: "power2.out" }, 0.2 + FROWN_HOLD);
+      }
+
+      // ...and the monocle cracks; the paw takes it off and puts on a new one
+      // (about 1.5 s). Every run starts from the monocle on and the paw down,
+      // so an error mid-swap restarts cleanly.
+      const monocle = crew.querySelector<HTMLElement>(".crew-monocle");
+      const crack = crew.querySelector<HTMLElement>(".crew-crack");
+      const paw = crew.querySelector<HTMLElement>(".crew-paw");
+      if (monocle && crack && paw) {
+        const away = { duration: SWAP, ease: "power2.in" };
+        const back = { duration: SWAP, ease: EASE.stick };
+        failure
+          .set(monocle, { yPercent: 0, opacity: 1 }, 0)
+          .set(paw, { y: 0, yPercent: PAW_DOWN, opacity: 0 }, 0)
+          .fromTo(crack, { opacity: 0 }, { opacity: 1, duration: 0.1 }, 0)
+          .to(paw, { yPercent: PAW_UP, opacity: 1, ...back }, 0.3)
+          .to(monocle, { yPercent: MONOCLE_OFF, opacity: 0, ...away }, 0.55)
+          .to(paw, { yPercent: PAW_DOWN, ...away }, 0.55)
+          .set(crack, { opacity: 0 }, 0.85)
+          .to(monocle, { yPercent: 0, opacity: 1, ...back }, 0.85)
+          .to(paw, { yPercent: PAW_UP, ...back }, 0.85)
+          .to(paw, { yPercent: PAW_DOWN, opacity: 0, ...away }, 1.25);
       }
 
       // The focused field, at the end of what is typed in it.
