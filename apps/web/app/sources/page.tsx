@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { ExternalLink } from "lucide-react";
 import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
 import { ScoreMeter } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ApiError, apiFetch, readCsrfCookie } from "@/lib/api";
 import { me } from "@/lib/auth";
+import { sourceUrl } from "@/lib/source-url.mjs";
 
 interface SourceSummary {
   domain: string;
@@ -97,7 +99,7 @@ export default function SourcesPage() {
               {sources.map((source) => (
                 <tr key={source.domain} className="border-b last:border-b-0">
                   <td className="px-4 py-3.5 sm:px-5">
-                    <div className="font-semibold">{source.name}</div>
+                    <SourceName name={source.name} domain={source.domain} />
                     <div className="text-xs text-muted-foreground">
                       {source.domain}
                       {source.country ? `, ${source.country}` : ""}
@@ -136,5 +138,24 @@ export default function SourcesPage() {
         consenso. Con menos de 10 casos el puntaje todavía es poco estable.
       </p>
     </AppShell>
+  );
+}
+
+// The source's name links to its own site, in a new tab, so a reader can go
+// check it without copying the address.
+function SourceName({ name, domain }: { name: string; domain: string }) {
+  const href = sourceUrl(domain);
+  if (!href) return <div className="font-semibold">{name}</div>;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 font-semibold underline-offset-4 hover:text-primary hover:underline"
+    >
+      {name}
+      <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span className="sr-only">(visitar {domain}, se abre en una pestaña nueva)</span>
+    </a>
   );
 }
