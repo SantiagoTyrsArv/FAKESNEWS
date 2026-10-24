@@ -1,6 +1,6 @@
 "use client";
 
-import Lenis from "lenis";
+import type Lenis from "lenis";
 import { usePathname } from "next/navigation";
 import {
   createContext,
@@ -74,13 +74,21 @@ export function MotionProvider({ children }: Readonly<{ children: ReactNode }>) 
 
   useEffect(() => {
     if (!lenisAllowed) return;
-    const lenis = new Lenis();
+    // Loaded on demand: touch and reduced-motion visitors never download it.
+    let cancelled = false;
+    let lenis: Lenis | undefined;
     const onScroll = () => ScrollTrigger.update();
-    lenis.on("scroll", onScroll);
-    const tick = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(tick);
-    gsap.ticker.lagSmoothing(0);
+    const tick = (time: number) => lenis?.raf(time * 1000);
+    void import("lenis").then(({ default: LenisClass }) => {
+      if (cancelled) return;
+      lenis = new LenisClass();
+      lenis.on("scroll", onScroll);
+      gsap.ticker.add(tick);
+      gsap.ticker.lagSmoothing(0);
+    });
     return () => {
+      cancelled = true;
+      if (!lenis) return;
       gsap.ticker.remove(tick);
       lenis.off("scroll", onScroll);
       lenis.destroy();
