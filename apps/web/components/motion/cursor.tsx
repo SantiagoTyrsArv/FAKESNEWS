@@ -68,8 +68,9 @@ export function Cursor({ label }: Readonly<{ label: boolean }>) {
       const hover = next === "hover";
       const label = labelRef.current;
       const big = hover && label;
+      const hoverSize = label ? BIG : MID;
       gsap.to(scaler, {
-        scale: hover ? (label ? BIG : MID) / BIG : BASE / BIG,
+        scale: (hover ? hoverSize : BASE) / BIG,
         duration: 0.45,
         ease: "expo.out",
         overwrite: "auto",

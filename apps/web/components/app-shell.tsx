@@ -90,8 +90,8 @@ export function PageHeading({
 
 export function LoadingLine({ children = "Cargando…" }: Readonly<{ children?: ReactNode }>) {
   return (
-    <p className="animate-pulse text-sm text-muted-foreground" role="status">
+    <output className="block animate-pulse text-sm text-muted-foreground">
       {children}
-    </p>
+    </output>
   );
 }

@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api";
 
 export default function TwoFactorPage() {
   const router = useRouter();
-  const [pendingToken, setPendingTokenState] = useState<string | null>(null);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
   const [useRecovery, setUseRecovery] = useState(false);
@@ -28,7 +28,7 @@ export default function TwoFactorPage() {
     // sessionStorage (set by the login page) isn't available during server
     // rendering, so this one-time sync of external state has to happen here.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPendingTokenState(pending);
+    setPendingToken(pending);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -66,9 +66,9 @@ export default function TwoFactorPage() {
       step={{ current: 2, total: 2 }}
     >
       {!pendingToken ? (
-        <p className="animate-pulse text-sm text-muted-foreground" role="status">
+        <output className="block animate-pulse text-sm text-muted-foreground">
           Preparando…
-        </p>
+        </output>
       ) : (
         <form onSubmit={handleVerify} className="animated fadeIn flex flex-col gap-5">
           {error && (

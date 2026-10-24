@@ -23,8 +23,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // No "X-Powered-By: Next.js": don't advertise the stack.
   poweredByHeader: false,
-  async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+  headers() {
+    return Promise.resolve([{ source: "/:path*", headers: securityHeaders }]);
   },
 };
 

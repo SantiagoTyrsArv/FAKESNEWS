@@ -172,6 +172,12 @@ export default function Template({ children }: Readonly<{ children: ReactNode }>
         }
       };
 
+      // Runs in the frame scheduled by scan, inside this context.
+      const enterInFrame = (frame: number, els: HTMLElement[], pop: boolean) => {
+        frames.delete(frame);
+        self.add(() => enter(els, pop));
+      };
+
       // Hides what is new now (before paint) and measures it next frame, once
       // Next has applied its scroll for this navigation.
       const scan = (pop: boolean) => {
@@ -185,10 +191,7 @@ export default function Template({ children }: Readonly<{ children: ReactNode }>
           return;
         }
         gsap.set(els, { opacity: 0 });
-        const frame = requestAnimationFrame(() => {
-          frames.delete(frame);
-          self.add(() => enter(els, pop));
-        });
+        const frame = requestAnimationFrame(() => enterInFrame(frame, els, pop));
         frames.add(frame);
       };
 

@@ -85,13 +85,7 @@ export default function SecuritySettingsPage() {
       setUser(updated);
       goIdle();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 429) {
-        setError("Demasiados intentos. Intenta de nuevo en unos minutos.");
-      } else if (err instanceof ApiError && err.status === 423) {
-        setError("Cuenta bloqueada temporalmente por demasiados intentos fallidos.");
-      } else {
-        setError("Código inválido.");
-      }
+      setError(disableErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -108,25 +102,7 @@ export default function SecuritySettingsPage() {
         <LoadingLine />
       ) : (
         <section className="animated fadeIn flex flex-col gap-6 rounded-2xl border bg-card p-5 sm:p-7">
-          <div className="flex items-start gap-4">
-            <span
-              className={
-                user?.mfa_enabled
-                  ? "flex size-10 shrink-0 items-center justify-center rounded-full bg-supported-tint text-supported"
-                  : "flex size-10 shrink-0 items-center justify-center rounded-full bg-insufficient-tint text-insufficient"
-              }
-            >
-              {user?.mfa_enabled ? <ShieldCheck className="size-5" /> : <ShieldAlert className="size-5" />}
-            </span>
-            <div className="flex flex-1 flex-col gap-1">
-              <h2 className="font-heading text-xl font-semibold">Verificación en dos pasos</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {user?.mfa_enabled
-                  ? "Activada. Cada inicio de sesión pide un código de tu app de autenticación."
-                  : "Opcional y no activada. Actívala para que nadie entre solo con tu contraseña."}
-              </p>
-            </div>
-          </div>
+          <MfaStatus enabled={user?.mfa_enabled ?? false} />
 
           {error && (
             <Alert variant="destructive" className="animated fadeIn">
@@ -143,11 +119,7 @@ export default function SecuritySettingsPage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button className="h-10 w-fit px-4" onClick={startEnrollment} disabled={loading}>
-                  {loading
-                    ? "Preparando…"
-                    : user?.mfa_enabled
-                      ? "Configurar en otro teléfono"
-                      : "Activar verificación en dos pasos"}
+                  {enrollButtonLabel(loading, user?.mfa_enabled ?? false)}
                 </Button>
                 {user?.mfa_enabled && (
                   <Button
@@ -169,33 +141,13 @@ export default function SecuritySettingsPage() {
                 Para desactivarla, confirma que eres tú. Después podrás entrar solo con tu
                 contraseña, y tus códigos de recuperación dejarán de funcionar.
               </p>
-              {!useRecovery ? (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="disable-code">Código de la app</Label>
-                  <Input
-                    id="disable-code"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    placeholder="123456"
-                    required
-                    className="h-12 max-w-56 text-center font-mono text-xl tracking-[0.4em]"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="disable-recovery-code">Código de recuperación</Label>
-                  <Input
-                    id="disable-recovery-code"
-                    required
-                    autoComplete="off"
-                    className="h-12 max-w-72 font-mono"
-                    value={recoveryCode}
-                    onChange={(e) => setRecoveryCode(e.target.value)}
-                  />
-                </div>
-              )}
+              <DisableCodeField
+                useRecovery={useRecovery}
+                code={code}
+                recoveryCode={recoveryCode}
+                onCodeChange={setCode}
+                onRecoveryCodeChange={setRecoveryCode}
+              />
               <button
                 type="button"
                 className="w-fit text-left text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
@@ -267,5 +219,88 @@ export default function SecuritySettingsPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function enrollButtonLabel(loading: boolean, mfaEnabled: boolean): string {
+  if (loading) return "Preparando…";
+  return mfaEnabled ? "Configurar en otro teléfono" : "Activar verificación en dos pasos";
+}
+
+function disableErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 429) {
+    return "Demasiados intentos. Intenta de nuevo en unos minutos.";
+  }
+  if (err instanceof ApiError && err.status === 423) {
+    return "Cuenta bloqueada temporalmente por demasiados intentos fallidos.";
+  }
+  return "Código inválido.";
+}
+
+// The 2FA status line: icon, title and what it means for the account.
+function MfaStatus({ enabled }: Readonly<{ enabled: boolean }>) {
+  const tone = enabled
+    ? "bg-supported-tint text-supported"
+    : "bg-insufficient-tint text-insufficient";
+  return (
+    <div className="flex items-start gap-4">
+      <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${tone}`}>
+        {enabled ? <ShieldCheck className="size-5" /> : <ShieldAlert className="size-5" />}
+      </span>
+      <div className="flex flex-1 flex-col gap-1">
+        <h2 className="font-heading text-xl font-semibold">Verificación en dos pasos</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {enabled
+            ? "Activada. Cada inicio de sesión pide un código de tu app de autenticación."
+            : "Opcional y no activada. Actívala para que nadie entre solo con tu contraseña."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// To turn 2FA off: the app's code, or a recovery code without the phone.
+function DisableCodeField({
+  useRecovery,
+  code,
+  recoveryCode,
+  onCodeChange,
+  onRecoveryCodeChange,
+}: Readonly<{
+  useRecovery: boolean;
+  code: string;
+  recoveryCode: string;
+  onCodeChange: (value: string) => void;
+  onRecoveryCodeChange: (value: string) => void;
+}>) {
+  if (useRecovery) {
+    return (
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="disable-recovery-code">Código de recuperación</Label>
+        <Input
+          id="disable-recovery-code"
+          required
+          autoComplete="off"
+          className="h-12 max-w-72 font-mono"
+          value={recoveryCode}
+          onChange={(e) => onRecoveryCodeChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="disable-code">Código de la app</Label>
+      <Input
+        id="disable-code"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        placeholder="123456"
+        required
+        className="h-12 max-w-56 text-center font-mono text-xl tracking-[0.4em]"
+        value={code}
+        onChange={(e) => onCodeChange(e.target.value)}
+      />
+    </div>
   );
 }
