@@ -1,4 +1,4 @@
-import { apiFetch, csrfHeaders } from "@/lib/api";
+import { ApiError, apiFetch, csrfHeaders, readCsrfCookie } from "@/lib/api";
 
 export interface RegisterResponse {
   id: string;
@@ -105,5 +105,10 @@ export function logout() {
 }
 
 export function me() {
+  // The CSRF cookie lives as long as the refresh token: without it there is no
+  // session to renew, so skip the 401 -> 403 round trip for anonymous visitors.
+  if (!readCsrfCookie()) {
+    return Promise.reject(new ApiError("Not authenticated", 401, null));
+  }
   return apiFetch<UserResponse>("/auth/me");
 }
