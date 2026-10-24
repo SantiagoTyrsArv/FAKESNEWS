@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -6,7 +7,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.rate_limit import RateLimitExceeded, check_rate_limit
+from app.core.rate_limit import check_rate_limit
 from app.core.security import (
     create_token,
     decrypt_secret,
@@ -86,7 +87,7 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
-async def _check_not_locked(user: User) -> None:
+def _check_not_locked(user: User) -> None:
     if user.locked_until is not None and _aware(user.locked_until) > _now():
         retry_after = int((_aware(user.locked_until) - _now()).total_seconds())
         raise AccountLockedError(retry_after_seconds=max(retry_after, 1))
@@ -125,7 +126,10 @@ async def register_user(db: AsyncSession, email: str, password: str) -> User:
     if existing is not None:
         raise EmailAlreadyRegisteredError()
 
-    user = User(email=email.lower(), password_hash=hash_password(password))
+    # argon2 is deliberately slow; off the event loop so a login doesn't
+    # stall every other request in the process.
+    password_hash = await asyncio.to_thread(hash_password, password)
+    user = User(email=email.lower(), password_hash=password_hash)
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -140,23 +144,20 @@ async def authenticate_password(
     email: str,
     password: str,
 ) -> User:
-    try:
-        await check_rate_limit(
-            f"login:ip:{ip}", settings.rate_limit_login_per_minute, client=redis_client
-        )
-        await check_rate_limit(
-            f"login:email:{email}", settings.rate_limit_login_per_minute, client=redis_client
-        )
-    except RateLimitExceeded:
-        raise
+    await check_rate_limit(
+        f"login:ip:{ip}", settings.rate_limit_login_per_minute, client=redis_client
+    )
+    await check_rate_limit(
+        f"login:email:{email}", settings.rate_limit_login_per_minute, client=redis_client
+    )
 
     user = await get_user_by_email(db, email)
 
     if user is not None:
-        await _check_not_locked(user)
+        _check_not_locked(user)
 
-    password_matches = verify_password_or_dummy(
-        password, user.password_hash if user is not None else None
+    password_matches = await asyncio.to_thread(
+        verify_password_or_dummy, password, user.password_hash if user is not None else None
     )
 
     if user is None or not password_matches:
@@ -200,7 +201,7 @@ async def confirm_totp_setup(
         f"verify:user:{user.id}", settings.rate_limit_verify_per_minute, client=redis_client
     )
 
-    await _check_not_locked(user)
+    _check_not_locked(user)
 
     if user.totp_pending_secret_encrypted is None:
         raise TotpSetupNotStartedError()
@@ -221,8 +222,9 @@ async def confirm_totp_setup(
 
     await db.execute(delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user.id))
     plaintext_codes = generate_recovery_codes()
-    for code_value in plaintext_codes:
-        db.add(MfaRecoveryCode(user_id=user.id, code_hash=hash_recovery_code(code_value)))
+    code_hashes = await asyncio.to_thread(lambda: [hash_recovery_code(c) for c in plaintext_codes])
+    for code_hash in code_hashes:
+        db.add(MfaRecoveryCode(user_id=user.id, code_hash=code_hash))
     await db.commit()
 
     return plaintext_codes
@@ -246,7 +248,7 @@ async def _check_second_factor(
         f"verify:user:{user.id}", settings.rate_limit_verify_per_minute, client=redis_client
     )
 
-    await _check_not_locked(user)
+    _check_not_locked(user)
 
     if not user.mfa_enabled:
         raise MfaNotEnabledError()
@@ -267,7 +269,7 @@ async def _check_second_factor(
             )
         )
         for recovery in result.scalars().all():
-            if verify_recovery_code(recovery_code, recovery.code_hash):
+            if await asyncio.to_thread(verify_recovery_code, recovery_code, recovery.code_hash):
                 recovery.used_at = _now()
                 success = True
                 break

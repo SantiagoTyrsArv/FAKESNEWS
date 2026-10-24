@@ -1,3 +1,4 @@
+import hmac
 import uuid
 from typing import Annotated
 
@@ -43,5 +44,9 @@ async def require_csrf(
     csrf_token: Annotated[str | None, Cookie()] = None,
     x_csrf_token: Annotated[str | None, Header()] = None,
 ) -> None:
-    if not csrf_token or not x_csrf_token or csrf_token != x_csrf_token:
+    if (
+        not csrf_token
+        or not x_csrf_token
+        or not hmac.compare_digest(csrf_token.encode(), x_csrf_token.encode())
+    ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, CSRF_ERROR)
