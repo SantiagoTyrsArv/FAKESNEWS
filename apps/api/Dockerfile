@@ -19,11 +19,18 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_NO_DEV=1 \
     PYTHONUNBUFFERED=1
 
+# Dependencies only, and only from prebuilt wheels: nothing runs a package's
+# setup scripts while installing. The app itself isn't installed as a package;
+# it runs from /app (PYTHONPATH), and UV_NO_SYNC stops every later "uv run"
+# from re-syncing (or building) the environment at start-up.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+RUN uv sync --frozen --no-install-project --no-build
 
-COPY . .
-RUN uv sync --frozen
+# Only what the service runs: no tests, local .env or caches in the image.
+COPY alembic.ini ./
+COPY alembic ./alembic
+COPY app ./app
+ENV PYTHONPATH=/app     UV_NO_SYNC=1
 
 # Unprivileged runtime user. It needs a home: the worker caches the Whisper
 # model under ~/.cache when it processes a video.
