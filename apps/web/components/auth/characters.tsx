@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
 import { pupilOffset } from "@/lib/motion/gaze.mjs";
 import { gsap } from "@/lib/motion/gsap";
@@ -27,6 +27,8 @@ const LEAN_DURATION = 0.8;
 const PEEK_DURATION = 0.5;
 const ENTER_DURATION = 1.1;
 const ENTER_STAGGER = 0.12;
+// Matches the CSS pre-hide: low enough that the hats start below the stage.
+const ENTER_FROM = 130;
 const STRETCH = 1.04;
 const REACT_DURATION = 0.4;
 const REACT_STAGGER = 0.05;
@@ -261,7 +263,7 @@ export function AuthCharacters({
         // From below, one after the other, like cutouts pasted onto the page.
         gsap.fromTo(
           chars,
-          { y: 0, yPercent: 110 },
+          { y: 0, yPercent: ENTER_FROM },
           {
             yPercent: 0,
             duration: ENTER_DURATION,
@@ -340,15 +342,69 @@ export function AuthCharacters({
   );
 }
 
-function Character({ name, hands = false, mouth = false }: { name: string; hands?: boolean; mouth?: boolean }) {
+type CharacterName = "blue" | "ink" | "striped" | "orange";
+
+// Each one's detective outfit (globals.css draws the pieces): the pieces that
+// sit on the body go before the eyes, the ones held over the face after them.
+const OUTFIT: Record<CharacterName, { body: ReactNode; face?: ReactNode }> = {
+  ink: {
+    body: (
+      <>
+        <span className="crew-coat" />
+        <span className="crew-tie" />
+        <span className="crew-hat" />
+      </>
+    ),
+    face: <span className="crew-lens" />,
+  },
+  blue: {
+    body: (
+      <>
+        <span className="crew-scarf" />
+        <span className="crew-hat" />
+      </>
+    ),
+  },
+  striped: {
+    body: (
+      <>
+        <span className="crew-hat" />
+        <span className="crew-pencil" />
+      </>
+    ),
+  },
+  orange: {
+    body: <span className="crew-hat" />,
+    face: (
+      <>
+        <span className="crew-monocle">
+          <span className="crew-crack" />
+        </span>
+        <span className="crew-paw" />
+      </>
+    ),
+  },
+};
+
+function Character({
+  name,
+  hands = false,
+  mouth = false,
+}: {
+  name: CharacterName;
+  hands?: boolean;
+  mouth?: boolean;
+}) {
+  const outfit = OUTFIT[name];
   return (
     <div className="crew-ch" data-char={name}>
       <div className="crew-body" />
+      {outfit.body}
       <div className="crew-eyes">
         <span className="crew-eye">
           <span className="crew-pupil" />
         </span>
-        <span className="crew-eye">
+        <span className="crew-eye" data-lens-eye={name === "ink" ? "" : undefined}>
           <span className="crew-pupil" />
         </span>
         {hands && (
@@ -358,6 +414,7 @@ function Character({ name, hands = false, mouth = false }: { name: string; hands
           </span>
         )}
       </div>
+      {outfit.face}
       {mouth && <span className="crew-mouth" />}
     </div>
   );

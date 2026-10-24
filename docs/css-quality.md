@@ -165,3 +165,8 @@ original era +200 ms).
 - **Decisión:** el 2026-10-23 el usuario aceptó el +400 ms de LCP (el límite de la spec pasó a +400 ms).
 - **Pendiente:** cargar las librerías de animación de forma diferida (import dinámico tras la
   hidratación); en el mejor caso medido, ~3,7 s.
+
+## Personajes detective (2026-10-24)
+
+- **Portada (/):** 73.366 B (14.754 B gzip) → 79.312 B (15.771 B gzip). Son +5.946 B sin comprimir y +1.017 B en gzip.
+- Supera los ~3 KB sin comprimir que estimaba la spec. Casi todo viene de las medidas `calc(N * var(--crew-u))` de cada prenda, que se repiten mucho y comprimen bien. Lo que descarga el visitante crece 1 KB.

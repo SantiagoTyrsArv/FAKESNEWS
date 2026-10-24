@@ -488,6 +488,14 @@ html.motion:not(.motion-ready) :is([data-pop], [data-reveal], [data-enter], .cre
 .crew {
   --crew-u: calc(100cqw / 460);
 
+  /* The detective clothes' palette. */
+  --crew-check: #9a6b43;
+  --crew-check-line: #7a5233;
+  --crew-coat: #c9b48a;
+  --crew-coat-dark: #a8925f;
+  --crew-red: #8b1e1e;
+  --crew-gold: #c9a227;
+
   position: relative;
   width: 100%;
   aspect-ratio: 460 / 380;
@@ -647,10 +655,274 @@ html.motion:not(.motion-ready) :is([data-pop], [data-reveal], [data-enter], .cre
   left: calc(72 * var(--crew-u));
 }
 
+/* Their detective clothes (option B of the design). Every piece hangs off its
+   character's box in the same --crew-u units, so it rides along with every
+   pose. Hats sit above the body and may overflow it. */
+.crew-hat,
+.crew-hat::before,
+.crew-hat::after,
+.crew-coat,
+.crew-coat::before,
+.crew-coat::after,
+.crew-tie,
+.crew-scarf,
+.crew-scarf::after,
+.crew-pencil,
+.crew-lens,
+.crew-lens::after,
+.crew-monocle,
+.crew-monocle::after,
+.crew-crack,
+.crew-paw {
+  position: absolute;
+}
+
+.crew-hat::before,
+.crew-hat::after,
+.crew-coat::before,
+.crew-coat::after,
+.crew-scarf::after,
+.crew-lens::after,
+.crew-monocle::after {
+  content: "";
+}
+
+/* Ink: the noir chief. Fedora, gabardine, tie, belt and the magnifier. */
+.crew-ch[data-char="ink"] .crew-hat {
+  top: calc(-34 * var(--crew-u));
+  left: calc(22 * var(--crew-u));
+  width: calc(66 * var(--crew-u));
+  height: calc(38 * var(--crew-u));
+  border-radius: calc(12 * var(--crew-u)) calc(12 * var(--crew-u)) 0 0;
+  background: #3a3530;
+}
+
+.crew-ch[data-char="ink"] .crew-hat::before {
+  inset: auto 0 calc(5 * var(--crew-u));
+  height: calc(7 * var(--crew-u));
+  background: var(--crew-red);
+}
+
+.crew-ch[data-char="ink"] .crew-hat::after {
+  bottom: calc(-4 * var(--crew-u));
+  left: calc(-24 * var(--crew-u));
+  width: calc(114 * var(--crew-u));
+  height: calc(9 * var(--crew-u));
+  border-radius: 50%;
+  background: #3a3530;
+}
+
+.crew-ch[data-char="ink"] .crew-coat {
+  inset: calc(62 * var(--crew-u)) 0 0;
+
+  /* The belt is a band across the coat. */
+  background:
+    linear-gradient(transparent calc(74 * var(--crew-u)), #8a7448 0 calc(84 * var(--crew-u)), transparent 0),
+    var(--crew-coat);
+  clip-path: polygon(3.4% 0, 98.4% 0, 96% 100%, 0 100%);
+}
+
+.crew-ch[data-char="ink"] .crew-coat::before,
+.crew-ch[data-char="ink"] .crew-coat::after {
+  top: 0;
+  width: 50%;
+  height: calc(70 * var(--crew-u));
+  background: var(--crew-coat-dark);
+}
+
+.crew-ch[data-char="ink"] .crew-coat::before {
+  left: 0;
+  clip-path: polygon(0 0, 30% 0, 100% 70%, 0 100%);
+}
+
+.crew-ch[data-char="ink"] .crew-coat::after {
+  right: 0;
+  clip-path: polygon(70% 0, 100% 0, 100% 100%, 0 70%);
+}
+
+.crew-ch[data-char="ink"] .crew-tie {
+  top: calc(62 * var(--crew-u));
+  left: calc(49 * var(--crew-u));
+  width: calc(12 * var(--crew-u));
+  height: calc(56 * var(--crew-u));
+  background: var(--crew-red);
+  clip-path: polygon(0 0, 100% 0, 85% 85%, 50% 100%, 15% 85%);
+}
+
+/* The magnifier, glass in front of the right eye; it pivots on the hand
+   end of its handle. */
+.crew-lens {
+  z-index: 1;
+  top: calc(29 * var(--crew-u));
+  left: calc(45 * var(--crew-u));
+  width: calc(38 * var(--crew-u));
+  aspect-ratio: 1;
+  transform-origin: 50% 205%;
+  border: calc(5 * var(--crew-u)) solid var(--crew-gold);
+  border-radius: 50%;
+  background: color-mix(in oklch, #cfe3ff 45%, transparent);
+}
+
+.crew-lens::after {
+  top: 100%;
+  left: 50%;
+  width: calc(8 * var(--crew-u));
+  height: calc(40 * var(--crew-u));
+  margin-left: calc(-4 * var(--crew-u));
+  border-radius: calc(3 * var(--crew-u));
+  background: #5b3a22;
+}
+
+/* Blue: deerstalker with both peaks, and a scarf. */
+.crew-ch[data-char="blue"] .crew-hat {
+  top: calc(-26 * var(--crew-u));
+  left: calc(10 * var(--crew-u));
+  width: calc(100 * var(--crew-u));
+  height: calc(40 * var(--crew-u));
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background:
+    repeating-linear-gradient(90deg, var(--crew-check-line) 0 calc(2 * var(--crew-u)), transparent 0 calc(10 * var(--crew-u))),
+    repeating-linear-gradient(0deg, var(--crew-check-line) 0 calc(2 * var(--crew-u)), var(--crew-check) 0 calc(10 * var(--crew-u)));
+}
+
+.crew-ch[data-char="blue"] .crew-hat::before,
+.crew-ch[data-char="blue"] .crew-hat::after {
+  bottom: 0;
+  width: calc(24 * var(--crew-u));
+  height: calc(10 * var(--crew-u));
+  background: var(--crew-check-line);
+}
+
+.crew-ch[data-char="blue"] .crew-hat::before {
+  left: calc(-16 * var(--crew-u));
+  clip-path: polygon(0 60%, 100% 0, 100% 100%);
+}
+
+.crew-ch[data-char="blue"] .crew-hat::after {
+  right: calc(-16 * var(--crew-u));
+  clip-path: polygon(0 0, 100% 60%, 0 100%);
+}
+
+.crew-scarf {
+  top: calc(118 * var(--crew-u));
+  left: 0;
+  width: 100%;
+  height: calc(20 * var(--crew-u));
+  background: #c43c3c;
+}
+
+.crew-scarf::after {
+  top: calc(14 * var(--crew-u));
+  left: calc(80 * var(--crew-u));
+  width: calc(18 * var(--crew-u));
+  height: calc(60 * var(--crew-u));
+  background: inherit;
+}
+
+/* Striped: newsboy cap and a pencil behind the ear. */
+.crew-ch[data-char="striped"] .crew-hat {
+  top: calc(-14 * var(--crew-u));
+  left: calc(4 * var(--crew-u));
+  width: calc(88 * var(--crew-u));
+  height: calc(34 * var(--crew-u));
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: #7a7468;
+}
+
+.crew-ch[data-char="striped"] .crew-hat::before {
+  top: calc(-4 * var(--crew-u));
+  left: calc(39 * var(--crew-u));
+  width: calc(10 * var(--crew-u));
+  height: calc(10 * var(--crew-u));
+  border-radius: 50%;
+  background: #5e594f;
+}
+
+.crew-ch[data-char="striped"] .crew-hat::after {
+  right: calc(-24 * var(--crew-u));
+  bottom: 0;
+  width: calc(32 * var(--crew-u));
+  height: calc(8 * var(--crew-u));
+  border-radius: 0 calc(8 * var(--crew-u)) calc(8 * var(--crew-u)) 0;
+  background: #5e594f;
+}
+
+.crew-pencil {
+  top: calc(34 * var(--crew-u));
+  right: calc(-18 * var(--crew-u));
+  width: calc(32 * var(--crew-u));
+  height: calc(6 * var(--crew-u));
+  rotate: -30deg;
+  border-radius: calc(2 * var(--crew-u));
+  background: linear-gradient(90deg, #3a3530 0 15%, #e8c49a 15% 30%, #f2c94c 30%);
+}
+
+/* Orange: bowler, a monocle on the right eye and the paw that swaps it. */
+.crew-ch[data-char="orange"] .crew-hat {
+  top: calc(-26 * var(--crew-u));
+  left: calc(74 * var(--crew-u));
+  width: calc(72 * var(--crew-u));
+  height: calc(34 * var(--crew-u));
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: var(--ink);
+}
+
+.crew-ch[data-char="orange"] .crew-hat::after {
+  bottom: calc(-3 * var(--crew-u));
+  left: calc(-16 * var(--crew-u));
+  width: calc(104 * var(--crew-u));
+  height: calc(7 * var(--crew-u));
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.crew-monocle {
+  z-index: 1;
+  top: calc(36 * var(--crew-u));
+  left: calc(112 * var(--crew-u));
+  width: calc(30 * var(--crew-u));
+  height: calc(30 * var(--crew-u));
+  border: calc(3 * var(--crew-u)) solid var(--crew-gold);
+  border-radius: 50%;
+  background: color-mix(in oklch, #cfe3ff 30%, transparent);
+}
+
+.crew-monocle::after {
+  top: 85%;
+  left: 85%;
+  width: calc(4 * var(--crew-u));
+  height: calc(40 * var(--crew-u));
+  rotate: -20deg;
+  transform-origin: 50% 0;
+  border-left: calc(2 * var(--crew-u)) solid var(--crew-gold);
+}
+
+/* The crack, two hairlines across the glass; shown only by the error. */
+.crew-crack {
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0;
+  background:
+    linear-gradient(55deg, transparent 47%, #fff 48% 52%, transparent 53%),
+    linear-gradient(-20deg, transparent 47%, #fff 48% 51%, transparent 52%);
+}
+
+.crew-paw {
+  top: calc(56 * var(--crew-u));
+  left: calc(113 * var(--crew-u));
+  width: calc(28 * var(--crew-u));
+  height: calc(28 * var(--crew-u));
+  border-radius: calc(12 * var(--crew-u));
+  background: color-mix(in oklch, var(--collage-orange) 82%, #000);
+  opacity: 0;
+  transform: translateY(160%);
+}
+
 /* Their entrance from below, hidden from the first paint only where the
-   motion layer will raise them (same rule as [data-pop]). */
+   motion layer will raise them (same rule as [data-pop]). 130 % so the hats,
+   which stand above the body, start below the stage too. */
 @media (prefers-reduced-motion: no-preference) {
   html.motion .crew-ch {
-    transform: translateY(110%);
+    transform: translateY(130%);
   }
 }
