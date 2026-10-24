@@ -8,6 +8,10 @@
 @import "animate.css/source/fading_entrances/fadeIn.css";
 @import "animate.css/source/fading_entrances/fadeInUp.css";
 
+/* Lenis watches <html>'s size to know how far it can scroll; this lets <html>
+   grow with the page while Lenis runs (h-full would pin it to the viewport). */
+@import "lenis/dist/lenis.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
