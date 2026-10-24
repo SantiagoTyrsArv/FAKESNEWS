@@ -49,9 +49,6 @@ async def get_source(domain: str, db: Annotated[AsyncSession, Depends(get_db)]):
         score_interval_low=low,
         score_interval_high=high,
         recent_events=[
-            SourceScoreEventResponse(
-                claim_id=e.claim_id, outcome=e.outcome, created_at=e.created_at
-            )
-            for e in events
+            SourceScoreEventResponse(outcome=e.outcome, created_at=e.created_at) for e in events
         ],
     )

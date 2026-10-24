@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -15,7 +14,7 @@ class SourceResponse(BaseModel):
 
 
 class SourceScoreEventResponse(BaseModel):
-    claim_id: uuid.UUID
+    # No claim id: this endpoint is public and claims belong to private cases.
     outcome: str
     created_at: datetime
 
