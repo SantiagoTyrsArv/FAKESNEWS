@@ -231,7 +231,7 @@ export default function Home() {
                       data-parallax
                       width={800}
                       height={600}
-                      sizes="(min-width: 1152px) 300px, (min-width: 640px) 45vw, 100vw"
+                      sizes="(min-width: 1152px) 300px, (min-width: 640px) 45vw, calc(100vw - 2rem)"
                       className="h-auto w-full"
                     />
                   </div>
