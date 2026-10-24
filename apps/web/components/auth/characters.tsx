@@ -48,6 +48,7 @@ const PAW_DOWN = 160; // yPercent: the orange one's paw, out of sight
 const PAW_UP = -60; // yPercent: the paw over the monocle
 const MONOCLE_OFF = 150; // yPercent: taken off with the paw
 const SWAP = 0.25; // each move of the monocle swap
+const FLASH = 0.06; // the glint as the monocle cracks, up and back
 
 // AuthShell shows the full stage from Tailwind's `lg` up and the compact strip
 // below it; only the copy on screen animates.
@@ -260,6 +261,12 @@ export function AuthCharacters({
           .set(monocle, { yPercent: 0, opacity: 1 }, 0)
           .set(paw, { y: 0, yPercent: PAW_DOWN, opacity: 0 }, 0)
           .fromTo(crack, { opacity: 0 }, { opacity: 1, duration: 0.1 }, 0)
+          .fromTo(
+            monocle,
+            { filter: "brightness(1)" },
+            { filter: "brightness(2.2)", duration: FLASH, yoyo: true, repeat: 1, ease: "none" },
+            0,
+          )
           .to(paw, { yPercent: PAW_UP, opacity: 1, ...back }, 0.3)
           .to(monocle, { yPercent: MONOCLE_OFF, opacity: 0, ...away }, 0.55)
           .to(paw, { yPercent: PAW_DOWN, ...away }, 0.55)
