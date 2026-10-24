@@ -749,15 +749,15 @@ html.motion:not(.motion-ready) :is([data-pop], [data-reveal], [data-enter], .cre
   clip-path: polygon(0 0, 100% 0, 85% 85%, 50% 100%, 15% 85%);
 }
 
-/* The magnifier, glass in front of the right eye; it pivots on the hand
-   end of its handle. */
+/* The magnifier, glass in front of the right eye. It pivots on the glass,
+   so aiming it swings the handle and the eye stays behind the glass. */
 .crew-lens {
   z-index: 1;
   top: calc(29 * var(--crew-u));
   left: calc(45 * var(--crew-u));
   width: calc(38 * var(--crew-u));
   aspect-ratio: 1;
-  transform-origin: 50% 205%;
+  transform-origin: 50% 50%;
   border: calc(5 * var(--crew-u)) solid var(--crew-gold);
   border-radius: 50%;
   background: color-mix(in oklch, #cfe3ff 45%, transparent);

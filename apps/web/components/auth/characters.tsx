@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
-import { pupilOffset } from "@/lib/motion/gaze.mjs";
+import { lensTilt, pupilOffset } from "@/lib/motion/gaze.mjs";
 import { gsap } from "@/lib/motion/gsap";
 import { EASE, scaled } from "@/lib/motion/tokens.mjs";
 
@@ -40,6 +40,10 @@ const BLINK_MIN = 2000;
 const BLINK_SPREAD = 4000;
 const SHAKE_ROTATE = 3;
 const FROWN_HOLD = 1.4;
+const LENS_TILT = 30; // degrees, at intensity 1
+const LENS_DRIFT = 6; // scene px the glass slides toward the target
+const LENS_ZOOM = 1.6; // the pupil behind the glass
+const LENS_POCKET = 180; // yPercent: down into the gabardine
 
 // AuthShell shows the full stage from Tailwind's `lg` up and the compact strip
 // below it; only the copy on screen animates.
@@ -145,6 +149,26 @@ export function AuthCharacters({
         };
       });
 
+      // The detective's magnifier: aimed by two setters and a tilt setter,
+      // pocketed and brought out by one paused timeline.
+      const lens = crew.querySelector<HTMLElement>(".crew-lens");
+      const lensEye = crew.querySelector<HTMLElement>("[data-lens-eye]");
+      const lensPupil = lensEye?.querySelector<HTMLElement>(".crew-pupil") ?? null;
+      const lensRotate = lens ? gsap.quickTo(lens, "rotation", look) : null;
+      const lensX = lens ? gsap.quickTo(lens, "x", look) : null;
+      const lensY = lens ? gsap.quickTo(lens, "y", look) : null;
+      const aimLens = (dx: number, dy: number, u: number) => {
+        lensRotate?.(lensTilt(dx, LENS_TILT * intensity));
+        const drift = pupilOffset(dx, dy, LENS_DRIFT * u);
+        lensX?.(drift.x);
+        lensY?.(drift.y);
+      };
+      if (lensPupil) gsap.set(lensPupil, { scale: LENS_ZOOM });
+      const pocket = gsap.timeline({ paused: true, defaults: { duration: REACT_DURATION, ease: EASE.stick } });
+      if (lens) pocket.to(lens, { yPercent: LENS_POCKET, opacity: 0 }, 0);
+      if (lensPupil) pocket.to(lensPupil, { scale: 1 }, 0);
+      const setPocket = (pocketed: boolean) => (pocketed ? pocket.play() : pocket.reverse());
+
       const gaze = (r: Rig, p: Point) => {
         r.pupilX(p.x);
         r.pupilY(p.y);
@@ -160,6 +184,10 @@ export function AuthCharacters({
       // Every character looks at a point on the page and leans toward it.
       const lookAt = (target: Point) => {
         const u = unit();
+        if (lensEye) {
+          const box = lensEye.getBoundingClientRect();
+          aimLens(target.x - (box.left + box.width / 2), target.y - (box.top + box.height / 2), u);
+        }
         for (const r of rigs) {
           const box = r.eyes.getBoundingClientRect();
           const dx = target.x - (box.left + box.width / 2);
@@ -171,6 +199,7 @@ export function AuthCharacters({
       };
 
       const lookFront = () => {
+        aimLens(0, 0, unit());
         for (const r of rigs) {
           gaze(r, { x: 0, y: 0 });
           pose(r, 0);
@@ -223,6 +252,7 @@ export function AuthCharacters({
       };
 
       const apply = (s: CharacterState) => {
+        setPocket(s.focus !== "none");
         if (s.focus === "email") {
           setHands(false);
           setStretch(true);
