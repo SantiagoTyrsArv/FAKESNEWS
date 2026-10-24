@@ -71,8 +71,10 @@
 
 :root {
   --animate-duration: 0.6s;
-  --font-ui: "Public Sans Variable", "Segoe UI", system-ui, sans-serif;
-  --font-quote: "Newsreader Variable", georgia, "Times New Roman", serif;
+
+  /* --font-public-sans / --font-newsreader come from next/font (app/fonts.ts). */
+  --font-ui: var(--font-public-sans), "Segoe UI", system-ui, sans-serif;
+  --font-quote: var(--font-newsreader), georgia, "Times New Roman", serif;
   --font-code: ui-monospace, "SFMono-Regular", consolas, "Liberation Mono", monospace;
 
   /* Paper, ink and the evidence blue that marks actions. */
@@ -111,7 +113,7 @@
   --supported-tint: oklch(0.92 0.07 155);
   --contradicted: oklch(0.52 0.17 27);
   --contradicted-tint: oklch(0.91 0.06 25);
-  --insufficient: oklch(0.58 0.12 80);
+  --insufficient: oklch(0.52 0.12 80); /* ≥ 4.5:1 on card, background and its tint */
   --insufficient-tint: oklch(0.94 0.08 92);
   --chart-1: var(--supported);
   --chart-2: var(--contradicted);

@@ -45,7 +45,7 @@ export function SourcesSection() {
             alt="Collage de papel: periódicos doblados y apilados como un archivo, con sellos sin texto."
             width={800}
             height={600}
-            sizes="(min-width: 1024px) 440px, 100vw"
+            sizes="(min-width: 1024px) 440px, calc(100vw - 2rem)"
             className="h-auto w-full"
           />
         </div>

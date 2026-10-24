@@ -13,7 +13,7 @@ export function HeroMedia({ children }: Readonly<{ children: ReactNode }>) {
           fill
           loading="eager"
           fetchPriority="high"
-          sizes="(min-width: 1152px) 620px, (min-width: 1024px) 55vw, 100vw"
+          sizes="(min-width: 1152px) 620px, (min-width: 1024px) 55vw, calc(100vw - 2rem)"
           className="hero-pan object-cover object-right"
         />
       </div>

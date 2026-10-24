@@ -81,7 +81,9 @@ export function useLandingMotion(root: RefObject<HTMLElement | null>) {
     }
 
     const ctx = gsap.context(() => {
-      if (reduced) return;
+      // Touch: no split titles or parallax. They cost layout work before the
+      // first paint on phones and barely read there.
+      if (reduced || touch) return;
 
       // Section titles rise line by line from a mask as they scroll in.
       for (const h2 of gsap.utils.toArray<HTMLElement>("h2", el)) {

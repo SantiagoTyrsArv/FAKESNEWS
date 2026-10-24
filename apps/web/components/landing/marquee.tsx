@@ -9,16 +9,17 @@ const REPEAT = 10;
 // How far the band travels (share of its length) while it crosses the screen.
 const TRAVEL = 15;
 
-// A slightly tilted ink band that slides with the scroll. Decorative only;
-// gone with reduced motion.
+// A slightly tilted ink band that slides with the scroll (static on touch).
+// Decorative only; gone with reduced motion.
 export function Marquee() {
   const ref = useRef<HTMLDivElement>(null);
-  const { reduced, ready } = useMotion();
+  const { reduced, touch, ready } = useMotion();
 
   useLayoutEffect(() => {
     const el = ref.current;
     const track = el?.querySelector<HTMLElement>("[data-marquee-track]");
-    if (!ready || reduced || !el || !track) return;
+    // Static on touch: the scrubbed slide is not worth its scroll work there.
+    if (!ready || reduced || touch || !el || !track) return;
     const ctx = gsap.context(() => {
       gsap.fromTo(
         track,
@@ -31,14 +32,14 @@ export function Marquee() {
       );
     }, el);
     return () => ctx.revert();
-  }, [ready, reduced]);
+  }, [ready, reduced, touch]);
 
   return (
     <div ref={ref} aria-hidden="true" className="overflow-x-clip py-6 motion-reduce:hidden">
       <div className="-mx-8 -rotate-[1.5deg] bg-ink py-3 text-paper sm:py-4">
         <div
           data-marquee-track
-          className="flex w-max font-heading text-2xl font-semibold tracking-wide whitespace-nowrap sm:text-4xl"
+          className="flex w-max bg-ink font-heading text-2xl font-semibold tracking-wide whitespace-nowrap sm:text-4xl"
         >
           {Array.from({ length: REPEAT }, (_, i) => (
             <span key={i} className="flex shrink-0">
