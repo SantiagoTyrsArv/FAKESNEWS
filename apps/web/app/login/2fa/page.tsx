@@ -70,9 +70,9 @@ export default function TwoFactorPage() {
           Preparando…
         </p>
       ) : (
-        <form onSubmit={handleVerify} className="flex flex-col gap-5">
+        <form onSubmit={handleVerify} className="animated fadeIn flex flex-col gap-5">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="animated fadeIn">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

@@ -67,7 +67,7 @@ export default function SourcesPage() {
       />
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animated fadeIn">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -75,7 +75,7 @@ export default function SourcesPage() {
       {sources === null && !error && <LoadingLine />}
 
       {sources && sources.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border bg-card">
+        <div className="animated fadeIn overflow-hidden rounded-2xl border bg-card">
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-muted/50 text-xs text-muted-foreground">
               <tr>

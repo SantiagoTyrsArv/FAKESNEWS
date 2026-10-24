@@ -1,6 +1,13 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useMotion } from "@/components/motion/motion-provider";
 import { type HeaderVariant, SiteHeader } from "@/components/site-header";
+import { gsap, SplitText } from "@/lib/motion/gsap";
+import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
 import { cn } from "@/lib/utils";
+
+const LINE_ROTATE = 4;
 
 export function AppShell({
   children,
@@ -35,10 +42,39 @@ export function PageHeading({
   description?: ReactNode;
   actions?: ReactNode;
 }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  const { reduced, touch, intensity, ready } = useMotion();
+
+  // Desktop only: the title rises line by line from a mask. It is never hidden
+  // by opacity, only by the mask on text that is already painted, and the split
+  // is undone when the reveal ends so the heading goes back to plain markup.
+  useLayoutEffect(() => {
+    const h1 = ref.current;
+    if (!ready || reduced || touch || !h1) return;
+    const split = SplitText.create(h1, { type: "lines", mask: "lines" });
+    const tween = gsap.fromTo(
+      split.lines,
+      { yPercent: 110, rotation: scaled(LINE_ROTATE, intensity) },
+      {
+        yPercent: 0,
+        rotation: 0,
+        transformOrigin: "0% 100%",
+        duration: DURATION.enter,
+        ease: EASE.out,
+        stagger: scaled(STAGGER.base, intensity),
+        onComplete: () => split.revert(),
+      },
+    );
+    return () => {
+      tween.kill();
+      split.revert();
+    };
+  }, [ready, reduced, touch, intensity]);
+
   return (
     <div data-pop className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex max-w-2xl flex-col gap-2">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+        <h1 ref={ref} className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {title}
         </h1>
         {description && (

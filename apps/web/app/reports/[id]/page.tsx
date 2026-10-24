@@ -112,7 +112,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
       </Link>
 
       {error && !report && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animated fadeIn">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -124,20 +124,20 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
       )}
 
       {stale && submission?.status !== "failed" && !report && (
-        <section className="flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
+        <section className="animated fadeIn flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
           <h1 className="font-heading text-3xl font-semibold tracking-tight">Este análisis está tardando demasiado</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Lleva más tiempo del esperado sin terminar. Recarga la página en unos minutos o envía el
             caso de nuevo.
           </p>
-          <Button className="h-10 px-4" render={<Link href="/submit" />}>
+          <Button className="h-10 px-4" data-magnetic="0.2" render={<Link href="/submit" />}>
             Enviar otro caso
           </Button>
         </section>
       )}
 
       {submission?.status === "failed" && (
-        <section className="flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
+        <section className="animated fadeIn flex flex-col items-start gap-4 rounded-2xl border bg-card p-6 sm:p-8">
           <h1 className="font-heading text-3xl font-semibold tracking-tight">No pudimos terminar este análisis</h1>
           <Alert variant="destructive">
             <AlertDescription>
@@ -147,7 +147,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
           <p className="text-sm text-muted-foreground">
             Si enviaste un enlace, comprueba que sea público o prueba pegando el texto directamente.
           </p>
-          <Button className="h-10 px-4" render={<Link href="/submit" />}>
+          <Button className="h-10 px-4" data-magnetic="0.2" render={<Link href="/submit" />}>
             Enviar otro caso
           </Button>
         </section>
@@ -165,7 +165,7 @@ function PipelineProgress({ submission }: { submission: Submission }) {
   const currentIndex = steps.indexOf(submission.status);
 
   return (
-    <section className="grid gap-8 rounded-2xl border bg-card p-6 sm:p-8 md:grid-cols-2">
+    <section className="animated fadeIn grid gap-8 rounded-2xl border bg-card p-6 sm:p-8 md:grid-cols-2">
       <div className="flex flex-col gap-3">
         <h1 className="font-heading text-3xl font-semibold tracking-tight">Analizando el contenido</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
@@ -218,7 +218,7 @@ function ReportView({ report }: { report: Report }) {
 
   return (
     <>
-      <section className="flex flex-col gap-6">
+      <section className="animated fadeIn flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <p className="text-sm text-muted-foreground">
             Reporte de credibilidad ({INPUT_TYPE_LABELS[submission.input_type].toLowerCase()}),
@@ -265,19 +265,19 @@ function ReportView({ report }: { report: Report }) {
       </section>
 
       {claims.length === 0 ? (
-        <p className="rounded-2xl border border-dashed p-6 text-sm leading-relaxed text-muted-foreground">
+        <p className="animated fadeIn rounded-2xl border border-dashed p-6 text-sm leading-relaxed text-muted-foreground">
           El contenido no tiene hechos comprobables: las opiniones y las predicciones se descartan.
         </p>
       ) : (
-        <ol className="flex flex-col gap-5">
+        <ol className="animated fadeIn flex flex-col gap-5">
           {claims.map((claim, index) => (
             <ClaimCard key={claim.id} claim={claim} index={index + 1} />
           ))}
         </ol>
       )}
 
-      <div className="flex flex-wrap gap-3 border-t pt-6">
-        <Button className="h-10 px-4" render={<Link href="/submit" />}>
+      <div className="animated fadeIn flex flex-wrap gap-3 border-t pt-6">
+        <Button className="h-10 px-4" data-magnetic="0.2" render={<Link href="/submit" />}>
           Verificar otro contenido
         </Button>
         <Button variant="outline" className="h-10 px-4" render={<Link href="/sources" />}>
