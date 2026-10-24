@@ -13,18 +13,23 @@ import { PasswordInput } from "@/components/auth/password-input";
 import { login, savePendingToken } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
-export default function LoginPage() {
+// Only the "account created" notice reads the URL, so only it waits for the
+// client (useSearchParams); the form itself is in the server HTML and shows
+// even without JS.
+function RegisteredNotice() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("registered") !== "1") return null;
   return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
+    <Alert>
+      <AlertDescription>
+        Cuenta creada. Ya puedes iniciar sesión.
+      </AlertDescription>
+    </Alert>
   );
 }
 
-function LoginForm() {
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const justRegistered = searchParams.get("registered") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,13 +82,9 @@ function LoginForm() {
       characters={{ focus, passwordVisible, caret: email.length, errorKey }}
     >
       <form ref={form} onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {justRegistered && (
-          <Alert>
-            <AlertDescription>
-              Cuenta creada. Ya puedes iniciar sesión.
-            </AlertDescription>
-          </Alert>
-        )}
+        <Suspense fallback={null}>
+          <RegisteredNotice />
+        </Suspense>
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
