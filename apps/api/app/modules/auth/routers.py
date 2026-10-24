@@ -279,9 +279,11 @@ async def disable_totp(
     redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
     user: Annotated[User, Depends(get_current_user)],
     _csrf: Annotated[None, Depends(require_csrf)],
+    refresh_token: Annotated[str | None, Cookie()] = None,
 ):
     """Turn 2FA off. A session alone is not enough: it takes a current code
-    (or a recovery code), so an unattended or stolen session cannot strip it."""
+    (or a recovery code), so an unattended or stolen session cannot strip it.
+    Every other session is signed out."""
     _require_second_factor(body)
 
     try:
@@ -292,6 +294,7 @@ async def disable_totp(
             user=user,
             code=body.code,
             recovery_code=body.recovery_code,
+            current_refresh=refresh_token,
         )
     except RateLimitExceeded:
         raise _rate_limited() from None

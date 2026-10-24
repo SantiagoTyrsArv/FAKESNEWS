@@ -150,3 +150,35 @@ async def test_wrong_code_does_not_spend_pending_token(app_client: AsyncClient) 
         headers={"Authorization": f"Bearer {pending}"},
     )
     assert retry.status_code == 200
+
+
+async def test_disabling_mfa_revokes_other_sessions(app_client: AsyncClient) -> None:
+    _secret, codes, pending = await _register_with_mfa(app_client)
+
+    async def sign_in(pending_token: str, recovery_code: str) -> dict[str, str]:
+        resp = await app_client.post(
+            "/auth/2fa/verify",
+            json={"recovery_code": recovery_code},
+            headers={"Authorization": f"Bearer {pending_token}"},
+        )
+        assert resp.status_code == 200
+        return dict(app_client.cookies)
+
+    def use(cookies: dict[str, str]) -> None:
+        app_client.cookies.clear()
+        app_client.cookies.update(cookies)
+
+    here = await sign_in(pending, codes[0])
+    elsewhere = await sign_in(await _login_with_password_only(app_client), codes[1])
+
+    use(here)
+    disable = await app_client.post(
+        "/auth/2fa/disable", json={"recovery_code": codes[2]}, headers=_csrf(app_client)
+    )
+    assert disable.status_code == 200
+
+    use(elsewhere)
+    assert (await app_client.post("/auth/refresh", headers=_csrf(app_client))).status_code == 401
+
+    use(here)
+    assert (await app_client.post("/auth/refresh", headers=_csrf(app_client))).status_code == 200
