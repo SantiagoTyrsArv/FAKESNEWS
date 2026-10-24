@@ -18,14 +18,14 @@ export function AuthShell({
   characters,
   mobileCharacters = true,
   children,
-}: {
+}: Readonly<{
   title: string;
   description?: ReactNode;
   step?: { current: number; total: number };
   characters?: CharacterState;
   mobileCharacters?: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       {characters ? (

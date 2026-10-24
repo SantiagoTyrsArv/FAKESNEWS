@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ExternalLink } from "lucide-react";
 import { AppShell, LoadingLine, PageHeading } from "@/components/app-shell";
+import type { HeaderVariant } from "@/components/site-header";
 import { ScoreMeter } from "@/components/verdict";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ApiError, apiFetch, readCsrfCookie } from "@/lib/api";
@@ -55,13 +56,7 @@ export default function SourcesPage() {
 
   return (
     <AppShell
-      variant={
-        hasSessionCookie === null
-          ? "pending"
-          : hasSessionCookie && !sessionExpired
-            ? "app"
-            : "public"
-      }
+      variant={headerVariant(hasSessionCookie, sessionExpired)}
     >
       <PageHeading
         title="Confiabilidad de las fuentes"
@@ -143,7 +138,7 @@ export default function SourcesPage() {
 
 // The source's name links to its own site, in a new tab, so a reader can go
 // check it without copying the address.
-function SourceName({ name, domain }: { name: string; domain: string }) {
+function SourceName({ name, domain }: Readonly<{ name: string; domain: string }>) {
   const href = sourceUrl(domain);
   if (!href) return <div className="font-semibold">{name}</div>;
   return (
@@ -158,4 +153,11 @@ function SourceName({ name, domain }: { name: string; domain: string }) {
       <span className="sr-only">(visitar {domain}, se abre en una pestaña nueva)</span>
     </a>
   );
+}
+
+// Unknown until the cookie is read on the client; a signed-in visitor gets
+// the app header, anyone else (or an expired session) the public one.
+function headerVariant(hasSessionCookie: boolean | null, sessionExpired: boolean): HeaderVariant {
+  if (hasSessionCookie === null) return "pending";
+  return hasSessionCookie && !sessionExpired ? "app" : "public";
 }

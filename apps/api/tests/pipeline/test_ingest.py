@@ -14,21 +14,21 @@ def _skip_ssrf_dns_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ingest_module, "assert_public_http_url", lambda url: None)
 
 
-async def test_ingest_text_trims_whitespace() -> None:
-    result = await ingest_module.ingest_text("   hola mundo   ")
+def test_ingest_text_trims_whitespace() -> None:
+    result = ingest_module.ingest_text("   hola mundo   ")
     assert result == "hola mundo"
 
 
-async def test_ingest_text_rejects_empty() -> None:
+def test_ingest_text_rejects_empty() -> None:
     with pytest.raises(IngestError):
-        await ingest_module.ingest_text("   ")
+        ingest_module.ingest_text("   ")
 
 
-async def test_ingest_text_caps_length(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ingest_text_caps_length(monkeypatch: pytest.MonkeyPatch) -> None:
     # `settings` is the lru_cache singleton shared with ingest_module, so
     # mutating this attribute affects the code under test directly.
     monkeypatch.setattr(settings, "max_text_input_chars", 10)
-    result = await ingest_module.ingest_text("a" * 100)
+    result = ingest_module.ingest_text("a" * 100)
     assert len(result) == 10
 
 
@@ -108,19 +108,20 @@ class _FakeTranscriber:
 async def test_ingest_video_rejects_too_long(monkeypatch: pytest.MonkeyPatch) -> None:
     import yt_dlp
 
-    _FakeYoutubeDL.info = {"duration": settings.max_video_duration_seconds + 1}
+    monkeypatch.setattr(
+        _FakeYoutubeDL, "info", {"duration": settings.max_video_duration_seconds + 1}
+    )
     monkeypatch.setattr(yt_dlp, "YoutubeDL", _FakeYoutubeDL)
+    transcriber = _FakeTranscriber()
 
     with pytest.raises(IngestError):
-        await ingest_module.ingest_video(
-            "https://www.youtube.com/watch?v=too-long", _FakeTranscriber()
-        )
+        await ingest_module.ingest_video("https://www.youtube.com/watch?v=too-long", transcriber)
 
 
 async def test_ingest_video_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import yt_dlp
 
-    _FakeYoutubeDL.info = {"duration": 60}
+    monkeypatch.setattr(_FakeYoutubeDL, "info", {"duration": 60})
     monkeypatch.setattr(yt_dlp, "YoutubeDL", _FakeYoutubeDL)
     transcriber = _FakeTranscriber("Esto dijo el video.")
 

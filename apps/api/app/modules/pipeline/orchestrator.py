@@ -70,7 +70,7 @@ def _get_transcriber() -> FasterWhisperTranscriber:
 
 async def _ingest(submission: Submission, db: Any) -> str:
     if submission.input_type == "text":
-        return await ingest_module.ingest_text(submission.raw_input)
+        return ingest_module.ingest_text(submission.raw_input)
     if submission.input_type == "url":
         return await ingest_module.ingest_url(submission.raw_input)
 
@@ -99,6 +99,49 @@ async def run_pipeline(_ctx: dict, submission_id: str) -> None:
         logger.error("run_pipeline_cancelled", submission_id=submission_id)
         await asyncio.shield(_mark_failed(submission_id, TIMEOUT_FAILURE))
         raise
+
+
+ClaimEvidence = tuple[uuid.UUID, str, list[tuple[uuid.UUID, str]]]
+
+
+async def _save_claims(
+    db: Any,
+    submission: Submission,
+    claim_texts: list[str],
+    results: list[verify_module.VerifyResult],
+) -> list[ClaimEvidence]:
+    """Add each claim with its evidence (only from known sources) and return,
+    per claim, its id, verdict and the (source id, stance) pairs to score."""
+    claim_evidence: list[ClaimEvidence] = []
+    for claim_text, result in zip(claim_texts, results, strict=True):
+        claim = Claim(
+            submission_id=submission.id,
+            text=claim_text,
+            verdict=result.verdict,
+            rationale=result.rationale,
+        )
+        db.add(claim)
+        await db.flush()
+
+        source_stances: list[tuple[uuid.UUID, str]] = []
+        for ev in result.evidence:
+            source = await sources_service.get_source_by_domain(db, ev.domain)
+            if source is None:
+                continue
+            db.add(
+                Evidence(
+                    claim_id=claim.id,
+                    source_id=source.id,
+                    url=ev.url,
+                    snippet=ev.snippet,
+                    published_at=ev.published_at,
+                    stance=ev.stance,
+                )
+            )
+            source_stances.append((source.id, ev.stance))
+
+        claim_evidence.append((claim.id, result.verdict, source_stances))
+    return claim_evidence
 
 
 async def _run_pipeline(submission_id: str) -> None:
@@ -137,37 +180,7 @@ async def _run_pipeline(submission_id: str) -> None:
                 *[_verify_one(semaphore, text, allowed_domains) for text in claim_texts]
             )
 
-            claim_evidence: list[tuple[uuid.UUID, str, list[tuple[uuid.UUID, str]]]] = []
-
-            for claim_text, result in zip(claim_texts, results, strict=True):
-                claim = Claim(
-                    submission_id=submission.id,
-                    text=claim_text,
-                    verdict=result.verdict,
-                    rationale=result.rationale,
-                )
-                db.add(claim)
-                await db.flush()
-
-                source_stances: list[tuple[uuid.UUID, str]] = []
-                for ev in result.evidence:
-                    source = await sources_service.get_source_by_domain(db, ev.domain)
-                    if source is None:
-                        continue
-                    db.add(
-                        Evidence(
-                            claim_id=claim.id,
-                            source_id=source.id,
-                            url=ev.url,
-                            snippet=ev.snippet,
-                            published_at=ev.published_at,
-                            stance=ev.stance,
-                        )
-                    )
-                    source_stances.append((source.id, ev.stance))
-
-                claim_evidence.append((claim.id, result.verdict, source_stances))
-
+            claim_evidence = await _save_claims(db, submission, claim_texts, results)
             await db.commit()
 
             await _set_status(db, submission, "scoring")
@@ -177,7 +190,8 @@ async def _run_pipeline(submission_id: str) -> None:
                 )
 
             await _set_status(db, submission, "done")
-        except Exception as exc:  # noqa: BLE001 - top-level guard: mark the case failed, don't crash the worker
+        # Top-level guard: mark the case failed, don't crash the worker.
+        except Exception as exc:  # noqa: BLE001
             logger.error("run_pipeline_failed", submission_id=submission_id, error=str(exc))
             # IngestError messages are written for the user (empty text, video
             # too long, URL not allowed); anything else stays in the logs.

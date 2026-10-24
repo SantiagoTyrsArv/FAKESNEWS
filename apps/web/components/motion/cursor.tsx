@@ -9,7 +9,7 @@ const BASE = 38;
 const BIG = 84;
 const MID = 56;
 
-export function Cursor({ label }: { label: boolean }) {
+export function Cursor({ label }: Readonly<{ label: boolean }>) {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef<HTMLDivElement>(null);
@@ -68,8 +68,9 @@ export function Cursor({ label }: { label: boolean }) {
       const hover = next === "hover";
       const label = labelRef.current;
       const big = hover && label;
+      const hoverSize = label ? BIG : MID;
       gsap.to(scaler, {
-        scale: hover ? (label ? BIG : MID) / BIG : BASE / BIG,
+        scale: (hover ? hoverSize : BASE) / BIG,
         duration: 0.45,
         ease: "expo.out",
         overwrite: "auto",

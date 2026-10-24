@@ -1,5 +1,5 @@
 import json
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -161,27 +161,10 @@ async def verify_claim(
     ]
 
     for attempt in range(max_attempts):
-        messages: list[dict] = [{"role": "user", "content": _build_user_message(claim_text)}]
-        # Every block across the paused turns: search results returned before
-        # a pause are as real as the ones in the final response.
-        content: list = []
         try:
-            for _ in range(MAX_PAUSE_CONTINUATIONS + 1):
-                response = await client.messages.create(
-                    model=model_name,
-                    max_tokens=MAX_OUTPUT_TOKENS,
-                    system=SYSTEM_PROMPT,
-                    tools=tools,
-                    messages=messages,
-                )
-                log_usage("verify", response)
-                content.extend(response.content)
-                if response.stop_reason != "pause_turn":
-                    break
-                # The server-side search loop hit its iteration limit; sending
-                # the paused turn back lets it resume where it stopped.
-                messages = [*messages, {"role": "assistant", "content": response.content}]
-        except Exception as exc:  # noqa: BLE001 - network/API errors, retried then INSUFFICIENT
+            response, content = await _run_turns(client, model_name, tools, claim_text)
+        # Network/API errors: retried, then INSUFFICIENT.
+        except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             logger.warning("verify_claim_api_error", attempt=attempt + 1, error=last_error)
             continue
@@ -204,41 +187,74 @@ async def verify_claim(
             logger.warning("verify_claim_invalid_json", attempt=attempt + 1, error=last_error)
             continue
 
-        validated_evidence: list[EvidenceItem] = []
-        for item in raw.evidence:
-            if item.url not in real_results:
-                continue  # not a real search result: possible hallucination, drop it
-            domain = normalize_domain(item.url)
-            if domain not in allowed_set:
-                continue  # domain not on the trusted whitelist, drop it
-            validated_evidence.append(
-                EvidenceItem(
-                    url=item.url,
-                    domain=domain,
-                    snippet=item.snippet,
-                    published_at=real_results.get(item.url) or item.published_at,
-                    stance=item.stance,
-                )
-            )
-
-        if not validated_evidence:
-            return _insufficient(
-                raw.rationale or "No se encontró evidencia válida en fuentes de confianza."
-            )
-
-        required_stance = _REQUIRED_STANCE.get(raw.verdict)
-        if required_stance and not any(e.stance == required_stance for e in validated_evidence):
-            logger.info("verify_claim_unbacked_verdict", proposed=raw.verdict)
-            return VerifyResult(
-                verdict="INSUFFICIENT",
-                rationale=f"{UNBACKED_VERDICT_NOTE} {raw.rationale}".strip(),
-                evidence=validated_evidence,
-            )
-
-        return VerifyResult(
-            verdict=raw.verdict, rationale=raw.rationale, evidence=validated_evidence
-        )
+        return _conclude(raw, _validated_evidence(raw, real_results, allowed_set))
 
     # The provider's error text stays in the logs (logged per attempt above).
     logger.warning("verify_claim_gave_up", max_attempts=max_attempts, error=last_error)
     return _insufficient("No se pudo completar la verificación de esta afirmación.")
+
+
+async def _run_turns(client: Any, model_name: str, tools: list[dict], claim_text: str):
+    """One verification conversation, resuming paused turns. Returns the last
+    response and every content block across the turns: search results
+    returned before a pause are as real as the ones in the final response."""
+    messages: list[dict] = [{"role": "user", "content": _build_user_message(claim_text)}]
+    content: list = []
+    for _ in range(MAX_PAUSE_CONTINUATIONS + 1):
+        response = await client.messages.create(
+            model=model_name,
+            max_tokens=MAX_OUTPUT_TOKENS,
+            system=SYSTEM_PROMPT,
+            tools=tools,
+            messages=messages,
+        )
+        log_usage("verify", response)
+        content.extend(response.content)
+        if response.stop_reason != "pause_turn":
+            break
+        # The server-side search loop hit its iteration limit; sending the
+        # paused turn back lets it resume where it stopped.
+        messages = [*messages, {"role": "assistant", "content": response.content}]
+    return response, content
+
+
+def _validated_evidence(
+    raw: _RawVerifyResult, real_results: dict, allowed_set: set[str]
+) -> list[EvidenceItem]:
+    """The model's citations that are real search results on a trusted domain."""
+    validated: list[EvidenceItem] = []
+    for item in raw.evidence:
+        if item.url not in real_results:
+            continue  # not a real search result: possible hallucination, drop it
+        domain = normalize_domain(item.url)
+        if domain not in allowed_set:
+            continue  # domain not on the trusted whitelist, drop it
+        validated.append(
+            EvidenceItem(
+                url=item.url,
+                domain=domain,
+                snippet=item.snippet,
+                published_at=real_results.get(item.url) or item.published_at,
+                stance=item.stance,
+            )
+        )
+    return validated
+
+
+def _conclude(raw: _RawVerifyResult, evidence: list[EvidenceItem]) -> VerifyResult:
+    """No valid evidence, or none backing the verdict, means INSUFFICIENT."""
+    if not evidence:
+        return _insufficient(
+            raw.rationale or "No se encontró evidencia válida en fuentes de confianza."
+        )
+
+    required_stance = _REQUIRED_STANCE.get(raw.verdict)
+    if required_stance and not any(e.stance == required_stance for e in evidence):
+        logger.info("verify_claim_unbacked_verdict", proposed=raw.verdict)
+        return VerifyResult(
+            verdict="INSUFFICIENT",
+            rationale=f"{UNBACKED_VERDICT_NOTE} {raw.rationale}".strip(),
+            evidence=evidence,
+        )
+
+    return VerifyResult(verdict=raw.verdict, rationale=raw.rationale, evidence=evidence)

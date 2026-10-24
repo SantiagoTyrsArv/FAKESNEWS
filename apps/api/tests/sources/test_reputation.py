@@ -48,9 +48,12 @@ async def test_two_independent_sources_agree_both_get_hits(db_session: AsyncSess
 
     await db_session.refresh(a)
     await db_session.refresh(b)
-    assert a.alpha == 9 and a.beta == 2
-    assert b.alpha == 3 and b.beta == 8
-    assert a.cases_count == 1 and b.cases_count == 1
+    assert a.alpha == 9
+    assert a.beta == 2
+    assert b.alpha == 3
+    assert b.beta == 8
+    assert a.cases_count == 1
+    assert b.cases_count == 1
 
     events = await _events_for_claim(db_session, claim_id)
     assert {e.source_id: e.outcome for e in events} == {a.id: "hit", b.id: "hit"}
@@ -71,8 +74,10 @@ async def test_dominant_source_sets_consensus_dissenter_gets_miss(db_session: As
 
     await db_session.refresh(strong)
     await db_session.refresh(weak)
-    assert strong.alpha == 9 and strong.beta == 2  # agreed with consensus: hit
-    assert weak.alpha == 2 and weak.beta == 9  # disagreed with consensus: miss
+    assert strong.alpha == 9  # agreed with consensus: hit
+    assert strong.beta == 2
+    assert weak.alpha == 2  # disagreed with consensus: miss
+    assert weak.beta == 9
 
 
 async def test_idempotent_on_repeated_call(db_session: AsyncSession) -> None:
@@ -108,7 +113,8 @@ async def test_skips_when_fewer_than_two_independent_sources(db_session: AsyncSe
     )
 
     await db_session.refresh(a)
-    assert a.alpha == 5 and a.beta == 5
+    assert a.alpha == 5
+    assert a.beta == 5
     assert await _events_for_claim(db_session, claim_id) == []
 
 
@@ -165,7 +171,8 @@ async def test_insufficient_verdict_is_skipped(db_session: AsyncSession) -> None
 
     await db_session.refresh(a)
     await db_session.refresh(b)
-    assert a.alpha == 5 and b.beta == 5
+    assert a.alpha == 5
+    assert b.beta == 5
     assert await _events_for_claim(db_session, claim_id) == []
 
 
@@ -201,7 +208,8 @@ async def test_exact_tie_is_skipped(db_session: AsyncSession) -> None:
 
     await db_session.refresh(a)
     await db_session.refresh(b)
-    assert a.alpha == 5 and b.beta == 5
+    assert a.alpha == 5
+    assert b.beta == 5
     assert await _events_for_claim(db_session, claim_id) == []
 
 

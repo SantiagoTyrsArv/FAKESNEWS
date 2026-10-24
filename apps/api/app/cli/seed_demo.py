@@ -46,6 +46,10 @@ from app.modules.sources.models import Source
 from app.modules.sources.seed_loader import load_trusted_sources
 from app.modules.submissions.models import Submission
 
+# Publication dates shared by several sample evidence items.
+_WHO_END_OF_EMERGENCY = "May 5, 2023"
+_CHRISTMAS_2021 = "December 25, 2021"
+
 DEMO_EMAIL = "demo@fakesnews.dev"
 DEMO_PASSWORD = "DemoFakesNews2026"
 DEMO_MARKER = "[DEMO]"
@@ -95,21 +99,21 @@ DEMO_CASES = [
                         "https://www.who.int/",
                         "El Director General declaró que la COVID-19 ya no constituye una "
                         "emergencia de salud pública de importancia internacional.",
-                        "May 5, 2023",
+                        _WHO_END_OF_EMERGENCY,
                         "supports",
                     ),
                     (
                         "reuters.com",
                         "https://www.reuters.com/",
                         "La OMS pone fin a la emergencia sanitaria global por COVID-19.",
-                        "May 5, 2023",
+                        _WHO_END_OF_EMERGENCY,
                         "supports",
                     ),
                     (
                         "apnews.com",
                         "https://apnews.com/",
                         "La OMS dice que la COVID-19 ya no es una emergencia global.",
-                        "May 5, 2023",
+                        _WHO_END_OF_EMERGENCY,
                         "supports",
                     ),
                 ],
@@ -165,21 +169,21 @@ DEMO_CASES = [
                         "https://apnews.com/",
                         "El telescopio Webb despegó el día de Navidad de 2021 desde la "
                         "Guayana Francesa.",
-                        "December 25, 2021",
+                        _CHRISTMAS_2021,
                         "supports",
                     ),
                     (
                         "bbc.com",
                         "https://www.bbc.com/",
                         "Lanzado con éxito el telescopio James Webb el 25 de diciembre.",
-                        "December 25, 2021",
+                        _CHRISTMAS_2021,
                         "supports",
                     ),
                     (
                         "bbc.co.uk",
                         "https://www.bbc.co.uk/",
                         "El James Webb inicia su viaje tras el lanzamiento en Navidad.",
-                        "December 25, 2021",
+                        _CHRISTMAS_2021,
                         "supports",
                     ),
                 ],

@@ -44,7 +44,7 @@ export const VERDICTS: Record<Verdict, VerdictStyle> = {
 
 export const VERDICT_ORDER: Verdict[] = ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT"];
 
-export function VerdictLabel({ verdict, className }: { verdict: Verdict; className?: string }) {
+export function VerdictLabel({ verdict, className }: Readonly<{ verdict: Verdict; className?: string }>) {
   const { label, icon: Icon, text } = VERDICTS[verdict];
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-sm font-semibold", text, className)}>
@@ -55,7 +55,7 @@ export function VerdictLabel({ verdict, className }: { verdict: Verdict; classNa
 }
 
 // Proportional bar of how the claims in a report split across verdicts.
-export function VerdictBar({ counts }: { counts: Record<Verdict, number> }) {
+export function VerdictBar({ counts }: Readonly<{ counts: Record<Verdict, number> }>) {
   const total = VERDICT_ORDER.reduce((sum, v) => sum + counts[v], 0);
   if (total === 0) return null;
   return (
@@ -78,7 +78,7 @@ export function VerdictBar({ counts }: { counts: Record<Verdict, number> }) {
 }
 
 // Source reliability as a short meter plus the number, so it reads at a glance.
-export function ScoreMeter({ score, className }: { score: number; className?: string }) {
+export function ScoreMeter({ score, className }: Readonly<{ score: number; className?: string }>) {
   const pct = Math.round(score * 100);
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>

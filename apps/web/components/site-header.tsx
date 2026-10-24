@@ -31,7 +31,7 @@ export type HeaderVariant = "app" | "public" | "pending";
 // it offers sign-in instead of the session navigation and logout. "pending"
 // shows only the wordmark while such a page is still checking the session,
 // so a signed-in user never sees a flash of the sign-in buttons.
-export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
+export function SiteHeader({ variant = "app" }: Readonly<{ variant?: HeaderVariant }>) {
   const router = useRouter();
   const pathname = usePathname();
   const { reduced, intensity, ready } = useMotion();
@@ -67,7 +67,7 @@ export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
     <header ref={ref} className="rule-double sticky top-0 z-30 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4 sm:gap-6 sm:px-6">
         <Wordmark compact={variant !== "public"} />
-        {variant === "app" ? (
+        {variant === "app" && (
           <>
             <nav
               aria-label="Principal"
@@ -101,7 +101,8 @@ export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
               <span className="hidden sm:inline">Cerrar sesión</span>
             </Button>
           </>
-        ) : variant === "public" ? (
+        )}
+        {variant === "public" && (
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" size="sm" render={<Link href="/login" />}>
               Iniciar sesión
@@ -110,7 +111,7 @@ export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
               Crear cuenta
             </Button>
           </div>
-        ) : null}
+        )}
       </div>
     </header>
   );

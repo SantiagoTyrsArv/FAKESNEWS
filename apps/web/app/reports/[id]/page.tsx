@@ -63,34 +63,41 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
+    // Done: load the report. Still running: poll again, unless it has been
+    // running for too long. Failed: nothing more to do.
+    async function onStatus(current: Submission) {
+      if (current.status === "done") {
+        const fullReport = await getReport(id);
+        if (!cancelled) setReport(fullReport);
+        return;
+      }
+      if (TERMINAL_STATUSES.includes(current.status)) return;
+      if (Date.now() - new Date(current.created_at).getTime() > STALE_AFTER_MS) {
+        setStale(true);
+        return;
+      }
+      timer = setTimeout(poll, POLL_INTERVAL_MS);
+    }
+
+    function onError(err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push("/login");
+      } else if (err instanceof ApiError && err.status === 404) {
+        setError("No existe un caso con este enlace en tu cuenta.");
+      } else {
+        setError("No se pudo cargar el caso. Reintentando…");
+        timer = setTimeout(poll, POLL_INTERVAL_MS * 2);
+      }
+    }
+
     async function poll() {
       try {
         const current = await getSubmission(id);
         if (cancelled) return;
         setSubmission(current);
-
-        if (current.status === "done") {
-          const fullReport = await getReport(id);
-          if (!cancelled) setReport(fullReport);
-          return;
-        }
-        if (!TERMINAL_STATUSES.includes(current.status)) {
-          if (Date.now() - new Date(current.created_at).getTime() > STALE_AFTER_MS) {
-            setStale(true);
-            return;
-          }
-          timer = setTimeout(poll, POLL_INTERVAL_MS);
-        }
+        await onStatus(current);
       } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.status === 401) {
-          router.push("/login");
-        } else if (err instanceof ApiError && err.status === 404) {
-          setError("No existe un caso con este enlace en tu cuenta.");
-        } else {
-          setError("No se pudo cargar el caso. Reintentando…");
-          timer = setTimeout(poll, POLL_INTERVAL_MS * 2);
-        }
+        if (!cancelled) onError(err);
       }
     }
 
@@ -159,7 +166,7 @@ export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
   );
 }
 
-function PipelineProgress({ submission }: { submission: Submission }) {
+function PipelineProgress({ submission }: Readonly<{ submission: Submission }>) {
   const steps = PIPELINE_STEPS.filter(
     (step) => step !== "transcribing" || submission.input_type === "video",
   );
@@ -209,7 +216,7 @@ function PipelineProgress({ submission }: { submission: Submission }) {
   );
 }
 
-function ReportView({ report }: { report: Report }) {
+function ReportView({ report }: Readonly<{ report: Report }>) {
   const { submission, summary, claims, disclaimer } = report;
   const counts = {
     SUPPORTED: summary.supported,
@@ -230,11 +237,7 @@ function ReportView({ report }: { report: Report }) {
             })}
           </p>
           <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            {summary.total_claims === 0
-              ? "No encontramos afirmaciones comprobables"
-              : summary.total_claims === 1
-                ? "Revisamos 1 afirmación"
-                : `Revisamos ${summary.total_claims} afirmaciones`}
+            {claimsHeading(summary.total_claims)}
           </h1>
         </div>
 
@@ -289,7 +292,7 @@ function ReportView({ report }: { report: Report }) {
   );
 }
 
-function ClaimCard({ claim, index }: { claim: ReportClaim; index: number }) {
+function ClaimCard({ claim, index }: Readonly<{ claim: ReportClaim; index: number }>) {
   const verdict = VERDICTS[claim.verdict];
 
   return (
@@ -329,7 +332,7 @@ function ClaimCard({ claim, index }: { claim: ReportClaim; index: number }) {
   );
 }
 
-function EvidenceItem({ evidence }: { evidence: ReportEvidence }) {
+function EvidenceItem({ evidence }: Readonly<{ evidence: ReportEvidence }>) {
   const { source } = evidence;
   const stance = STANCE_STYLES[evidence.stance];
 
@@ -376,4 +379,10 @@ function EvidenceItem({ evidence }: { evidence: ReportEvidence }) {
       </div>
     </li>
   );
+}
+
+function claimsHeading(total: number): string {
+  if (total === 0) return "No encontramos afirmaciones comprobables";
+  if (total === 1) return "Revisamos 1 afirmación";
+  return `Revisamos ${total} afirmaciones`;
 }

@@ -5,12 +5,19 @@ import type { NextRequest } from "next/server";
 // web's own domain, so session cookies are first-party. Needed when web and API
 // live on unrelated domains such as *.vercel.app and *.up.railway.app.
 // Pair it with NEXT_PUBLIC_API_URL=/api here and COOKIE_PATH_PREFIX=/api on the API.
-const apiProxyTarget = process.env.API_PROXY_TARGET?.replace(/\/+$/, "");
+const apiProxyTarget = withoutTrailingSlashes(process.env.API_PROXY_TARGET);
 // Same value as API_PROXY_SECRET on the API. It proves to the API that the
 // X-Client-IP header comes from this proxy, so login rate limiting is keyed on
 // the visitor's real IP (see apps/api/app/core/client_ip.py). Server-only:
 // never prefix it with NEXT_PUBLIC_.
 const apiProxySecret = process.env.API_PROXY_SECRET;
+
+// A loop instead of /\/+$/, whose backtracking is super-linear on long input.
+function withoutTrailingSlashes(url: string | undefined): string | undefined {
+  let end = url?.length ?? 0;
+  while (end > 0 && url?.[end - 1] === "/") end--;
+  return url?.slice(0, end);
+}
 
 const PROXY_SECRET_HEADER = "x-proxy-secret";
 const CLIENT_IP_HEADER = "x-client-ip";

@@ -172,12 +172,12 @@ export default function Home() {
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs">Ejemplo</span>
               </figcaption>
               <p className="font-quote text-xl leading-[1.7] sm:text-[1.4rem]">
-                {SAMPLE.map((part, i) => {
-                  if (!part.verdict) return <span key={i}>{part.text}</span>;
+                {SAMPLE.map((part) => {
+                  if (!part.verdict) return <span key={part.text}>{part.text}</span>;
                   const index = claims.indexOf(part);
                   return (
                     <span
-                      key={i}
+                      key={part.text}
                       className={cn("mark mark-draw", VERDICTS[part.verdict].mark)}
                       style={{ "--mark-delay": `${300 + index * 450}ms` } as React.CSSProperties}
                     >

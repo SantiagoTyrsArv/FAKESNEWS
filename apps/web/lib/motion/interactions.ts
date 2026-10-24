@@ -67,7 +67,7 @@ export function attachTilt(el: HTMLElement, mode: "3d" | "lift"): () => void {
 
   const onEnter = (e: PointerEvent) => {
     if (e.pointerType !== "mouse") return;
-    if (baseRotation === null) baseRotation = Number(gsap.getProperty(el, "rotation")) || 0;
+    baseRotation ??= Number(gsap.getProperty(el, "rotation")) || 0;
     if (nodes.length) gsap.to(nodes, { "--cutout-rotate": "0deg", ...hover });
     gsap.to(el, { rotation: 0, ...(mode === "lift" ? { y: -LIFT_PX } : {}), ...hover });
   };

@@ -106,10 +106,10 @@ function useOnScreen(compact: boolean) {
 export function AuthCharacters({
   state,
   compact = false,
-}: {
+}: Readonly<{
   state: CharacterState;
   compact?: boolean;
-}) {
+}>) {
   const ref = useRef<HTMLDivElement>(null);
   const { reduced, touch, intensity, ready } = useMotion();
   const onScreen = useOnScreen(compact);
@@ -284,6 +284,24 @@ export function AuthCharacters({
         return { x: r.left + 14 + Math.min(caret * CARET_STEP, r.width - 20), y: r.top + r.height / 2 };
       };
 
+      // On the password: the two at the back cover their eyes, everyone
+      // else looks away, and the striped one spies if it's shown.
+      const avertEyes = (passwordVisible: boolean) => {
+        const u = unit();
+        setStretch(false);
+        setHands(true);
+        for (const r of rigs) {
+          if (passwordVisible && r.striped) {
+            // The striped one leans out toward the form to spy.
+            gaze(r, { x: PEEK.x * u, y: PEEK.y * u });
+            pose(r, -lean, PEEK_X * u * intensity);
+          } else {
+            gaze(r, { x: AWAY.x * u, y: AWAY.y * u });
+            pose(r, lean * 0.66);
+          }
+        }
+      };
+
       const apply = (s: CharacterState) => {
         setPocket(s.focus !== "none");
         if (s.focus === "email") {
@@ -292,20 +310,7 @@ export function AuthCharacters({
           const p = fieldPoint(s.caret);
           if (p) lookAt(p);
         } else if (s.focus === "password") {
-          const u = unit();
-          setStretch(false);
-          // The two at the back cover their eyes; everyone else looks away.
-          setHands(true);
-          for (const r of rigs) {
-            if (s.passwordVisible && r.striped) {
-              // The striped one leans out toward the form to spy.
-              gaze(r, { x: PEEK.x * u, y: PEEK.y * u });
-              pose(r, -lean, PEEK_X * u * intensity);
-            } else {
-              gaze(r, { x: AWAY.x * u, y: AWAY.y * u });
-              pose(r, lean * 0.66);
-            }
-          }
+          avertEyes(s.passwordVisible);
         } else {
           setHands(false);
           setStretch(false);
@@ -455,11 +460,11 @@ function Character({
   name,
   hands = false,
   mouth = false,
-}: {
+}: Readonly<{
   name: CharacterName;
   hands?: boolean;
   mouth?: boolean;
-}) {
+}>) {
   const outfit = OUTFIT[name];
   return (
     <div className="crew-ch" data-char={name}>

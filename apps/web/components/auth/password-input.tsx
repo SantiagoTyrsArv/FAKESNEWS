@@ -19,7 +19,7 @@ export function PasswordInput({
   onVisibleChange,
   onFocus,
   onBlur,
-}: {
+}: Readonly<{
   id: string;
   value: string;
   onChange: (value: string) => void;
@@ -28,7 +28,7 @@ export function PasswordInput({
   onVisibleChange: (visible: boolean) => void;
   onFocus?: () => void;
   onBlur?: () => void;
-}) {
+}>) {
   const within = (e: FocusEvent<HTMLDivElement>) =>
     e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget);
 
