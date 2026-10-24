@@ -66,7 +66,8 @@ def _set_session_cookies(response: Response, session: dict) -> None:
         domain=settings.cookie_domain,
         path=f"{settings.cookie_path_prefix}/auth",
     )
-    response.set_cookie(  # NOSONAR: JS must read it (double-submit CSRF, see below)
+    # JS must read this cookie (double-submit CSRF, see httponly below).
+    response.set_cookie(  # NOSONAR
         CSRF_COOKIE,
         session["csrf_token"],
         max_age=settings.refresh_token_expire_days * 86400,

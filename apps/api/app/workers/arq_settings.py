@@ -21,7 +21,8 @@ async def startup(ctx: dict[str, Any]) -> None:
     logger.info("worker_startup")
 
 
-async def shutdown(ctx: dict[str, Any]) -> None:  # NOSONAR: arq requires a coroutine
+# arq requires a coroutine here, even with nothing to await.
+async def shutdown(ctx: dict[str, Any]) -> None:  # NOSONAR
     logger.info("worker_shutdown")
 
 
