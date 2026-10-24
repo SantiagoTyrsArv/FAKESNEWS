@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -7,6 +8,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.core.rate_limit import check_rate_limit
 from app.core.security import (
     create_token,
@@ -27,6 +29,14 @@ from app.modules.auth.recovery_codes import (
 )
 
 settings = get_settings()
+# Security events (OWASP A09): named "auth.*", with ids and IPs but never an
+# email, password, code or token, so they can be kept and alerted on.
+logger = get_logger(__name__)
+
+
+def _email_hash(email: str) -> str:
+    """Correlates attempts against one address without logging it."""
+    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
 
 
 class AuthError(Exception):
@@ -97,6 +107,7 @@ async def _register_failed_attempt(db: AsyncSession, user: User) -> None:
     user.failed_attempts += 1
     if user.failed_attempts >= settings.max_login_attempts:
         user.locked_until = _now() + timedelta(minutes=settings.lockout_minutes)
+        logger.warning("auth.lockout", user_id=str(user.id), minutes=settings.lockout_minutes)
     await db.commit()
 
 
@@ -161,7 +172,14 @@ async def authenticate_password(
     )
 
     if user is None or not password_matches:
-        if user is not None:
+        if user is None:
+            logger.warning(
+                "auth.login_failed", reason="unknown_email", email_hash=_email_hash(email), ip=ip
+            )
+        else:
+            logger.warning(
+                "auth.login_failed", reason="wrong_password", user_id=str(user.id), ip=ip
+            )
             await _register_failed_attempt(db, user)
         raise InvalidCredentialsError()
 
@@ -219,6 +237,7 @@ async def confirm_totp_setup(
     user.totp_last_used_step = None
     user.mfa_enabled = True
     await _reset_failed_attempts(db, user)
+    logger.info("auth.mfa_enabled", user_id=str(user.id))
 
     await db.execute(delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user.id))
     plaintext_codes = generate_recovery_codes()
@@ -275,6 +294,7 @@ async def _check_second_factor(
                 break
 
     if not success:
+        logger.warning("auth.second_factor_failed", user_id=str(user.id), ip=ip)
         await _register_failed_attempt(db, user)
         raise InvalidCodeError()
 
@@ -315,6 +335,7 @@ async def disable_mfa(
     user.totp_last_used_step = None
     await db.execute(delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user.id))
     await db.commit()
+    logger.info("auth.mfa_disabled", user_id=str(user.id), ip=ip)
     return user
 
 
@@ -358,6 +379,10 @@ async def rotate_refresh_token(db: AsyncSession, refresh_plain: str) -> dict:
             .values(revoked_at=_now())
         )
         await db.commit()
+        # A rotated token came back: likely stolen. The family is revoked.
+        logger.warning(
+            "auth.refresh_reuse_detected", user_id=str(row.user_id), family_id=str(row.family_id)
+        )
         raise RefreshReuseDetectedError()
 
     if _aware(row.expires_at) < _now():

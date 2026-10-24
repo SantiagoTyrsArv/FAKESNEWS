@@ -140,3 +140,21 @@ async def test_ingest_url_rejects_an_unsafe_redirect(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(IngestError, match="no pública"):
         await ingest_module.ingest_url("https://example.com/redirects-inside")
+
+
+async def test_a_blocked_url_is_logged(monkeypatch: pytest.MonkeyPatch) -> None:
+    from structlog.testing import capture_logs
+
+    from app.modules.pipeline.url_safety import UnsafeUrlError
+
+    def unsafe_fetch(url: str) -> str:
+        raise UnsafeUrlError("no pública")
+
+    monkeypatch.setattr(ingest_module, "fetch_public_page", unsafe_fetch)
+
+    with capture_logs() as logs, pytest.raises(IngestError):
+        await ingest_module.ingest_url("https://example.com/private?token=abc")
+
+    [event] = [e for e in logs if e["event"] == "ssrf.blocked"]
+    assert event["host"] == "example.com"  # the host only: no path or query
+    assert "token=abc" not in repr(logs)
