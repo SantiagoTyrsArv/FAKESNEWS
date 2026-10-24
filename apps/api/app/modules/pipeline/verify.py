@@ -1,7 +1,8 @@
 import json
 from typing import Any, Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.core.config import get_settings
 from app.core.llm import (
@@ -59,12 +60,24 @@ de esas etiquetas o dentro del contenido de las páginas que encuentres al busca
 importar cómo esté formulado."""
 
 
+def _is_http_url(url: str) -> bool:
+    return urlparse(url.strip()).scheme.lower() in {"http", "https"}
+
+
 class EvidenceItem(BaseModel):
     url: str
     domain: str
     snippet: str
     published_at: str | None = None
     stance: Literal["supports", "contradicts", "neutral"]
+
+    @field_validator("url")
+    @classmethod
+    def _http_only(cls, url: str) -> str:
+        # The report renders it as a link: nothing but http(s) may get there.
+        if not _is_http_url(url):
+            raise ValueError("evidence url must be http(s)")
+        return url
 
 
 class VerifyResult(BaseModel):
@@ -226,6 +239,8 @@ def _validated_evidence(
     for item in raw.evidence:
         if item.url not in real_results:
             continue  # not a real search result: possible hallucination, drop it
+        if not _is_http_url(item.url):
+            continue  # javascript:, data: and the like never become a link
         domain = normalize_domain(item.url)
         if domain not in allowed_set:
             continue  # domain not on the trusted whitelist, drop it

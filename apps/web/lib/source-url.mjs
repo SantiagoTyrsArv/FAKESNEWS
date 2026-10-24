@@ -11,3 +11,18 @@ const DOMAIN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/i;
 export function sourceUrl(domain) {
   return DOMAIN.test(domain) ? `https://${domain}` : null;
 }
+
+/**
+ * An evidence link as stored, or null unless it is an absolute http(s) URL
+ * (javascript:, data: and the like never become a link).
+ * @param {string} url
+ * @returns {string | null}
+ */
+export function evidenceUrl(url) {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
