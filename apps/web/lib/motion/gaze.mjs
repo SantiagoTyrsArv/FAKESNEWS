@@ -17,3 +17,18 @@ export function pupilOffset(dx, dy, max) {
   const k = (max * Math.min(dist / GAZE_RANGE, 1)) / dist;
   return { x: dx * k, y: dy * k };
 }
+
+// The detective's magnifier tilts toward the cursor, fully once the cursor is
+// LENS_RANGE px to either side.
+const LENS_RANGE = 240;
+
+/**
+ * Magnifier tilt in degrees for a target `dx` px to the side: `max × clamp(dx
+ * / 240, -1, 1)`.
+ * @param {number} dx
+ * @param {number} max
+ * @returns {number}
+ */
+export function lensTilt(dx, max) {
+  return max * Math.min(Math.max(dx / LENS_RANGE, -1), 1);
+}

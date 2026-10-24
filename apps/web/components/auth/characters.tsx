@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
-import { pupilOffset } from "@/lib/motion/gaze.mjs";
+import { lensTilt, pupilOffset } from "@/lib/motion/gaze.mjs";
 import { gsap } from "@/lib/motion/gsap";
 import { EASE, scaled } from "@/lib/motion/tokens.mjs";
 
@@ -27,6 +27,8 @@ const LEAN_DURATION = 0.8;
 const PEEK_DURATION = 0.5;
 const ENTER_DURATION = 1.1;
 const ENTER_STAGGER = 0.12;
+// Matches the CSS pre-hide: low enough that the hats start below the stage.
+const ENTER_FROM = 130;
 const STRETCH = 1.04;
 const REACT_DURATION = 0.4;
 const REACT_STAGGER = 0.05;
@@ -38,6 +40,15 @@ const BLINK_MIN = 2000;
 const BLINK_SPREAD = 4000;
 const SHAKE_ROTATE = 3;
 const FROWN_HOLD = 1.4;
+const LENS_TILT = 30; // degrees, at intensity 1
+const LENS_DRIFT = 6; // scene px the glass slides toward the target
+const LENS_ZOOM = 1.6; // the pupil behind the glass
+const LENS_POCKET = 180; // yPercent: down into the gabardine
+const PAW_DOWN = 160; // yPercent: the orange one's paw, out of sight
+const PAW_UP = -60; // yPercent: the paw over the monocle
+const MONOCLE_OFF = 150; // yPercent: taken off with the paw
+const SWAP = 0.25; // each move of the monocle swap
+const FLASH = 0.06; // the glint as the monocle cracks, up and back
 
 // AuthShell shows the full stage from Tailwind's `lg` up and the compact strip
 // below it; only the copy on screen animates.
@@ -143,6 +154,26 @@ export function AuthCharacters({
         };
       });
 
+      // The detective's magnifier: aimed by two setters and a tilt setter,
+      // pocketed and brought out by one paused timeline.
+      const lens = crew.querySelector<HTMLElement>(".crew-lens");
+      const lensEye = crew.querySelector<HTMLElement>("[data-lens-eye]");
+      const lensPupil = lensEye?.querySelector<HTMLElement>(".crew-pupil") ?? null;
+      const lensRotate = lens ? gsap.quickTo(lens, "rotation", look) : null;
+      const lensX = lens ? gsap.quickTo(lens, "x", look) : null;
+      const lensY = lens ? gsap.quickTo(lens, "y", look) : null;
+      const aimLens = (dx: number, dy: number, u: number) => {
+        lensRotate?.(lensTilt(dx, LENS_TILT * intensity));
+        const drift = pupilOffset(dx, dy, LENS_DRIFT * u);
+        lensX?.(drift.x);
+        lensY?.(drift.y);
+      };
+      if (lensPupil) gsap.set(lensPupil, { scale: LENS_ZOOM });
+      const pocket = gsap.timeline({ paused: true, defaults: { duration: REACT_DURATION, ease: EASE.stick } });
+      if (lens) pocket.to(lens, { yPercent: LENS_POCKET, opacity: 0 }, 0);
+      if (lensPupil) pocket.to(lensPupil, { scale: 1 }, 0);
+      const setPocket = (pocketed: boolean) => (pocketed ? pocket.play() : pocket.reverse());
+
       const gaze = (r: Rig, p: Point) => {
         r.pupilX(p.x);
         r.pupilY(p.y);
@@ -158,6 +189,10 @@ export function AuthCharacters({
       // Every character looks at a point on the page and leans toward it.
       const lookAt = (target: Point) => {
         const u = unit();
+        if (lensEye) {
+          const box = lensEye.getBoundingClientRect();
+          aimLens(target.x - (box.left + box.width / 2), target.y - (box.top + box.height / 2), u);
+        }
         for (const r of rigs) {
           const box = r.eyes.getBoundingClientRect();
           const dx = target.x - (box.left + box.width / 2);
@@ -169,6 +204,7 @@ export function AuthCharacters({
       };
 
       const lookFront = () => {
+        aimLens(0, 0, unit());
         for (const r of rigs) {
           gaze(r, { x: 0, y: 0 });
           pose(r, 0);
@@ -212,6 +248,34 @@ export function AuthCharacters({
           .to(mouth, { scaleY: 1, duration: 0.3, ease: "power2.out" }, 0.2 + FROWN_HOLD);
       }
 
+      // ...and the monocle cracks; the paw takes it off and puts on a new one
+      // (about 1.5 s). Every run starts from the monocle on and the paw down,
+      // so an error mid-swap restarts cleanly.
+      const monocle = crew.querySelector<HTMLElement>(".crew-monocle");
+      const crack = crew.querySelector<HTMLElement>(".crew-crack");
+      const paw = crew.querySelector<HTMLElement>(".crew-paw");
+      if (monocle && crack && paw) {
+        const away = { duration: SWAP, ease: "power2.in" };
+        const back = { duration: SWAP, ease: EASE.stick };
+        failure
+          .set(monocle, { yPercent: 0, opacity: 1 }, 0)
+          .set(paw, { y: 0, yPercent: PAW_DOWN, opacity: 0 }, 0)
+          .fromTo(crack, { opacity: 0 }, { opacity: 1, duration: 0.1 }, 0)
+          .fromTo(
+            monocle,
+            { filter: "brightness(1)" },
+            { filter: "brightness(2.2)", duration: FLASH, yoyo: true, repeat: 1, ease: "none" },
+            0,
+          )
+          .to(paw, { yPercent: PAW_UP, opacity: 1, ...back }, 0.3)
+          .to(monocle, { yPercent: MONOCLE_OFF, opacity: 0, ...away }, 0.55)
+          .to(paw, { yPercent: PAW_DOWN, ...away }, 0.55)
+          .set(crack, { opacity: 0 }, 0.85)
+          .to(monocle, { yPercent: 0, opacity: 1, ...back }, 0.85)
+          .to(paw, { yPercent: PAW_UP, ...back }, 0.85)
+          .to(paw, { yPercent: PAW_DOWN, opacity: 0, ...away }, 1.25);
+      }
+
       // The focused field, at the end of what is typed in it.
       const fieldPoint = (caret: number): Point | null => {
         const el = document.activeElement;
@@ -221,6 +285,7 @@ export function AuthCharacters({
       };
 
       const apply = (s: CharacterState) => {
+        setPocket(s.focus !== "none");
         if (s.focus === "email") {
           setHands(false);
           setStretch(true);
@@ -261,7 +326,7 @@ export function AuthCharacters({
         // From below, one after the other, like cutouts pasted onto the page.
         gsap.fromTo(
           chars,
-          { y: 0, yPercent: 110 },
+          { y: 0, yPercent: ENTER_FROM },
           {
             yPercent: 0,
             duration: ENTER_DURATION,
@@ -340,15 +405,69 @@ export function AuthCharacters({
   );
 }
 
-function Character({ name, hands = false, mouth = false }: { name: string; hands?: boolean; mouth?: boolean }) {
+type CharacterName = "blue" | "ink" | "striped" | "orange";
+
+// Each one's detective outfit (globals.css draws the pieces): the pieces that
+// sit on the body go before the eyes, the ones held over the face after them.
+const OUTFIT: Record<CharacterName, { body: ReactNode; face?: ReactNode }> = {
+  ink: {
+    body: (
+      <>
+        <span className="crew-coat" />
+        <span className="crew-tie" />
+        <span className="crew-hat" />
+      </>
+    ),
+    face: <span className="crew-lens" />,
+  },
+  blue: {
+    body: (
+      <>
+        <span className="crew-scarf" />
+        <span className="crew-hat" />
+      </>
+    ),
+  },
+  striped: {
+    body: (
+      <>
+        <span className="crew-hat" />
+        <span className="crew-pencil" />
+      </>
+    ),
+  },
+  orange: {
+    body: <span className="crew-hat" />,
+    face: (
+      <>
+        <span className="crew-monocle">
+          <span className="crew-crack" />
+        </span>
+        <span className="crew-paw" />
+      </>
+    ),
+  },
+};
+
+function Character({
+  name,
+  hands = false,
+  mouth = false,
+}: {
+  name: CharacterName;
+  hands?: boolean;
+  mouth?: boolean;
+}) {
+  const outfit = OUTFIT[name];
   return (
     <div className="crew-ch" data-char={name}>
       <div className="crew-body" />
+      {outfit.body}
       <div className="crew-eyes">
         <span className="crew-eye">
           <span className="crew-pupil" />
         </span>
-        <span className="crew-eye">
+        <span className="crew-eye" data-lens-eye={name === "ink" ? "" : undefined}>
           <span className="crew-pupil" />
         </span>
         {hands && (
@@ -358,6 +477,7 @@ function Character({ name, hands = false, mouth = false }: { name: string; hands
           </span>
         )}
       </div>
+      {outfit.face}
       {mouth && <span className="crew-mouth" />}
     </div>
   );
