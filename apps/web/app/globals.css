@@ -235,6 +235,12 @@
       animation: mark-draw 700ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
       animation-delay: var(--mark-delay, 0ms);
     }
+
+    /* With JS the landing timeline starts the drawing (adds .mark-go) once
+       the card has landed; without JS it plays on load as before. */
+    html.motion .mark-draw:not(.mark-go) {
+      animation-play-state: paused;
+    }
   }
 }
 
@@ -345,6 +351,16 @@
 @media (prefers-reduced-motion: no-preference) {
   html.motion [data-pop],
   html.motion [data-reveal] {
+    opacity: 0;
+  }
+}
+
+/* The landing hero's non-LCP blocks (header, kicker, lede, actions, example
+   card), only where useLandingMotion animates them in: desktop pointers. The
+   h1 and the hero image are never pre-hidden. Same query as DESKTOP in
+   components/landing/use-landing-motion.ts. */
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  html.motion [data-enter] {
     opacity: 0;
   }
 }

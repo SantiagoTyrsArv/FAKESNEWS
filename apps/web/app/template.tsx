@@ -4,12 +4,9 @@ import { usePathname } from "next/navigation";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
 import { attachMagnetic, attachTilt } from "@/lib/motion/interactions";
+import { isDocumentLoad, markDocumentMounted } from "@/lib/motion/document";
 import { gsap, ScrollTrigger } from "@/lib/motion/gsap";
 import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
-
-// The root template remounts whenever the first URL segment changes (Next docs,
-// template.js); this flag tells the first mount of the document apart.
-let documentMounted = false;
 
 const POP_SCALE = 0.96;
 const POP_TOTAL = 0.4; // every first-screen pop is done within 400 ms
@@ -33,8 +30,10 @@ export default function Template({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { reduced, touch, intensity, ready } = useMotion();
-  // Lazy state survives StrictMode's double effects and is fixed per mount.
-  const [initialLoad] = useState(() => !documentMounted);
+  // The root template remounts whenever the first URL segment changes (Next
+  // docs, template.js). Lazy state survives StrictMode's double effects and is
+  // fixed per mount.
+  const [initialLoad] = useState(isDocumentLoad);
   // Path that already played its entry: the entry plays once per page, not
   // again when the motion env changes. Deeper navigations (/reports/a ->
   // /reports/b) reuse this template, so the path is what counts.
@@ -43,7 +42,7 @@ export default function Template({ children }: { children: ReactNode }) {
   // Layout effect: on a client navigation the hidden state is set before the
   // new page is painted, so nothing flashes visible -> hidden.
   useLayoutEffect(() => {
-    documentMounted = true;
+    markDocumentMounted();
     const root = ref.current;
     if (!ready || !root) return;
 

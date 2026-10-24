@@ -6,7 +6,7 @@ import Image from "next/image";
 export function HeroMedia({ children }: { children: ReactNode }) {
   return (
     <div className="relative">
-      <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border bg-paper">
+      <div data-collage className="relative aspect-[16/10] overflow-hidden rounded-2xl border bg-paper">
         <Image
           src="/media/hero-keyframe.webp"
           alt="Collage de papel: una burbuja de chat separada en tres tiras, con una lupa sobre la del medio."
@@ -17,7 +17,7 @@ export function HeroMedia({ children }: { children: ReactNode }) {
           className="hero-pan object-cover object-right"
         />
       </div>
-      <div className="relative -mt-16 mr-4 sm:-mt-24 sm:mr-12 lg:-ml-8">{children}</div>
+      <div data-enter="card" className="relative -mt-16 mr-4 sm:-mt-24 sm:mr-12 lg:-ml-8">{children}</div>
     </div>
   );
 }
