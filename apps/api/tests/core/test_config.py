@@ -74,7 +74,6 @@ def test_production_accepts_strong_secrets(monkeypatch) -> None:
         {"JWT_SECRET_KEY": "dev-insecure-change-me"},
         {"JWT_SECRET_KEY": "change-me-to-a-long-random-string"},
         {"JWT_SECRET_KEY": "too-short"},
-        {"TOTP_SECRET_ENCRYPTION_KEY": "MvSmxncXq52PBWdowkbPhAN6d_-YFDdWLvT3GIwtQL0="},
         {"TOTP_SECRET_ENCRYPTION_KEY": "change-me-fernet-key-32-bytes-b64=="},
         {"TOTP_SECRET_ENCRYPTION_KEY": "not-a-fernet-key"},
         {"CORS_ORIGINS": '["*"]'},
@@ -104,3 +103,23 @@ def test_production_accepts_a_strong_proxy_secret(monkeypatch) -> None:
 def test_empty_proxy_secret_is_none(monkeypatch) -> None:
     monkeypatch.setenv("API_PROXY_SECRET", "")
     assert Settings(_env_file=None).api_proxy_secret is None
+
+
+def test_production_refuses_a_missing_totp_key(monkeypatch) -> None:
+    from pydantic import ValidationError
+
+    _production_env(monkeypatch)
+    monkeypatch.delenv("TOTP_SECRET_ENCRYPTION_KEY")
+    with pytest.raises(ValidationError, match="TOTP_SECRET_ENCRYPTION_KEY"):
+        Settings(_env_file=None)
+
+
+def test_development_without_a_totp_key_gets_a_random_one(monkeypatch) -> None:
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.delenv("TOTP_SECRET_ENCRYPTION_KEY", raising=False)
+    first = Settings(_env_file=None).totp_secret_encryption_key
+    second = Settings(_env_file=None).totp_secret_encryption_key
+    Fernet(first.encode())  # a usable key, not a placeholder
+    assert first != second  # generated, never a value written in the code

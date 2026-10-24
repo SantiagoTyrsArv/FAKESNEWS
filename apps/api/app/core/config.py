@@ -1,12 +1,12 @@
 from functools import lru_cache
 
+from cryptography.fernet import Fernet
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Development-only defaults. They are public (they live in this repository),
-# so Settings refuses to start in production while either is still in use.
+# Development-only default. It is public (it lives in this repository), so
+# Settings refuses to start in production while it is still in use.
 _DEV_JWT_SECRET = "dev-insecure-change-me"
-_DEV_TOTP_KEY = "MvSmxncXq52PBWdowkbPhAN6d_-YFDdWLvT3GIwtQL0="
 _MIN_SECRET_LENGTH = 32
 
 
@@ -78,8 +78,11 @@ class Settings(BaseSettings):
         default=5, alias="MFA_PENDING_TOKEN_EXPIRE_MINUTES"
     )
 
+    # Unset in development, each process gets a random key (no key lives in
+    # the code), so stored 2FA secrets don't survive a restart; production
+    # must set it (refuse_insecure_production_secrets).
     totp_secret_encryption_key: str = Field(
-        default=_DEV_TOTP_KEY,
+        default_factory=lambda: Fernet.generate_key().decode(),
         alias="TOTP_SECRET_ENCRYPTION_KEY",
     )
     totp_issuer_name: str = Field(default="FakesNews", alias="TOTP_ISSUER_NAME")
@@ -143,8 +146,8 @@ class Settings(BaseSettings):
     def refuse_insecure_production_secrets(self) -> "Settings":
         """Fail fast at startup instead of running production with secrets
         anyone can read in this repo: with the dev JWT secret an attacker can
-        forge a session for any user, and with the dev Fernet key decrypt
-        every stored TOTP secret.
+        forge a session for any user, and without a fixed Fernet key every
+        stored TOTP secret is lost on the next restart.
         """
         if not self.is_production:
             return self
@@ -161,7 +164,11 @@ class Settings(BaseSettings):
             )
 
         totp_key = self.totp_secret_encryption_key
-        if totp_key == _DEV_TOTP_KEY or "change-me" in totp_key or not _is_fernet_key(totp_key):
+        if (
+            "totp_secret_encryption_key" not in self.model_fields_set
+            or "change-me" in totp_key
+            or not _is_fernet_key(totp_key)
+        ):
             problems.append("TOTP_SECRET_ENCRYPTION_KEY must be a freshly generated Fernet key")
 
         proxy_secret = self.api_proxy_secret
@@ -183,8 +190,6 @@ class Settings(BaseSettings):
 
 
 def _is_fernet_key(value: str) -> bool:
-    from cryptography.fernet import Fernet
-
     try:
         Fernet(value.encode())
     except ValueError:
