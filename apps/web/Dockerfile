@@ -22,7 +22,11 @@ ENV NODE_ENV=production \
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
+# Owned by the runtime user: next start writes its cache under .next/cache.
+COPY --from=builder --chown=node:node /app/.next ./.next
+
+# The node image ships an unprivileged "node" user.
+USER node
 
 EXPOSE 3000
 # Run next directly: "pnpm start" would make corepack download pnpm at boot.
