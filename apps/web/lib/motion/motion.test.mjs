@@ -43,9 +43,9 @@ test("onceInSession is true once, then false", () => {
     getItem: (k) => (data.has(k) ? data.get(k) : null),
     setItem: (k, v) => data.set(k, String(v)),
   };
-  assert.equal(onceInSession("curtain", storage), true);
-  assert.equal(onceInSession("curtain", storage), false);
-  assert.equal(onceInSession("other", storage), true);
+  assert.equal(onceInSession("curtain", () => storage), true);
+  assert.equal(onceInSession("curtain", () => storage), false);
+  assert.equal(onceInSession("other", () => storage), true);
 });
 
 test("onceInSession is false (no throw) when storage throws", () => {
@@ -61,6 +61,13 @@ test("onceInSession is false (no throw) when storage throws", () => {
       throw new Error("quota");
     },
   };
-  assert.equal(onceInSession("k", getThrows), false);
-  assert.equal(onceInSession("k", setThrows), false);
+  assert.equal(onceInSession("k", () => getThrows), false);
+  assert.equal(onceInSession("k", () => setThrows), false);
+});
+
+test("onceInSession is false (no throw) when reading the storage itself throws", () => {
+  const blocked = () => {
+    throw new Error("SecurityError");
+  };
+  assert.equal(onceInSession("k", blocked), false);
 });

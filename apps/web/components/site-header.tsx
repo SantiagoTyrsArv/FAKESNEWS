@@ -43,7 +43,7 @@ export function SiteHeader({ variant = "app" }: { variant?: HeaderVariant }) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!ready || reduced || !el) return;
-    drops.current ??= onceInSession("fn-header", sessionStorage);
+    drops.current ??= onceInSession("fn-header", () => sessionStorage);
     if (!drops.current) return;
     const ctx = gsap.context(() => {
       gsap.fromTo(

@@ -68,7 +68,7 @@ export function useLandingMotion(root: RefObject<HTMLElement | null>) {
       const desktop = window.matchMedia(DESKTOP).matches;
       const curtain = el.querySelector<HTMLElement>("[data-curtain]");
       const liftCurtain =
-        desktop && documentLoad && curtainDue && !!curtain && onceInSession("fn-curtain", sessionStorage);
+        desktop && documentLoad && curtainDue && !!curtain && onceInSession("fn-curtain", () => sessionStorage);
       if (!liftCurtain) dropCurtain();
       if (!desktop) {
         // Touch / reduced motion: nothing was pre-hidden and the title stays put.
