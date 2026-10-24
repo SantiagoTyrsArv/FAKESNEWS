@@ -10,6 +10,11 @@ updates:
     directory: /apps/web
     schedule:
       interval: weekly
+    ignore:
+      # Types must match the Node the app runs on (22: Dockerfile, CI);
+      # newer majors would allow APIs that don't exist at runtime.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: uv
     directory: /apps/api
     schedule:
