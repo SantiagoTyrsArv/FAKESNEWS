@@ -39,4 +39,5 @@ jobs:
       - run: pnpm lint:css
       - run: pnpm test:scripts
       - run: pnpm test:motion
+      - run: pnpm test:lib
       - run: pnpm build
