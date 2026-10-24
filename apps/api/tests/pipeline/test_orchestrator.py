@@ -334,3 +334,9 @@ async def test_failed_verify_rationale_hides_exception_text(
         claim = (await check_db.execute(select(Claim))).scalars().one()
         assert claim.verdict == "INSUFFICIENT"
         assert "railway.internal" not in claim.rationale
+
+
+def test_video_transcriber_is_shared_across_cases() -> None:
+    # The Whisper model lives on the transcriber; a new one per case would
+    # reload the model every time.
+    assert orchestrator._get_transcriber() is orchestrator._get_transcriber()

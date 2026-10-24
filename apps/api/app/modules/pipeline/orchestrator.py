@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from functools import lru_cache
 from typing import Any
 
 from app.core.config import get_settings
@@ -60,6 +61,13 @@ async def _verify_one(
             )
 
 
+@lru_cache
+def _get_transcriber() -> FasterWhisperTranscriber:
+    # One per worker process: the transcriber keeps the Whisper model it
+    # loads, and loading it is the slow part of a video case.
+    return FasterWhisperTranscriber()
+
+
 async def _ingest(submission: Submission, db: Any) -> str:
     if submission.input_type == "text":
         return await ingest_module.ingest_text(submission.raw_input)
@@ -67,8 +75,7 @@ async def _ingest(submission: Submission, db: Any) -> str:
         return await ingest_module.ingest_url(submission.raw_input)
 
     await _set_status(db, submission, "transcribing")
-    transcriber = FasterWhisperTranscriber()
-    return await ingest_module.ingest_video(submission.raw_input, transcriber)
+    return await ingest_module.ingest_video(submission.raw_input, _get_transcriber())
 
 
 async def _mark_failed(submission_id: str, error: str) -> None:
