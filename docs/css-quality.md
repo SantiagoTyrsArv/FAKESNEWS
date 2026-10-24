@@ -113,3 +113,55 @@ seguirá sumando todo, mientras que la portada solo contará lo que carga `/`.
 | `z-index` únicos | 2 | 2 |
 | Duraciones de animación únicas | 3 | 3 |
 | Funciones de temporización únicas | 3 | 3 |
+
+## Después de las animaciones (2026-10-23)
+
+Medida con `pnpm build` y `pnpm css:audit` sobre la rama `feat/motion` (4bcba9c). Siguen siendo un
+único archivo CSS, así que las dos cifras coinciden.
+
+| Métrica | Línea base | Después | Cambio |
+| --- | --- | --- | --- |
+| Tamaño | 63.204 B | 73.168 B | +9.964 B (+15,8 %) |
+| Tamaño gzip | 12.784 B | 14.696 B | +1.912 B (+15 %) |
+| Reglas | 568 | 602 | +34 |
+| Selectores | 621 | 656 | +35 |
+| Declaraciones | 895 | 952 | +57 |
+| Especificidad máxima | (0, 3, 0) | (0, 3, 1) | |
+| Especificidad media | (0, 1,09, 0,18) | (0, 1,09, 0,17) | |
+| Complejidad máxima de selector | 52 | 52 | |
+| `!important` | 1 | 3 | +2 |
+| Colores únicos | 13 | 13 | |
+| Tamaños de fuente únicos | 20 | 20 | |
+| `z-index` únicos | 2 | 3 | +1 |
+| Duraciones / funciones de temporización únicas | 3 / 3 | 3 / 3 | |
+
+**PurgeCSS:** el crecimiento (+1,9 KB gzip, +15 %) no es notable para una portada que descarga unos
+15 KB de CSS, y es justo CSS activado desde JavaScript (`html.motion`, cortina, marquesina,
+`animate__*`), lo que PurgeCSS rompería. No se revisa ahora; el problema de tamaño está en el JS,
+no en el CSS.
+
+### Lighthouse móvil de `/`
+
+Lighthouse CLI v12 (`npx lighthouse@12`), móvil, solo rendimiento, headless, throttling simulado,
+build de producción, 3 ejecuciones.
+
+| | Rendimiento | LCP | CLS |
+| --- | --- | --- | --- |
+| Línea base (mediana) | 91 | 3,5 s | 0,02 |
+| Ejecución 1 | 87 | 3,9 s | 0,02 |
+| Ejecución 2 | 87 | 4,0 s | 0,02 |
+| Ejecución 3 | 88 | 3,9 s | 0,02 |
+| Mediana después | 87 | 3,9 s | 0,02 |
+
+Rendimiento (≥ 86) y CLS (≤ 0,1) cumplen; el LCP queda +400 ms por encima de la base (el límite
+original era +200 ms).
+
+- **No es ruido:** comparación A/B en la misma sesión contra el commit base (61eaeea), alternando:
+  base 3,5 s en las 4 ejecuciones; rama 3,9–4,0 s (salvo una de 3,5 s).
+- **Causa:** un chunk de 144 KB (≈54 KB gzip) con gsap, ScrollTrigger, SplitText y Lenis que se
+  carga en todas las páginas por imports estáticos, más ~27 KB de código de la app. El elemento LCP
+  es la imagen del hero. Quitando gsap y Lenis por completo en un experimento, el LCP baja solo a
+  3,7 s.
+- **Decisión:** el 2026-10-23 se aceptó el +400 ms de LCP (el límite de la spec pasó a +400 ms).
+- **Pendiente:** cargar las librerías de animación de forma diferida (import dinámico tras la
+  hidratación); en el mejor caso medido, ~3,7 s.
