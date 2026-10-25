@@ -1,6 +1,6 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-10-24**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-10-25**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
@@ -30,8 +30,19 @@
 | #31 | `fix/sonar-smells` | Resto de los avisos de SonarQube |
 | #33 | `perf/mobile-lighthouse` | Lighthouse móvil a 90+ (ver abajo) |
 | #34 | `fix/security-low` | H-04, H-08, H-09 y H-11 de [SEGURIDAD.md](SEGURIDAD.md) |
+| #35 | `docs/audit-and-security` | AUDITORIA.md y SEGURIDAD.md versionados en `docs/`, y este registro |
+| #36, #37, #38 | Dependabot | yt-dlp 2026.10.21, anthropic 2.1.0 y fastapi 0.159.1 |
 
-## Última sesión (2026-10-24)
+## Sesión del 2026-10-25
+
+- **Valoración del proyecto:** 8/10 en conjunto. Por módulo: Auth y 2FA 9,5; Fuentes 9; Seguridad 9; Documentación 9,5; Interfaz web 9; Reportes 8; Pipeline (sin la parte de Claude) 7; Submissions 7; Infraestructura y operación 5,5; Pruebas de la web 4.
+- **Dependabot:** el dueño fusionó los PR #36 y #37. El #38 se probó en local (178 pruebas bien, 1 omitida, `ruff` limpio) y se fusionó. No quedan PR abiertos.
+- **anthropic 2.x** ya está en `uv.lock` (2.1.0). El `pyproject.toml` sigue pidiendo `>=0.40.0`; conviene subir ese mínimo a `>=2.1`.
+- Falta borrar la rama remota `dependabot/uv/apps/api/yt-dlp-2026.10.21` (PR #36, ya fusionado). El permiso automático bloqueó el borrado; se hace a mano.
+- **Decisión del dueño:** hacer los puntos 1 (CI de la API) y 2 (robustez del backend) de la lista de abajo. El punto 3 (pruebas de la web) **queda en pausa hasta que el dueño lo indique**, porque todavía no hay créditos para probar.
+- **Brainstorming empezado:** el dueño no ha visto ningún problema en producción (casos colgados, historial lento ni caídas del worker). Los puntos 1 y 2 son preventivos, no responden a ningún incidente. Siguiente paso: terminar el brainstorming, escribir la especificación y luego el plan. Propuesta: un PR para el CI y otro para la robustez.
+
+## Última sesión antes de esta (2026-10-24)
 
 ### PR #33: rendimiento móvil, accesibilidad y consola
 
@@ -81,9 +92,9 @@ Lo que se aprendió midiendo, para no repetirlo:
    - índices y paginación de `/submissions` (B-04, B-05);
    - tope de tamaño en yt-dlp;
    - `output: "standalone"` en la imagen web.
-3. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal.
+3. **Pruebas de la web** (en pausa hasta que el dueño lo indique): `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal.
 4. **Largo plazo:**
-   - `anthropic` 2.x, TypeScript 7 y ESLint 10;
+   - subir el mínimo de `anthropic` en `pyproject.toml` a `>=2.1` (el lock ya tiene 2.1.0), TypeScript 7 y ESLint 10;
    - salidas estructuradas en `verify`;
    - observabilidad (alertas, métricas, backups probados);
    - Server Components para la portada y `/sources`.
