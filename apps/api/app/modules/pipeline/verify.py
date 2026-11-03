@@ -231,6 +231,18 @@ async def _run_turns(client: Any, model_name: str, tools: list[dict], claim_text
     return response, content
 
 
+def _trusted_domain(domain: str, allowed_set: set[str]) -> str | None:
+    """The trusted domain `domain` belongs to, itself or as a subdomain
+    (factual.afp.com -> afp.com), like web_search's allowed_domains does.
+    Returning the trusted one lets the orchestrator find the source's row."""
+    if domain in allowed_set:
+        return domain
+    for trusted in allowed_set:
+        if domain.endswith("." + trusted):
+            return trusted
+    return None
+
+
 def _validated_evidence(
     raw: _RawVerifyResult, real_results: dict, allowed_set: set[str]
 ) -> list[EvidenceItem]:
@@ -241,8 +253,8 @@ def _validated_evidence(
             continue  # not a real search result: possible hallucination, drop it
         if not _is_http_url(item.url):
             continue  # javascript:, data: and the like never become a link
-        domain = normalize_domain(item.url)
-        if domain not in allowed_set:
+        domain = _trusted_domain(normalize_domain(item.url), allowed_set)
+        if domain is None:
             continue  # domain not on the trusted whitelist, drop it
         validated.append(
             EvidenceItem(

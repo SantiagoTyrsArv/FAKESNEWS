@@ -140,6 +140,56 @@ async def test_verify_claim_drops_evidence_outside_whitelist(
     assert result.evidence == []
 
 
+def _contradicting_evidence_content(url: str) -> list:
+    return [
+        _search_tool_result_block([_web_search_result(url)]),
+        _text_block(
+            json.dumps(
+                {
+                    "verdict": "CONTRADICTED",
+                    "rationale": "...",
+                    "evidence": [
+                        {
+                            "url": url,
+                            "snippet": "...",
+                            "published_at": None,
+                            "stance": "contradicts",
+                        }
+                    ],
+                }
+            )
+        ),
+    ]
+
+
+async def test_verify_claim_keeps_evidence_from_trusted_subdomain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://factual.afp.com/doc.afp.com.ABC123"
+    fake_client = _FakeClient([_response(content=_contradicting_evidence_content(url))])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["afp.com"])
+
+    assert result.verdict == "CONTRADICTED"
+    assert result.evidence[0].url == url
+    # The trusted source's own domain, so the orchestrator finds its row.
+    assert result.evidence[0].domain == "afp.com"
+
+
+@pytest.mark.parametrize("url", ["https://notafp.com/page", "https://afp.com.evil.example/page"])
+async def test_verify_claim_drops_lookalike_domains(
+    monkeypatch: pytest.MonkeyPatch, url: str
+) -> None:
+    fake_client = _FakeClient([_response(content=_contradicting_evidence_content(url))])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["afp.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    assert result.evidence == []
+
+
 async def test_verify_claim_retries_on_invalid_json(monkeypatch: pytest.MonkeyPatch) -> None:
     url = "https://reuters.com/a"
     bad_response = _response(
