@@ -36,7 +36,6 @@ def test_load_cases_rejects_unknown_kind(tmp_path: Path) -> None:
         load_cases(path)
 
 
-@pytest.mark.skip(reason="cases.json llega en la tarea 5")
 def test_bundled_cases_file_is_valid() -> None:
     cases = load_cases(CASES_PATH)
     assert len(cases) == 6

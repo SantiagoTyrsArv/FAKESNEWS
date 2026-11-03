@@ -1,0 +1,56 @@
+[
+  {
+    "id": "co-falso-1",
+    "factchecker": "colombiacheck.com",
+    "factcheck_url": "https://colombiacheck.com/chequeos/captura-de-alias-malayo-ocurrio-en-el-gobierno-petro-no-en-el-de-de-la-espriella",
+    "factcheck_date": "2026-08-13",
+    "rating": "Falso",
+    "kind": "false",
+    "claim": "La captura de alias 'Malayo' ocurrió durante el gobierno de Abelardo de la Espriella."
+  },
+  {
+    "id": "co-falso-2",
+    "factchecker": "lasillavacia.com",
+    "factcheck_url": "https://www.lasillavacia.com/detector-de-mentiras/falso/detector-de-la-espriella-no-propuso-teletrabajar-por-riesgos-a-su-seguridad/",
+    "factcheck_date": "2026-07-31",
+    "rating": "Falso",
+    "kind": "false",
+    "claim": "Abelardo de la Espriella propuso el teletrabajo en la Casa de Nariño como fórmula para evitar atentados en su contra."
+  },
+  {
+    "id": "co-verdadero-1",
+    "factchecker": "colombiacheck.com",
+    "factcheck_url": "https://colombiacheck.com/chequeos/lista-con-diez-supuestos-logros-del-gobierno-petro-combina-afirmaciones-cuestionables-con",
+    "factcheck_date": "2026-06-20",
+    "rating": "Verdadero",
+    "kind": "true",
+    "claim": "Durante el gobierno de Gustavo Petro, más de 2,5 millones de colombianos salieron de la pobreza."
+  },
+  {
+    "id": "co-verdadero-2",
+    "factchecker": "colombiacheck.com",
+    "factcheck_url": "https://colombiacheck.com/chequeos/lista-con-diez-supuestos-logros-del-gobierno-petro-combina-afirmaciones-cuestionables-con",
+    "factcheck_date": "2026-06-20",
+    "rating": "Verdadero",
+    "kind": "true",
+    "claim": "Durante el gobierno de Gustavo Petro, Colombia tuvo un récord histórico de turismo, con más de 6,5 millones de visitantes."
+  },
+  {
+    "id": "co-mixto-1",
+    "factchecker": "colombiacheck.com",
+    "factcheck_url": "https://colombiacheck.com/chequeos/lista-con-diez-supuestos-logros-del-gobierno-petro-combina-afirmaciones-cuestionables-con",
+    "factcheck_date": "2026-06-20",
+    "rating": "Cuestionable",
+    "kind": "mixed",
+    "claim": "Durante el gobierno de Gustavo Petro, la inflación en Colombia cayó del 13% a cerca del 5%."
+  },
+  {
+    "id": "co-mixto-2",
+    "factchecker": "colombiacheck.com",
+    "factcheck_url": "https://www.colombiacheck.com/chequeos/petro-acierta-en-reduccion-del-desempleo-y-crecimiento-del-salario-minimo-pero-exagera",
+    "factcheck_date": "2026-08-04",
+    "rating": "Cuestionable",
+    "kind": "mixed",
+    "claim": "Durante el gobierno de Gustavo Petro se registró la mayor tasa de ocupación laboral de Colombia, tanto en número de personas como en porcentaje."
+  }
+]
