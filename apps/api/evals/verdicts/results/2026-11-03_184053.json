@@ -1,0 +1,84 @@
+{
+  "started_at": "2026-11-03T23:40:35.783030Z",
+  "model": "claude-sonnet-5-5",
+  "max_usd": 0.75,
+  "prices_as_of": "2026-11-03",
+  "results": [
+    {
+      "case_id": "co-falso-1",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "Colombiacheck calificó la afirmación como falsa. Según esa fuente, alias 'Malayo' (Yeimer Pinto) fue capturado el 30 de junio de 2026 en Riohacha, cuando Gustavo Petro aún era presidente. De la Espriella se posesionó el 7 de agosto de 2026, más de un mes después. El Espectador confirma que las autoridades anunciaron la captura el 30 de junio. El Tiempo muestra que De la Espriella ganó la segunda vuelta el 21 de junio y asumió el 7 de agosto.",
+      "evidence": [
+        {
+          "url": "https://colombiacheck.com/chequeos/captura-de-alias-malayo-ocurrio-en-el-gobierno-petro-no-en-el-de-de-la-espriella",
+          "domain": "colombiacheck.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.elespectador.com/judicial/capturan-a-alias-malayo-jefe-armado-de-las-autodefensas-conquistadoras-de-la-sierra-en-la-guajira/",
+          "domain": "elespectador.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.eltiempo.com/politica/abelardo-de-la-espriella/colombia-cambia-de-rumbo-arranca-la-era-del-presidente-abelardo-de-la-espriella-3576785",
+          "domain": "eltiempo.com",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "eltiempo.com",
+        "colombiacheck.com",
+        "elespectador.com",
+        "elcolombiano.com"
+      ],
+      "cost_usd": 0.097516,
+      "input_tokens": 33408,
+      "output_tokens": 1070,
+      "web_searches": 2,
+      "error": null
+    },
+    {
+      "case_id": "co-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Según el DANE, el número de personas en pobreza monetaria bajó unos 3,8 millones entre 2022 y 2025, de 18,3 a 14,4 millones. Esa cifra es mayor que 2,5 millones, así que la afirmación se cumple en términos netos. Hay dos matices. El DANE no sigue a las mismas personas en el tiempo, por lo que «salieron de la pobreza» se debe leer como una reducción neta. Además, los verificadores señalan que la caída no se puede atribuir solo al gobierno. También advierten que Petro exageró al hablar de 4,5 millones. Solo en 2025 la reducción fue de cerca de 1,8 millones, por debajo de 2,5 millones.",
+      "evidence": [
+        {
+          "url": "https://www.lasillavacia.com/detector-de-mentiras/cierto-pero/en-el-gobierno-petro-si-disminuyo-en-3-8-millones-el-numero-de-personas-en-pobreza/",
+          "domain": "lasillavacia.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://colombiacheck.com/chequeos/pobreza-bajo-y-crecio-la-clase-media-pero-petro-infla-cifra-de-personas-que-salieron-de-la",
+          "domain": "colombiacheck.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elcolombiano.com/negocios/pobreza-monetaria-en-colombia-bajo-a-28-DG37647051",
+          "domain": "elcolombiano.com",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "lasillavacia.com",
+        "colombiacheck.com",
+        "elcolombiano.com",
+        "eltiempo.com"
+      ],
+      "cost_usd": 0.06813599999999999,
+      "input_tokens": 24663,
+      "output_tokens": 881,
+      "web_searches": 1,
+      "error": null
+    }
+  ],
+  "skipped_case_ids": [],
+  "spent_usd": 0.165652
+}

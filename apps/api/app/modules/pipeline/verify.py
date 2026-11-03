@@ -23,6 +23,24 @@ WEB_SEARCH_MAX_USES = 5
 # before giving up on the claim.
 MAX_PAUSE_CONTINUATIONS = 2
 
+# Trusted sources whose sites block Anthropic's crawler. Sending any of them
+# in allowed_domains makes the API reject the whole request (400 "not
+# accessible to our user agent"), so they stay trusted sources but are never
+# searched. A new entry for this list shows up as verify_claim_domains_blocked.
+UNSEARCHABLE_DOMAINS = frozenset(
+    {
+        "afp.com",
+        "apnews.com",
+        "bbc.co.uk",
+        "bbc.com",
+        "efe.com",
+        "elpais.com",
+        "nytimes.com",
+        "reuters.com",
+    }
+)
+_BLOCKED_DOMAINS_ERROR = "not accessible to our user agent"
+
 SYSTEM_PROMPT = """Eres un asistente de verificación de hechos. Tu única tarea es \
 investigar UNA afirmación usando la herramienta de búsqueda web (restringida a un \
 conjunto de dominios de confianza) y reportar lo que encuentres.
@@ -154,7 +172,8 @@ async def verify_claim(
     model: str | None = None,
     max_attempts: int = 2,
 ) -> VerifyResult:
-    if not allowed_domains:
+    searchable = [d for d in allowed_domains if d.lower() not in UNSEARCHABLE_DOMAINS]
+    if not searchable:
         return _insufficient("No hay fuentes de confianza configuradas para verificar.")
 
     client = get_anthropic_client()
@@ -168,7 +187,7 @@ async def verify_claim(
             "type": WEB_SEARCH_TOOL_TYPE,
             "name": "web_search",
             "max_uses": WEB_SEARCH_MAX_USES,
-            "allowed_domains": allowed_domains,
+            "allowed_domains": searchable,
             "allowed_callers": ["direct"],
         }
     ]
@@ -180,6 +199,11 @@ async def verify_claim(
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             logger.warning("verify_claim_api_error", attempt=attempt + 1, error=last_error)
+            if _BLOCKED_DOMAINS_ERROR in last_error:
+                # Retrying can't help: a trusted site now blocks the crawler
+                # and belongs in UNSEARCHABLE_DOMAINS.
+                logger.error("verify_claim_domains_blocked", error=last_error)
+                break
             continue
 
         if response.stop_reason in (*UNFINISHED_STOP_REASONS, "pause_turn"):
