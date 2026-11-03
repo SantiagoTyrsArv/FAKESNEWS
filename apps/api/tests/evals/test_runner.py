@@ -100,3 +100,20 @@ def test_load_allowed_domains_reads_trusted_sources() -> None:
     domains = load_allowed_domains(Path("app/data/trusted_sources.json"))
     assert "colombiacheck.com" in domains
     assert len(domains) == 25
+
+
+async def test_run_cases_flags_case_with_no_api_usage_as_error() -> None:
+    # verify_claim swallows API errors (bad key, outage) and answers
+    # INSUFFICIENT; with no tokens used that is not a verdict to grade.
+    async def swallowed_error(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
+        return VerifyResult(verdict="INSUFFICIENT", rationale="No se pudo completar.", evidence=[])
+
+    run = await run_cases(
+        [_case("c1", "false")],
+        allowed_domains=["colombiacheck.com"],
+        max_usd=5.0,
+        verify=swallowed_error,
+    )
+    assert run.results[0].grade == "error"
+    assert run.results[0].got == "INSUFFICIENT"
+    assert "API" in run.results[0].error

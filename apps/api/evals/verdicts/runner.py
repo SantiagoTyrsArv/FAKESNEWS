@@ -81,6 +81,10 @@ async def run_cases(
             except Exception as exc:  # noqa: BLE001 - one case's failure must not lose the run
                 error = str(exc)
 
+            if error is None and meter.input_tokens == before[1]:
+                # verify_claim turns API failures (bad key, outage) into
+                # INSUFFICIENT: with no tokens used there is no verdict to grade.
+                error = "la API no respondió (0 tokens usados)"
             cost = meter.spent_usd - before[0]
             largest_case_usd = max(largest_case_usd, cost)
             results.append(
@@ -89,7 +93,7 @@ async def run_cases(
                     kind=case.kind,
                     rating=case.rating,
                     got=got,
-                    grade="error" if got is None else grade(case.kind, got),
+                    grade="error" if error is not None else grade(case.kind, got),
                     rationale=rationale,
                     evidence=evidence,
                     contaminated=is_contaminated([e["domain"] for e in evidence], case.factchecker),
