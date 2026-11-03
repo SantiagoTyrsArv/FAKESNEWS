@@ -1,6 +1,6 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-10-25**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-11-03**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
@@ -32,6 +32,26 @@
 | #34 | `fix/security-low` | H-04, H-08, H-09 y H-11 de [SEGURIDAD.md](SEGURIDAD.md) |
 | #35 | `docs/audit-and-security` | AUDITORIA.md y SEGURIDAD.md versionados en `docs/`, y este registro |
 | #36, #37, #38 | Dependabot | yt-dlp 2026.10.21, anthropic 2.1.0 y fastapi 0.159.1 |
+| #39 | `docs/status-2026-10-25` | Registro de la sesión del 2026-10-25 |
+| #40–#49 | Dependabot | API: pydantic-settings, fastapi 0.162, alembic, ruff, pytest 9.2. Web: next y eslint-config-next 16.4.3, shadcn 4.23, css-analyzer, lucide-react 1.66 |
+| #50 | `feat/colombian-sources` | 9 fuentes colombianas de confianza |
+| #51 | `fix/subdomain-evidence` | Las evidencias de subdominios de una fuente de confianza ya no se descartan |
+| #52 | `feat/verdict-eval` | Evaluación de la calidad de los veredictos (`apps/api/evals/verdicts/`) |
+| #53 | `fix/unsearchable-domains` | **No se mandan a la búsqueda los 8 medios que bloquean a Anthropic** (la verificación nunca había funcionado en producción) |
+
+## Sesión del 2026-11-03
+
+El dueño compró **5 USD de créditos** de la API de Claude, **en la misma clave que usa producción**, y no piensa gastar más. Quería comprobar que **los veredictos son correctos**; que la app no se rompa le importa menos. Por eso, en lugar del e2e con Playwright, se hizo una evaluación de veredictos.
+
+- **Dependabot (#40–#49):** se combinaron en una rama temporal y se probaron en local, porque la API todavía no tiene CI (178 pruebas bien y la web completa en verde). Luego se fusionaron. El #46 y el #48 chocaban en el lockfile; se le pidió a Dependabot que los rehiciera.
+- **Fuentes colombianas (#50):** antes no había ninguna. Se agregaron `colombiacheck.com` (verificador, 7/2); `lasillavacia.com`, `eltiempo.com`, `elespectador.com` y `elcolombiano.com` (medios, 6/2); y `dane.gov.co`, `registraduria.gov.co`, `banrep.gov.co` y `minsalud.gov.co` (oficiales, 8/1). Quedan fuera, a propósito, Semana, Presidencia y los ministerios políticos.
+- **Subdominios (#51):** `_validated_evidence` comparaba los dominios de forma exacta, así que se descartaba la evidencia de `factual.afp.com`. Ahora una evidencia de un subdominio se guarda con el dominio de su fuente de confianza.
+- **Evaluación de veredictos (#52):** diseño y plan en `superpowers/specs/2026-11-03-verdict-eval-design.md` y `superpowers/plans/2026-11-03-verdict-eval.md`, y uso en `apps/api/evals/verdicts/README.md`. Son 6 casos de Colombiacheck y La Silla Vacía (2 falsos, 2 verdaderos y 2 cuestionables), tomados de sus verificaciones publicadas. No se encontró ninguno de AFP Factual que sirviera. Tiene un freno de gasto (0,75 USD por ejecución) y nunca corre en el CI. Se lanza con `uv run python -m evals.verdicts.run --dry-run` desde `apps/api`.
+- **Fallo grave encontrado (#53):** la API rechaza la petición de búsqueda **entera** (`400 not accessible to our user agent`) si `allowed_domains` incluye un sitio que bloquea el rastreador de Anthropic. Pasa con `afp.com`, `apnews.com`, `bbc.co.uk`, `bbc.com`, `efe.com`, `elpais.com`, `nytimes.com` y `reuters.com`. **En producción, todas las afirmaciones terminaban en `INSUFFICIENT`.** Ahora están en `UNSEARCHABLE_DOMAINS` (`verify.py`): siguen siendo fuentes de confianza, pero no se buscan en ellas, y quedan 17 buscables. Si aparece otro dominio bloqueado, se registra `verify_claim_domains_blocked`.
+- **Primera ejecución real (2 casos):** 2 aciertos de 2, por **0,17 USD**, o sea unos 0,085 USD por afirmación. Un envío real con hasta 8 afirmaciones costaría unos **0,70 USD**. Los dos casos salieron «contaminados»: Claude citó la propia verificación de Colombiacheck. Claude usó solo fuentes colombianas. El informe está en `apps/api/evals/verdicts/results/2026-11-03_184053.md`.
+- **Clave:** la clave antigua del `.env` de la raíz daba `401 invalid x-api-key`; el dueño la cambió. El script lee `.env` desde `apps/api` (que no existe), así que se lanzó exportando `ANTHROPIC_API_KEY` y `ANTHROPIC_MODEL` desde el `.env` de la raíz. Ese `.env` define `ANTHROPIC_MODEL=claude-sonnet-5-5`, mientras que el valor por defecto del código es `claude-sonnet-5`. Cuestan lo mismo (2 y 10 USD por millón de tokens de entrada y salida; búsqueda, 0,01 USD).
+- **Gasto total de la sesión: 0,17 USD.** Quedan unos 4,83 USD para producción y la evaluación.
+- **Pendiente del dueño:** comprobar que Railway se redesplegó con #50, #51 y #53, y que tiene la clave nueva y el modelo que corresponde.
 
 ## Sesión del 2026-10-25
 
@@ -85,6 +105,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 ## Pendiente, por prioridad
 
+0. **Evaluación de veredictos (en curso):** correr los 4 casos restantes (`co-falso-2`, `co-verdadero-2`, `co-mixto-1` y `co-mixto-2`), unos 0,35 USD, **solo con la aprobación del dueño**. Después, con datos, decidir si se abarata producción: `effort: medium` en `verify`, búsquedas máximas de 5 a 3 y afirmaciones por envío de 8 a 4. Cada cambio va aparte y se mide con la evaluación. Mejoras menores pendientes de la evaluación: si se interrumpe con Ctrl+C se pierden los resultados, y `--dry-run` no avisa cuando el máximo estimado pasa el tope.
 1. **CI de la API:** un `.github/workflows/api.yml` con `ruff check`, `ruff format --check` y `pytest`, más OSV-Scanner programado. Es lo único que queda de SEGURIDAD.md (H-10) y protege todo lo demás.
 2. **Robustez del backend** (AUDITORIA.md §7):
    - bloqueos de fila en refresh y en códigos de recuperación (B-02);
@@ -92,7 +113,7 @@ Lo que se aprendió midiendo, para no repetirlo:
    - índices y paginación de `/submissions` (B-04, B-05);
    - tope de tamaño en yt-dlp;
    - `output: "standalone"` en la imagen web.
-3. **Pruebas de la web** (en pausa hasta que el dueño lo indique): `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal.
+3. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal. Ya hay créditos, pero el dueño eligió primero la evaluación de veredictos. Un e2e completo gasta ~0,70 USD por envío.
 4. **Largo plazo:**
    - subir el mínimo de `anthropic` en `pyproject.toml` a `>=2.1` (el lock ya tiene 2.1.0), TypeScript 7 y ESLint 10;
    - salidas estructuradas en `verify`;
