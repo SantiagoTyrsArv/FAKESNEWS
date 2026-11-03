@@ -142,5 +142,86 @@
     "prior_alpha": 7,
     "prior_beta": 2,
     "syndication_group": null
+  },
+  {
+    "domain": "colombiacheck.com",
+    "name": "Colombiacheck",
+    "type": "verificador",
+    "country": "CO",
+    "prior_alpha": 7,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "lasillavacia.com",
+    "name": "La Silla Vacía",
+    "type": "medio",
+    "country": "CO",
+    "prior_alpha": 6,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "eltiempo.com",
+    "name": "El Tiempo",
+    "type": "medio",
+    "country": "CO",
+    "prior_alpha": 6,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "elespectador.com",
+    "name": "El Espectador",
+    "type": "medio",
+    "country": "CO",
+    "prior_alpha": 6,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "elcolombiano.com",
+    "name": "El Colombiano",
+    "type": "medio",
+    "country": "CO",
+    "prior_alpha": 6,
+    "prior_beta": 2,
+    "syndication_group": null
+  },
+  {
+    "domain": "dane.gov.co",
+    "name": "DANE",
+    "type": "oficial",
+    "country": "CO",
+    "prior_alpha": 8,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "registraduria.gov.co",
+    "name": "Registraduría Nacional del Estado Civil",
+    "type": "oficial",
+    "country": "CO",
+    "prior_alpha": 8,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "banrep.gov.co",
+    "name": "Banco de la República",
+    "type": "oficial",
+    "country": "CO",
+    "prior_alpha": 8,
+    "prior_beta": 1,
+    "syndication_group": null
+  },
+  {
+    "domain": "minsalud.gov.co",
+    "name": "Ministerio de Salud y Protección Social",
+    "type": "oficial",
+    "country": "CO",
+    "prior_alpha": 8,
+    "prior_beta": 1,
+    "syndication_group": null
   }
 ]
