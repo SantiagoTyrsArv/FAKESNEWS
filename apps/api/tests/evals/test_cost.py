@@ -53,7 +53,7 @@ def test_meter_collects_search_result_urls() -> None:
 
 
 async def test_metering_records_verify_calls_and_restores(monkeypatch) -> None:
-    url = "https://reuters.com/a"
+    url = "https://colombiacheck.com/a"
     answer = {
         "verdict": "SUPPORTED",
         "rationale": "...",
@@ -78,7 +78,7 @@ async def test_metering_records_verify_calls_and_restores(monkeypatch) -> None:
 
     meter = UsageMeter()
     with metering(meter):
-        await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+        await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert meter.web_searches == 2
     assert meter.input_tokens == 500

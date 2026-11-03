@@ -42,7 +42,7 @@ class _FakeClient:
 
 
 async def test_verify_claim_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    real_url = "https://reuters.com/article1"
+    real_url = "https://colombiacheck.com/article1"
     content = [
         _text_block("Voy a buscar sobre esto."),
         _search_tool_result_block([_web_search_result(real_url, page_age="April 30, 2025")]),
@@ -67,19 +67,19 @@ async def test_verify_claim_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim(
-        "La afirmación X ocurrió.", allowed_domains=["reuters.com"]
+        "La afirmación X ocurrió.", allowed_domains=["colombiacheck.com"]
     )
 
     assert result.verdict == "SUPPORTED"
     assert len(result.evidence) == 1
     assert result.evidence[0].url == real_url
-    assert result.evidence[0].domain == "reuters.com"
+    assert result.evidence[0].domain == "colombiacheck.com"
     assert result.evidence[0].published_at == "April 30, 2025"
 
 
 async def test_verify_claim_drops_hallucinated_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
-    real_url = "https://reuters.com/real"
-    invented_url = "https://reuters.com/invented-by-the-model"
+    real_url = "https://colombiacheck.com/real"
+    invented_url = "https://colombiacheck.com/invented-by-the-model"
     content = [
         _search_tool_result_block([_web_search_result(real_url)]),
         _text_block(
@@ -102,7 +102,7 @@ async def test_verify_claim_drops_hallucinated_evidence(monkeypatch: pytest.Monk
     fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == "INSUFFICIENT"
     assert result.evidence == []
@@ -134,7 +134,7 @@ async def test_verify_claim_drops_evidence_outside_whitelist(
     fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == "INSUFFICIENT"
     assert result.evidence == []
@@ -165,33 +165,35 @@ def _contradicting_evidence_content(url: str) -> list:
 async def test_verify_claim_keeps_evidence_from_trusted_subdomain(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    url = "https://factual.afp.com/doc.afp.com.ABC123"
+    url = "https://archivo.lasillavacia.com/historia/123"
     fake_client = _FakeClient([_response(content=_contradicting_evidence_content(url))])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["afp.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["lasillavacia.com"])
 
     assert result.verdict == "CONTRADICTED"
     assert result.evidence[0].url == url
     # The trusted source's own domain, so the orchestrator finds its row.
-    assert result.evidence[0].domain == "afp.com"
+    assert result.evidence[0].domain == "lasillavacia.com"
 
 
-@pytest.mark.parametrize("url", ["https://notafp.com/page", "https://afp.com.evil.example/page"])
+@pytest.mark.parametrize(
+    "url", ["https://notlasillavacia.com/page", "https://lasillavacia.com.evil.example/page"]
+)
 async def test_verify_claim_drops_lookalike_domains(
     monkeypatch: pytest.MonkeyPatch, url: str
 ) -> None:
     fake_client = _FakeClient([_response(content=_contradicting_evidence_content(url))])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["afp.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["lasillavacia.com"])
 
     assert result.verdict == "INSUFFICIENT"
     assert result.evidence == []
 
 
 async def test_verify_claim_retries_on_invalid_json(monkeypatch: pytest.MonkeyPatch) -> None:
-    url = "https://reuters.com/a"
+    url = "https://colombiacheck.com/a"
     bad_response = _response(
         content=[_search_tool_result_block([_web_search_result(url)]), _text_block("no es json")]
     )
@@ -215,7 +217,7 @@ async def test_verify_claim_retries_on_invalid_json(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim(
-        "afirmación", allowed_domains=["reuters.com"], max_attempts=2
+        "afirmación", allowed_domains=["colombiacheck.com"], max_attempts=2
     )
 
     assert result.verdict == "SUPPORTED"
@@ -237,14 +239,14 @@ async def test_verify_claim_api_error_returns_insufficient(monkeypatch: pytest.M
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
     result = await verify_module.verify_claim(
-        "afirmación", allowed_domains=["reuters.com"], max_attempts=2
+        "afirmación", allowed_domains=["colombiacheck.com"], max_attempts=2
     )
 
     assert result.verdict == "INSUFFICIENT"
 
 
 def _verdict_with_evidence(verdict: str, stances: list[str]) -> list:
-    urls = [f"https://reuters.com/a{i}" for i in range(len(stances))]
+    urls = [f"https://colombiacheck.com/a{i}" for i in range(len(stances))]
     return [
         _search_tool_result_block([_web_search_result(u) for u in urls]),
         _text_block(
@@ -278,7 +280,7 @@ async def test_directional_verdict_needs_matching_evidence(
     fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == "INSUFFICIENT"
     # The real, validated citations are still shown, just not as proof.
@@ -296,7 +298,7 @@ async def test_directional_verdict_kept_with_matching_evidence(
     fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == verdict
 
@@ -305,7 +307,7 @@ async def test_api_error_rationale_hides_provider_details(monkeypatch: pytest.Mo
     fake_client = _FakeClient([RuntimeError("Error code: 400 credit balance too low")] * 2)
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == "INSUFFICIENT"
     assert "credit" not in result.rationale
@@ -325,14 +327,14 @@ def _supported_json(url: str) -> str:
 async def test_pause_turn_is_resumed_with_the_paused_content(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    url = "https://reuters.com/a"
+    url = "https://colombiacheck.com/a"
     paused_content = [_search_tool_result_block([_web_search_result(url)])]
     paused = _response(content=paused_content, stop_reason="pause_turn")
     final = _response(content=[_text_block(_supported_json(url))])
     fake_client = _FakeClient([paused, final])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     # The search results from the paused turn still count as real results.
     assert result.verdict == "SUPPORTED"
@@ -345,7 +347,7 @@ async def test_pause_turn_is_resumed_with_the_paused_content(
 async def test_truncated_or_refused_answer_is_insufficient_without_retrying(
     monkeypatch: pytest.MonkeyPatch, stop_reason: str
 ) -> None:
-    url = "https://reuters.com/a"
+    url = "https://colombiacheck.com/a"
     content = [
         _search_tool_result_block([_web_search_result(url)]),
         _text_block(_supported_json(url)),
@@ -353,7 +355,7 @@ async def test_truncated_or_refused_answer_is_insufficient_without_retrying(
     fake_client = _FakeClient([_response(content=content, stop_reason=stop_reason)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == "INSUFFICIENT"
     assert result.evidence == []
@@ -361,7 +363,7 @@ async def test_truncated_or_refused_answer_is_insufficient_without_retrying(
 
 
 async def test_requests_leave_room_for_adaptive_thinking(monkeypatch: pytest.MonkeyPatch) -> None:
-    url = "https://reuters.com/a"
+    url = "https://colombiacheck.com/a"
     content = [
         _search_tool_result_block([_web_search_result(url)]),
         _text_block(_supported_json(url)),
@@ -369,7 +371,7 @@ async def test_requests_leave_room_for_adaptive_thinking(monkeypatch: pytest.Mon
     fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert fake_client.messages.calls[0]["max_tokens"] >= 16000
 
@@ -378,7 +380,7 @@ async def test_verify_claim_drops_evidence_with_non_http_scheme(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # The host is whitelisted, but the link would run script when clicked.
-    script_url = "javascript://reuters.com/%0Aalert(1)"
+    script_url = "javascript://colombiacheck.com/%0Aalert(1)"
     content = [
         _search_tool_result_block([_web_search_result(script_url)]),
         _text_block(
@@ -401,7 +403,7 @@ async def test_verify_claim_drops_evidence_with_non_http_scheme(
     fake_client = _FakeClient([_response(content=content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
 
-    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
 
     assert result.verdict == "INSUFFICIENT"
     assert result.evidence == []
@@ -410,5 +412,52 @@ async def test_verify_claim_drops_evidence_with_non_http_scheme(
 def test_evidence_item_rejects_non_http_url() -> None:
     with pytest.raises(ValueError):
         verify_module.EvidenceItem(
-            url="javascript:alert(1)", domain="reuters.com", snippet="...", stance="neutral"
+            url="javascript:alert(1)", domain="colombiacheck.com", snippet="...", stance="neutral"
         )
+
+
+async def test_verify_claim_does_not_send_unsearchable_domains(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_client = _FakeClient([_response(content=[_text_block("no es json")])] * 2)
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    await verify_module.verify_claim(
+        "afirmación", allowed_domains=["reuters.com", "colombiacheck.com", "bbc.com"]
+    )
+
+    sent = fake_client.messages.calls[0]["tools"][0]["allowed_domains"]
+    assert sent == ["colombiacheck.com"]
+
+
+async def test_verify_claim_with_only_unsearchable_domains_skips_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_client = _FakeClient([])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["reuters.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    assert fake_client.messages.calls == []
+
+
+async def test_verify_claim_logs_domains_blocked_for_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from structlog.testing import capture_logs
+
+    blocked = Exception(
+        "Error code: 400 - The following domains are not accessible to our user agent: "
+        "['newsite.com']"
+    )
+    fake_client = _FakeClient([blocked, blocked])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake_client)
+
+    with capture_logs() as logs:
+        result = await verify_module.verify_claim(
+            "afirmación", allowed_domains=["colombiacheck.com"]
+        )
+
+    assert result.verdict == "INSUFFICIENT"
+    assert any(log["event"] == "verify_claim_domains_blocked" for log in logs)
