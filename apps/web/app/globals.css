@@ -2,17 +2,44 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Animate.css: only the pieces in use, not the ~70 KB bundle. */
-@import "animate.css/source/_vars.css";
-@import "animate.css/source/_base.css";
-@import "animate.css/source/fading_entrances/fadeIn.css";
-@import "animate.css/source/fading_entrances/fadeInUp.css";
-
 /* Lenis watches <html>'s size to know how far it can scroll; this lets <html>
    grow with the page while Lenis runs (h-full would pin it to the viewport). */
 @import "lenis/dist/lenis.css";
 
+/* Class-based dark variant kept for the auth shell's dark: utilities; the
+   .dark class is never applied, so they stay inert. */
 @custom-variant dark (&:is(.dark *));
+
+/* The one animate.css animation the app used (fadeIn), inlined. `animated`
+   stays unlayered, exactly like the library import it replaces. */
+.animated {
+  animation-duration: var(--animate-duration);
+  animation-fill-mode: both;
+}
+
+/* stylelint-disable-next-line selector-class-pattern -- clase heredada de animate.css; renombrarla tocaría el módulo de login */
+.fadeIn {
+  animation-name: fadeIn;
+}
+
+/* stylelint-disable-next-line keyframes-name-pattern -- nombre ligado a la clase .fadeIn heredada de animate.css */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media print, (prefers-reduced-motion: reduce) {
+  .animated {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -70,6 +97,7 @@
 }
 
 :root {
+  /* Entrance-fade speed (animate.css shipped 1 s; the app runs it at 0.6 s). */
   --animate-duration: 0.6s;
 
   /* --font-public-sans / --font-newsreader come from next/font (app/fonts.ts). */
@@ -129,51 +157,6 @@
   --sidebar-accent-foreground: oklch(0.3 0.04 262);
   --sidebar-border: oklch(0.9 0.01 262);
   --sidebar-ring: oklch(0.6 0.15 266);
-}
-
-.dark {
-  --background: oklch(0.19 0.02 262);
-  --foreground: oklch(0.95 0.005 262);
-  --card: oklch(0.23 0.025 262);
-  --card-foreground: oklch(0.95 0.005 262);
-  --popover: oklch(0.23 0.025 262);
-  --popover-foreground: oklch(0.95 0.005 262);
-  --primary: oklch(0.7 0.14 266);
-  --primary-foreground: oklch(0.18 0.03 262);
-  --secondary: oklch(0.28 0.025 262);
-  --secondary-foreground: oklch(0.95 0.005 262);
-  --muted: oklch(0.27 0.02 262);
-  --muted-foreground: oklch(0.72 0.02 262);
-  --accent: oklch(0.3 0.05 266);
-  --accent-foreground: oklch(0.92 0.03 266);
-  --destructive: oklch(0.7 0.17 25);
-  --border: oklch(1 0 0 / 11%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.7 0.14 266);
-  --ink: oklch(0.14 0.02 262);
-  --paper: oklch(0.25 0.02 262);
-  --collage-blue: oklch(0.45 0.2 266);
-  --collage-orange: oklch(0.72 0.17 45);
-  --collage-orange-ink: var(--collage-orange);
-  --supported: oklch(0.75 0.13 155);
-  --supported-tint: oklch(0.35 0.07 155);
-  --contradicted: oklch(0.74 0.15 25);
-  --contradicted-tint: oklch(0.36 0.09 25);
-  --insufficient: oklch(0.8 0.12 85);
-  --insufficient-tint: oklch(0.4 0.07 85);
-  --chart-1: var(--supported);
-  --chart-2: var(--contradicted);
-  --chart-3: var(--insufficient);
-  --chart-4: oklch(0.7 0.14 266);
-  --chart-5: oklch(0.72 0.02 262);
-  --sidebar: oklch(0.23 0.025 262);
-  --sidebar-foreground: oklch(0.95 0.005 262);
-  --sidebar-primary: oklch(0.7 0.14 266);
-  --sidebar-primary-foreground: oklch(0.18 0.03 262);
-  --sidebar-accent: oklch(0.28 0.025 262);
-  --sidebar-accent-foreground: oklch(0.95 0.005 262);
-  --sidebar-border: oklch(1 0 0 / 11%);
-  --sidebar-ring: oklch(0.7 0.14 266);
 }
 
 @layer base {
