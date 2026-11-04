@@ -44,6 +44,25 @@
 | #58 | `fix/oidc-subject` | Sujeto OIDC con IDs inmutables y despliegues de Azure en serie |
 | #59 | `fix/postgres-18` | Postgres 18 igual que en Railway, y scripts de volcado y restauración |
 
+## Para retomar (cierre del 2026-11-04)
+
+Producción funciona entera sobre Azure. Lo primero en la próxima sesión:
+
+1. **Railway se vuelve a levantar con cada merge a `main`**, porque sigue enlazado a GitHub (pasó con el #60 y se volvió a parar). Después de cada merge, comprueba con `railway status` y, si `FAKESNEWS` o `upbeat-wholeness` tienen un despliegue activo, ejecuta `railway down -s FAKESNEWS -y` y `railway down -s upbeat-wholeness -y`. La solución definitiva es que el dueño desconecte el repo en Railway (Settings → Source → Disconnect, en cada servicio).
+2. **SonarCloud en `main` tiene la nota E de seguridad** por los 2 issues de Bicep (Key Vault público y Redis TCP sin `clientCertificateMode`). Se aceptaron en el #57, pero esa aceptación no pasa a `main`. El dueño tiene que marcarlos como *Accept* en la rama `main`: no hay token de Sonar en el equipo.
+3. **El #56** (auditoría de la web, de otra sesión) está abierto con 8 issues de Sonar: el nombre `Error` en `error.tsx`, tres `!important` en `globals.css`, `role="status"` en lugar de `<output>` (×2), un ternario anidado en `verdict.tsx` y unas props sin `readonly`. Falta decidir quién lo corrige.
+4. **El 2026-11-11, borrar Railway** (tarea 10 de `superpowers/plans/2026-11-04-azure-migration.md`), con la confirmación del dueño. Después, borrar `railway.toml`, `apps/api/railway.worker.toml` y la clave SSH `fakesnews-railway`, tanto en Railway como en `~/.ssh`.
+5. **Ramas y worktrees que quedan:**
+   - `feat/azure-infra` (la del #55 cerrado; el checkout principal sigue en ella y la usó otra sesión);
+   - `feat/web-audit`, en el worktree `../FAKESNEWS-web` (#56).
+
+   Las ramas ya fusionadas (`feat/azure-migration`, `fix/oidc-subject`, `fix/postgres-18`, `docs/azure-runbook`) se pueden borrar.
+6. **Registro detallado de la ejecución:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
+   - la app usa el usuario administrador de Postgres;
+   - si Redis se reinicia, se pierde la cola (B-03);
+   - `docker-compose.yml` sigue con Postgres 16;
+   - los scripts pasan secretos como argumento de `az` en local.
+
 ## Sesión del 2026-11-04: migración de Railway a Azure
 
 Motivo: el dueño tiene **Azure for Students (100 USD para un año)** y quiere aprender Azure. Diseño en `superpowers/specs/2026-11-04-azure-migration-design.md`, plan en `superpowers/plans/2026-11-04-azure-migration.md` y operación en [AZURE.md](AZURE.md).
