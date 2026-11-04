@@ -18,7 +18,7 @@ Two sources, in order:
    chain [*X-Forwarded-For, socket peer] ends in those hops, and the entry
    just before them is the address the outermost one saw.
 
-       Railway only (hops=1): client -> Railway edge -> app
+       Azure Container Apps (hops=1): client -> ingress (Envoy) -> app
 """
 
 import hmac

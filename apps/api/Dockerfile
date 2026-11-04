@@ -12,7 +12,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /uvx /usr/local/bin/
 WORKDIR /app
 
 # UV_NO_DEV keeps the dev group (pytest, ruff, ...) out of the image, and it
-# also applies to every later "uv run" (CMD, Railway's pre-deploy and worker
+# also applies to every later "uv run" (CMD, the Azure migration job and worker
 # commands, docker-compose), so none of them installs it at start-up.
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -39,7 +39,7 @@ USER app
 
 EXPOSE 8000
 
-# sh -c so $PORT (injected by Railway and similar platforms) expands; exec so
+# sh -c so $PORT (set by the platform, e.g. Azure Container Apps) expands; exec so
 # uvicorn replaces the shell and receives SIGTERM for a graceful shutdown.
 # Proxy headers are resolved by the app (TRUSTED_PROXY_HOPS, see
 # app/core/client_ip.py), not by uvicorn, whose "trust *" mode takes the
