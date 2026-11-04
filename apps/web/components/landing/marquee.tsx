@@ -2,7 +2,7 @@
 
 import { Fragment, useLayoutEffect, useRef } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
-import { gsap } from "@/lib/motion/gsap";
+import { loadGsap } from "@/lib/motion/load-gsap";
 
 const WORDS = ["VERIFICA", "CONTRASTA", "CITA"];
 const REPEAT = 10;
@@ -20,18 +20,27 @@ export function Marquee() {
     const track = el?.querySelector<HTMLElement>("[data-marquee-track]");
     // Static on touch: the scrubbed slide is not worth its scroll work there.
     if (!ready || reduced || touch || !el || !track) return;
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        track,
-        { xPercent: 0 },
-        {
-          xPercent: -TRAVEL,
-          ease: "none",
-          scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: true },
-        },
-      );
-    }, el);
-    return () => ctx.revert();
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    void loadGsap().then(({ gsap }) => {
+      if (cancelled || !el.isConnected) return;
+      const ctx = gsap.context(() => {
+        gsap.fromTo(
+          track,
+          { xPercent: 0 },
+          {
+            xPercent: -TRAVEL,
+            ease: "none",
+            scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: true },
+          },
+        );
+      }, el);
+      cleanup = () => ctx.revert();
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
   }, [ready, reduced, touch]);
 
   return (

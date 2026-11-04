@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
 import { isDocumentLoad } from "@/lib/motion/document";
 import { onceInSession } from "@/lib/motion/env.mjs";
-import { gsap, SplitText } from "@/lib/motion/gsap";
+import { loadGsap, type GsapBundle } from "@/lib/motion/load-gsap";
 import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
 
 // Same query as the `[data-enter]` pre-hide and the curtain in globals.css (and
@@ -30,13 +30,16 @@ const PARALLAX = 10;
 const PARALLAX_SCALE = 1.22;
 const MARK_START = "mark-go";
 
+type Gsap = GsapBundle["gsap"];
+
 /**
  * The landing page's motion: the entrance timeline (curtain once per session,
  * header, kicker, title line by line, lede, actions, collage, the example card
  * pasted on, then the verdict marks), section titles line by line on scroll and
  * the step illustrations' parallax. On a client navigation back to `/` the
  * entrance is a quick pop. Whatever happens (unmount mid-entrance included),
- * the hero blocks end visible.
+ * the hero blocks end visible. GSAP arrives via loadGsap; until then the
+ * pre-hidden CSS states (and their fail-safes) keep the page coherent.
  */
 export function useLandingMotion(root: RefObject<HTMLElement | null>) {
   const { reduced, touch, intensity, ready } = useMotion();
@@ -48,94 +51,123 @@ export function useLandingMotion(root: RefObject<HTMLElement | null>) {
     const el = root.current;
     if (!ready || !el) return;
 
-    const enterEls = gsap.utils.toArray<HTMLElement>("[data-enter]", el);
-    const startMarks = () =>
-      el.querySelectorAll(".mark-draw").forEach((m) => m.classList.add(MARK_START));
-
-    // The curtain is painted from the first frame when the inline script found
-    // the session fresh; lifting it is the only way it goes away.
-    const html = document.documentElement;
-    const curtainDue = html.classList.contains(CURTAIN_CLASS);
-    const dropCurtain = () => html.classList.remove(CURTAIN_CLASS);
-
-    let entrance: gsap.core.Timeline | undefined;
-    if (entered.current) {
-      dropCurtain();
-      gsap.set(enterEls, { opacity: 1 });
-      startMarks();
-    } else {
-      entered.current = true;
-      const desktop = window.matchMedia(DESKTOP).matches;
-      const curtain = el.querySelector<HTMLElement>("[data-curtain]");
-      const liftCurtain =
-        desktop && documentLoad && curtainDue && !!curtain && onceInSession("fn-curtain", () => sessionStorage);
-      if (!liftCurtain) dropCurtain();
-      if (!desktop) {
-        // Touch / reduced motion: nothing was pre-hidden and the title stays put.
-        startMarks();
-      } else if (!documentLoad) {
-        entrance = pop(enterEls, startMarks);
-      } else {
-        entrance = choreograph(el, liftCurtain ? curtain : null, dropCurtain, intensity, startMarks);
-      }
-    }
-
-    const ctx = gsap.context(() => {
-      // Touch: no split titles or parallax. They cost layout work before the
-      // first paint on phones and barely read there.
-      if (reduced || touch) return;
-
-      // Section titles rise line by line from a mask as they scroll in.
-      for (const h2 of gsap.utils.toArray<HTMLElement>("h2", el)) {
-        SplitText.create(h2, {
-          type: "lines",
-          mask: "lines",
-          autoSplit: true,
-          onSplit: (self) =>
-            gsap.from(self.lines, {
-              yPercent: 110,
-              rotation: scaled(LINE_ROTATE, intensity),
-              transformOrigin: "0% 100%",
-              duration: DURATION.enter,
-              ease: EASE.out,
-              stagger: scaled(STAGGER.base, intensity),
-              scrollTrigger: { trigger: h2, start: "clamp(top 85%)", once: true },
-            }),
-        });
-      }
-
-      // Step illustrations drift inside their cutout.
-      for (const img of gsap.utils.toArray<HTMLElement>("[data-parallax]", el)) {
-        gsap.fromTo(
-          img,
-          { yPercent: -PARALLAX * intensity, scale: PARALLAX_SCALE },
-          {
-            yPercent: PARALLAX * intensity,
-            scale: PARALLAX_SCALE,
-            ease: "none",
-            scrollTrigger: {
-              trigger: img.parentElement ?? img,
-              start: "top bottom",
-              end: "bottom top",
-              scrub: true,
-            },
-          },
-        );
-      }
-    }, el);
-
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    void loadGsap().then((bundle) => {
+      if (cancelled || !el.isConnected) return;
+      cleanup = start(bundle, el, { reduced, touch, intensity, documentLoad, entered });
+    });
     return () => {
-      // Jump to the end (callbacks included): blocks visible, title split
-      // reverted, curtain gone, marks drawing.
-      entrance?.progress(1).kill();
-      dropCurtain();
-      ctx.revert();
+      cancelled = true;
+      cleanup?.();
     };
   }, [root, ready, reduced, touch, intensity, documentLoad]);
 }
 
+function start(
+  { gsap, SplitText }: GsapBundle,
+  el: HTMLElement,
+  {
+    reduced,
+    touch,
+    intensity,
+    documentLoad,
+    entered,
+  }: {
+    reduced: boolean;
+    touch: boolean;
+    intensity: 1 | 0.75;
+    documentLoad: boolean;
+    entered: { current: boolean };
+  },
+): () => void {
+  const enterEls = gsap.utils.toArray<HTMLElement>("[data-enter]", el);
+  const startMarks = () =>
+    el.querySelectorAll(".mark-draw").forEach((m) => m.classList.add(MARK_START));
+
+  // The curtain is painted from the first frame when the inline script found
+  // the session fresh; lifting it is the only way it goes away.
+  const html = document.documentElement;
+  const curtainDue = html.classList.contains(CURTAIN_CLASS);
+  const dropCurtain = () => html.classList.remove(CURTAIN_CLASS);
+
+  let entrance: ReturnType<Gsap["timeline"]> | undefined;
+  if (entered.current) {
+    dropCurtain();
+    gsap.set(enterEls, { opacity: 1 });
+    startMarks();
+  } else {
+    entered.current = true;
+    const desktop = window.matchMedia(DESKTOP).matches;
+    const curtain = el.querySelector<HTMLElement>("[data-curtain]");
+    const liftCurtain =
+      desktop && documentLoad && curtainDue && !!curtain && onceInSession("fn-curtain", () => sessionStorage);
+    if (!liftCurtain) dropCurtain();
+    if (!desktop) {
+      // Touch / reduced motion: nothing was pre-hidden and the title stays put.
+      startMarks();
+    } else if (!documentLoad) {
+      entrance = pop(gsap, enterEls, startMarks);
+    } else {
+      entrance = choreograph(gsap, SplitText, el, liftCurtain ? curtain : null, dropCurtain, intensity, startMarks);
+    }
+  }
+
+  const ctx = gsap.context(() => {
+    // Touch: no split titles or parallax. They cost layout work before the
+    // first paint on phones and barely read there.
+    if (reduced || touch) return;
+
+    // Section titles rise line by line from a mask as they scroll in.
+    for (const h2 of gsap.utils.toArray<HTMLElement>("h2", el)) {
+      SplitText.create(h2, {
+        type: "lines",
+        mask: "lines",
+        autoSplit: true,
+        onSplit: (self) =>
+          gsap.from(self.lines, {
+            yPercent: 110,
+            rotation: scaled(LINE_ROTATE, intensity),
+            transformOrigin: "0% 100%",
+            duration: DURATION.enter,
+            ease: EASE.out,
+            stagger: scaled(STAGGER.base, intensity),
+            scrollTrigger: { trigger: h2, start: "clamp(top 85%)", once: true },
+          }),
+      });
+    }
+
+    // Step illustrations drift inside their cutout.
+    for (const img of gsap.utils.toArray<HTMLElement>("[data-parallax]", el)) {
+      gsap.fromTo(
+        img,
+        { yPercent: -PARALLAX * intensity, scale: PARALLAX_SCALE },
+        {
+          yPercent: PARALLAX * intensity,
+          scale: PARALLAX_SCALE,
+          ease: "none",
+          scrollTrigger: {
+            trigger: img.parentElement ?? img,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: true,
+          },
+        },
+      );
+    }
+  }, el);
+
+  return () => {
+    // Jump to the end (callbacks included): blocks visible, title split
+    // reverted, curtain gone, marks drawing.
+    entrance?.progress(1).kill();
+    dropCurtain();
+    ctx.revert();
+  };
+}
+
 /** Client navigation back to `/`: the hero blocks pop in within 400 ms. */
-function pop(els: HTMLElement[], onComplete: () => void) {
+function pop(gsap: Gsap, els: HTMLElement[], onComplete: () => void) {
   const stagger = Math.min(
     STAGGER.pop,
     els.length > 1 ? (POP_TOTAL - DURATION.pop) / (els.length - 1) : 0,
@@ -156,6 +188,8 @@ function pop(els: HTMLElement[], onComplete: () => void) {
 
 /** The document load of `/` on desktop: the full entrance, ≤ 1.5 s. */
 function choreograph(
+  gsap: Gsap,
+  SplitText: GsapBundle["SplitText"],
   root: HTMLElement,
   curtain: HTMLElement | null,
   dropCurtain: () => void,
