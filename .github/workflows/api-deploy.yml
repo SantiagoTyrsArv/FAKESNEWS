@@ -1,0 +1,88 @@
+name: api-deploy
+
+# Builds the API image and rolls it out to Azure Container Apps: migrations
+# first (the job caj-fakesnews-migrate), then the api and the worker. If the
+# migration fails, the running apps are left untouched.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/santiagotyrsarv/fakesnews-api
+  RESOURCE_GROUP: rg-fakesnews-prod
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: apps/api
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run migrations
+        run: |
+          az extension add --name containerapp --upgrade --only-show-errors
+          az containerapp job update -g "$RESOURCE_GROUP" -n caj-fakesnews-migrate \
+            --image "$IMAGE:$GITHUB_SHA" -o none --only-show-errors
+          EXEC=$(az containerapp job start -g "$RESOURCE_GROUP" -n caj-fakesnews-migrate \
+            --query name -o tsv --only-show-errors)
+          echo "execution: $EXEC"
+          for _ in $(seq 1 60); do
+            STATUS=$(az containerapp job execution show -g "$RESOURCE_GROUP" \
+              -n caj-fakesnews-migrate --job-execution-name "$EXEC" \
+              --query properties.status -o tsv --only-show-errors)
+            echo "status: $STATUS"
+            [ "$STATUS" = "Succeeded" ] && exit 0
+            [ "$STATUS" = "Failed" ] && exit 1
+            sleep 10
+          done
+          echo "migration did not finish in 10 minutes" >&2
+          exit 1
+
+      - name: Roll out api and worker
+        run: |
+          for APP in ca-fakesnews-api ca-fakesnews-worker; do
+            az containerapp update -g "$RESOURCE_GROUP" -n "$APP" \
+              --image "$IMAGE:$GITHUB_SHA" -o none --only-show-errors
+          done
+          az containerapp show -g "$RESOURCE_GROUP" -n ca-fakesnews-api \
+            --query "properties.template.containers[0].image" -o tsv
