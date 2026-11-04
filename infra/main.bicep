@@ -26,10 +26,6 @@ param workerMinReplicas int = 0
 
 var image = 'ghcr.io/santiagotyrsarv/fakesnews-api:${imageTag}'
 
-resource appsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  name: 'id-fakesnews-apps'
-}
-
 // Secrets every app container gets, read by reference from Key Vault.
 var secretEnvMap = {
   DATABASE_URL: 'database-url'
@@ -39,7 +35,7 @@ var secretEnvMap = {
   ANTHROPIC_API_KEY: 'anthropic-api-key'
   API_PROXY_SECRET: 'api-proxy-secret'
 }
-// Known at compile time (unlike keyVaultUri), so it can feed loops.
+// Known at compile time (unlike vault.properties.vaultUri), so it can feed loops.
 var keyVaultUri = 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/'
 var appSecrets = [
   for item in items(secretEnvMap): {
@@ -52,6 +48,10 @@ var secretEnv = [for item in items(secretEnvMap): { name: item.key, secretRef: i
 // Passed through untouched: a loop would make ARM evaluate values such as
 // CORS_ORIGINS='["..."]' as template expressions.
 var appEnv = concat(secretEnv, appSettings)
+
+resource appsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: 'id-fakesnews-apps'
+}
 
 module network 'modules/network.bicep' = {
   name: 'network'

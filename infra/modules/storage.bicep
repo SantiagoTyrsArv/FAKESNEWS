@@ -7,9 +7,17 @@ param location string
 resource account 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: 'stfakesnews${take(uniqueString(resourceGroup().id), 8)}'
   location: location
-  kind: 'StorageV2'
   sku: { name: 'Standard_LRS' }
+  kind: 'StorageV2'
+  identity: { type: 'SystemAssigned' }
   properties: {
+    encryption: {
+      keySource: 'Microsoft.Storage'
+      services: {
+        file: { enabled: true, keyType: 'Account' }
+        blob: { enabled: true, keyType: 'Account' }
+      }
+    }
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
     // Container Apps mounts Azure Files over SMB with the account key.

@@ -16,7 +16,9 @@ resource redis 'Microsoft.App/containerApps@2025-01-01' = {
     environmentId: environmentId
     workloadProfileName: 'Consumption'
     configuration: {
-      ingress: {
+      // Internal TCP ingress, reachable only inside the environment, and Redis
+      // requires a password. Client certificates apply to HTTP ingress only.
+      ingress: { // NOSONAR
         external: false
         transport: 'tcp'
         targetPort: 6379

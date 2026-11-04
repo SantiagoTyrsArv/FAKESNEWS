@@ -11,6 +11,7 @@ resource server 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: 'psql-fakesnews'
   location: location
   sku: { name: 'Standard_B1ms', tier: 'Burstable' }
+  identity: { type: 'SystemAssigned' }
   properties: {
     version: '16'
     administratorLogin: adminLogin

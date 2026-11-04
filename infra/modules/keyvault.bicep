@@ -20,7 +20,10 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enabledForTemplateDeployment: true
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
-    publicNetworkAccess: 'Enabled'
+    // Public endpoint on purpose: access is RBAC-only (no access policies),
+    // and Container Apps Key Vault references need a private endpoint
+    // (~7 USD/month) once the firewall is closed.
+    publicNetworkAccess: 'Enabled' // NOSONAR
   }
 }
 
