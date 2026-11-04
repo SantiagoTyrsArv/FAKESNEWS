@@ -13,6 +13,8 @@ resource account 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   properties: {
     encryption: {
       keySource: 'Microsoft.Storage'
+      // Immutable after creation: changing it means recreating the account.
+      requireInfrastructureEncryption: true
       services: {
         file: { enabled: true, keyType: 'Account' }
         blob: { enabled: true, keyType: 'Account' }

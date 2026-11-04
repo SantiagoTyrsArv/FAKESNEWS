@@ -18,7 +18,7 @@ resource redis 'Microsoft.App/containerApps@2025-01-01' = {
     configuration: {
       // Internal TCP ingress, reachable only inside the environment, and Redis
       // requires a password. Client certificates apply to HTTP ingress only.
-      ingress: { // NOSONAR
+      ingress: {
         external: false
         transport: 'tcp'
         targetPort: 6379
