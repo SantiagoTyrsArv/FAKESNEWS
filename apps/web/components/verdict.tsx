@@ -78,13 +78,17 @@ export function VerdictBar({ counts }: Readonly<{ counts: Record<Verdict, number
 }
 
 // Source reliability as a short meter plus the number, so it reads at a glance.
+// The bar uses the verdict palette as a traffic light: green from 70 % up,
+// amber from 40 %, red below — the same scale the report's stances use.
 export function ScoreMeter({ score, className }: Readonly<{ score: number; className?: string }>) {
   const pct = Math.round(score * 100);
+  const tone =
+    score >= 0.7 ? "bg-supported" : score >= 0.4 ? "bg-insufficient" : "bg-contradicted";
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span className="relative h-1.5 w-16 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         <span
-          className="absolute inset-y-0 left-0 rounded-full bg-primary"
+          className={cn("absolute inset-y-0 left-0 rounded-full", tone)}
           style={{ width: `${pct}%` }}
         />
       </span>

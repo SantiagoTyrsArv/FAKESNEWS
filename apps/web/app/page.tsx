@@ -119,17 +119,15 @@ export default function Home() {
                 <>
                   <Button
                     data-magnetic="0.35"
-                    size="lg"
-                    className="h-11 px-5 text-[0.95rem]"
+                    size="xl"
                     render={<Link href="/submit" />}
                   >
                     Verificar un contenido
                   </Button>
                   <Button
                     data-magnetic="0.35"
-                    size="lg"
+                    size="xl"
                     variant="outline"
-                    className="h-11 px-5 text-[0.95rem]"
                     render={<Link href="/history" />}
                   >
                     Ver mis casos
@@ -139,17 +137,15 @@ export default function Home() {
                 <>
                   <Button
                     data-magnetic="0.35"
-                    size="lg"
-                    className="h-11 px-5 text-[0.95rem]"
+                    size="xl"
                     render={<Link href="/register" />}
                   >
                     Crear una cuenta gratis
                   </Button>
                   <Button
                     data-magnetic="0.35"
-                    size="lg"
+                    size="xl"
                     variant="outline"
-                    className="h-11 px-5 text-[0.95rem]"
                     render={<Link href="/login" />}
                   >
                     Ya tengo cuenta
@@ -169,7 +165,7 @@ export default function Home() {
             >
               <figcaption className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
                 <span>Mensaje reenviado muchas veces</span>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs">Ejemplo</span>
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground/80">Ejemplo</span>
               </figcaption>
               <p className="font-quote text-xl leading-[1.7] sm:text-[1.4rem]">
                 {SAMPLE.map((part) => {
