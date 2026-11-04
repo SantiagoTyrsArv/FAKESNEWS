@@ -16,8 +16,10 @@ permissions:
   contents: read
   id-token: write
 
+# Shared with infra.yml/api-deploy.yml: the two never run at once, so infra
+# never reads the image tag mid-rollout and redeploys the old one on top.
 concurrency:
-  group: infra
+  group: azure-deploy
   cancel-in-progress: false
 
 env:

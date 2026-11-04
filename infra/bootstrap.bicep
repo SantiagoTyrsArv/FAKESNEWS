@@ -6,7 +6,9 @@
 //     -p adminObjectId=$(az ad signed-in-user show --query id -o tsv)
 param location string = resourceGroup().location
 param adminObjectId string
-param githubRepo string = 'SantiagoTyrsArv/FAKESNEWS'
+// This repository's OIDC tokens use GitHub's immutable-ID subject format
+// (owner@ownerId/repo@repoId), so a renamed or recreated repo cannot match.
+param githubRepo string = 'SantiagoTyrsArv@197986351/FAKESNEWS@1393968255'
 param githubBranch string = 'main'
 
 module identity 'modules/identity.bicep' = {
