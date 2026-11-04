@@ -1,15 +1,16 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-11-03**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-11-04**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
 | | |
 |---|---|
 | Web (producción) | https://fakesnews.vercel.app (Vercel, despliega `main`) |
-| API (producción) | https://fakesnews-production.up.railway.app (Railway, despliega `main`; la web la llama a través de `/api`) |
+| API (producción) | Azure Container Apps, `ca-fakesnews-api` en `rg-fakesnews-prod` (`northcentralus`). Despliega `main` con `api-deploy.yml` y la web la llama a través de `/api`. Runbook: [AZURE.md](AZURE.md) |
+| Datos | PostgreSQL Flexible 18 privado (`psql-fakesnews`) y Redis interno (`ca-fakesnews-redis`). Secretos en Key Vault (`kv-fakesnews-4q4yxz5r`) |
 | Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos) |
-| CI | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build) + Dependabot (npm, uv y Actions) |
+| CI/CD | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build), `api-deploy.yml` (imagen a GHCR, después las migraciones y después el rollout) e `infra.yml` (Bicep), más Dependabot (npm, uv y Actions) |
 | Ramas | Solo `main`, en local y en remoto. Se trabaja en una rama por cambio con PR. |
 
 ## Historial de PR fusionados
@@ -38,6 +39,40 @@
 | #51 | `fix/subdomain-evidence` | Las evidencias de subdominios de una fuente de confianza ya no se descartan |
 | #52 | `feat/verdict-eval` | Evaluación de la calidad de los veredictos (`apps/api/evals/verdicts/`) |
 | #53 | `fix/unsearchable-domains` | **No se mandan a la búsqueda los 8 medios que bloquean a Anthropic** (la verificación nunca había funcionado en producción) |
+| #54 | `docs/status-2026-11-03` | Registro de la sesión del 2026-11-03 |
+| #57 | `feat/azure-migration` | Infraestructura de Azure en Bicep y despliegue continuo por OIDC (sale del #55, que se cerró por mezclar infraestructura y web) |
+| #58 | `fix/oidc-subject` | Sujeto OIDC con IDs inmutables y despliegues de Azure en serie |
+| #59 | `fix/postgres-18` | Postgres 18 igual que en Railway, y scripts de volcado y restauración |
+
+## Sesión del 2026-11-04: migración de Railway a Azure
+
+Motivo: el dueño tiene **Azure for Students (100 USD para un año)** y quiere aprender Azure. Diseño en `superpowers/specs/2026-11-04-azure-migration-design.md`, plan en `superpowers/plans/2026-11-04-azure-migration.md` y operación en [AZURE.md](AZURE.md).
+
+- **Arquitectura:**
+  - Container Apps en una VNet: la API con 1 réplica fija, el worker con escala 0–1 por KEDA `postgresql` y Redis con TCP interno y contraseña;
+  - Postgres Flexible 18 B1ms privado;
+  - Key Vault solo RBAC;
+  - Azure Files para la caché de Whisper;
+  - imágenes en GHCR (paquete público);
+  - Log Analytics con tope diario;
+  - presupuesto de 10 USD al mes con aviso.
+
+  Coste estimado: **unos 8–13 USD al mes**.
+- **Restricciones de la suscripción:** solo se puede desplegar en 5 regiones, y el tenant de la universidad no deja crear app registrations. Por eso GitHub entra con una managed identity con credencial federada. Contributor no puede asignar roles, así que las identidades, los roles y Key Vault van en `infra/bootstrap.bicep`, que se despliega a mano.
+- **Comprobado antes del corte:**
+  - KEDA llega al Postgres privado: el worker sube de 0 a 1 en 8 s, no se apaga a mitad de un trabajo y no se queda encendido por un caso colgado (solo cuenta envíos de los últimos 20 min).
+  - `TRUSTED_PROXY_HOPS=1` es correcto detrás del ingress: se ignora un `X-Forwarded-For` falsificado.
+  - La API en frío tardaba 30 s, por eso queda con 1 réplica fija.
+- **Desvíos del plan:**
+  - Railway usa **Postgres 18.6**, no la 16 del `docker-compose.yml`. Se recreó el servidor de Azure, que estaba vacío, en la 18.
+  - El volcado se hace por `railway ssh` con una clave SSH registrada en Railway, sin abrir un proxy TCP público.
+  - Los tokens OIDC de este repo usan el sujeto con IDs inmutables (`SantiagoTyrsArv@197986351/FAKESNEWS@1393968255`).
+  - `infra.yml` y `api-deploy.yml` se pisaban; ahora comparten el grupo de concurrency `azure-deploy`.
+- **Corte:** el 2026-11-04, de 20:41 a 20:46 UTC, **unos 5 minutos** de caída. Conteos y revisión de alembic idénticos (10/10). `API_PROXY_TARGET` de Vercel apunta a Azure en producción, preview y development. La prueba de humo del dueño (login con 2FA, historial y `/sources`) fue bien, y después del corte no hubo ningún 5xx.
+- **Datos de producción en el corte:** 1 usuario (el dueño), 25 fuentes y ningún envío.
+- **SonarCloud:** en Bicep se aceptaron 2 issues: Key Vault con acceso público (cerrarlo exige un private endpoint de ~7 USD al mes) y Redis sin `clientCertificateMode` (no aplica a un ingress TCP). Hay que aceptarlos también en la rama `main`, no solo en el PR.
+- **El #56** (auditoría de la web de otra sesión, sacada del #55) está abierto con 8 issues de Sonar.
+- **Railway queda pausado hasta el 2026-11-11:** la API y el worker sin despliegue (`railway down`), y Postgres y Redis encendidos. Después se borra (tarea 10 del plan). **Ojo:** Railway sigue enlazado a GitHub, así que cada push a `main` vuelve a desplegar su API y su worker contra la base vieja. Mientras dure la pausa, hay que volver a ejecutar `railway down` después de cada merge, o desconectar el repo en Railway.
 
 ## Sesión del 2026-11-03
 
@@ -105,21 +140,22 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 ## Pendiente, por prioridad
 
-0. **Evaluación de veredictos (en curso):** correr los 4 casos restantes (`co-falso-2`, `co-verdadero-2`, `co-mixto-1` y `co-mixto-2`), unos 0,35 USD, **solo con la aprobación del dueño**. Después, con datos, decidir si se abarata producción: `effort: medium` en `verify`, búsquedas máximas de 5 a 3 y afirmaciones por envío de 8 a 4. Cada cambio va aparte y se mide con la evaluación. Mejoras menores pendientes de la evaluación: si se interrumpe con Ctrl+C se pierden los resultados, y `--dry-run` no avisa cuando el máximo estimado pasa el tope.
-1. **CI de la API:** un `.github/workflows/api.yml` con `ruff check`, `ruff format --check` y `pytest`, más OSV-Scanner programado. Es lo único que queda de SEGURIDAD.md (H-10) y protege todo lo demás.
-2. **Robustez del backend** (AUDITORIA.md §7):
+0. **Retirar Railway el 2026-11-11** (tarea 10 del plan de Azure), con la confirmación del dueño: borrar los servicios y el proyecto, borrar `railway.toml` y `apps/api/railway.worker.toml`, y borrar la clave SSH `fakesnews-railway` de Railway (y de `~/.ssh` si ya no se usa). Hasta entonces, comprobar que Railway no vuelve a levantarse después de cada merge.
+1. **Evaluación de veredictos (en curso):** correr los 4 casos restantes (`co-falso-2`, `co-verdadero-2`, `co-mixto-1` y `co-mixto-2`), unos 0,35 USD, **solo con la aprobación del dueño**. Después, con datos, decidir si se abarata producción: `effort: medium` en `verify`, búsquedas máximas de 5 a 3 y afirmaciones por envío de 8 a 4. Cada cambio va aparte y se mide con la evaluación. Mejoras menores pendientes de la evaluación: si se interrumpe con Ctrl+C se pierden los resultados, y `--dry-run` no avisa cuando el máximo estimado pasa el tope.
+2. **CI de la API:** un `.github/workflows/api.yml` con `ruff check`, `ruff format --check` y `pytest`, más OSV-Scanner programado. Es lo único que queda de SEGURIDAD.md (H-10) y protege todo lo demás.
+3. **Robustez del backend** (AUDITORIA.md §7):
    - bloqueos de fila en refresh y en códigos de recuperación (B-02);
    - recolector de casos colgados y healthcheck del worker (B-03, O-04);
    - índices y paginación de `/submissions` (B-04, B-05);
    - tope de tamaño en yt-dlp;
    - `output: "standalone"` en la imagen web.
-3. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal. Ya hay créditos, pero el dueño eligió primero la evaluación de veredictos. Un e2e completo gasta ~0,70 USD por envío.
-4. **Largo plazo:**
+4. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal. Ya hay créditos, pero el dueño eligió primero la evaluación de veredictos. Un e2e completo gasta ~0,70 USD por envío.
+5. **Largo plazo:**
    - subir el mínimo de `anthropic` en `pyproject.toml` a `>=2.1` (el lock ya tiene 2.1.0), TypeScript 7 y ESLint 10;
    - salidas estructuradas en `verify`;
    - observabilidad (alertas, métricas, backups probados);
    - Server Components para la portada y `/sources`.
-5. **Detalles menores:**
+6. **Detalles menores:**
    - el `import("lenis")` no tiene `.catch`;
    - pendientes de animación anotados en sesiones anteriores: SplitText antes de que carguen las fuentes, máscaras que recortan los descendentes y el cursor, que no se reclasifica al hacer scroll.
 

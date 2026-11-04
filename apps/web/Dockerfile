@@ -30,5 +30,5 @@ USER node
 
 EXPOSE 3000
 # Run next directly: "pnpm start" would make corepack download pnpm at boot.
-# next start honors $PORT, which Railway and similar platforms inject.
+# next start honors $PORT, which container platforms inject.
 CMD ["node_modules/.bin/next", "start"]

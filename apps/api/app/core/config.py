@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Platform reverse proxies in front of this app that append to
     # X-Forwarded-For: 0 = use the socket peer (local/docker compose), 1 =
-    # Railway. See app/core/client_ip.py for why this is counted rather than
+    # the Azure Container Apps ingress. See app/core/client_ip.py for why this is counted rather than
     # trusted.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=5, alias="TRUSTED_PROXY_HOPS")
 

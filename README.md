@@ -202,86 +202,61 @@ make seed   # opcional: usuario demo + casos de ejemplo (ver "Demo en 5 minutos"
 - API: http://localhost:8000 (docs interactivas en http://localhost:8000/docs)
 - Postgres: localhost:5432, Redis: localhost:6379
 
-## Despliegue en Railway
+## Despliegue
 
-El despliegue necesita cinco servicios: `web`, `api`, `worker`, PostgreSQL y Redis. Railway no
-ejecuta este `docker-compose.yml` directamente; crea cada servicio desde el mismo repositorio y usa
-las bases de datos gestionadas de Railway.
+La web está en **Vercel** y la API, el worker, PostgreSQL y Redis están en **Azure** (grupo de
+recursos `rg-fakesnews-prod`, región `northcentralus`). Toda la infraestructura está descrita en
+Bicep en [`infra/`](infra/), y el runbook de operación (desplegar, ver logs, migraciones, backups,
+secretos y presupuesto) está en [docs/AZURE.md](docs/AZURE.md).
 
-1. Crea PostgreSQL y Redis en el proyecto Railway y nombra los servicios exactamente `Postgres` y
-   `Redis` para que las referencias de variables del ejemplo se resuelvan.
-2. Crea `api` desde el repositorio con directorio raíz `apps/api` y el archivo de configuración
-   `/railway.toml`. Este ejecuta las migraciones antes de arrancar y comprueba `/health/ready`.
-3. Crea `worker` desde el mismo repositorio y directorio raíz `apps/api`; selecciona
-   `/apps/api/railway.worker.toml` como archivo de configuración. El worker consume la cola Redis y
-   procesa los casos.
-4. Crea `web` desde el repositorio con directorio raíz `apps/web` y su Dockerfile.
-5. Añade un dominio personalizado a `web` (por ejemplo, `app.example.com`) y otro a `api`
-   (`api.example.com`). Deben compartir el mismo dominio raíz para que el navegador envíe las
-   cookies de sesión `SameSite=Lax` en las llamadas de la web a la API. Los dominios
-   `*.up.railway.app` no sirven para esto: `up.railway.app` es un sufijo público y el navegador
-   no comparte cookies entre sus subdominios.
+| Pieza | En Azure |
+|---|---|
+| API | Container App `ca-fakesnews-api`, con 1 réplica siempre encendida |
+| Worker | Container App `ca-fakesnews-worker`, escala de 0 a 1 según los envíos sin terminar (KEDA consulta Postgres) |
+| Redis | Container App `ca-fakesnews-redis`, con ingress TCP interno y contraseña |
+| PostgreSQL | Flexible Server 18 (B1ms) con acceso privado en la VNet |
+| Secretos | Key Vault. Las apps los leen por referencia con su managed identity |
+| Imágenes | `ghcr.io/santiagotyrsarv/fakesnews-api` |
 
-Configura estas variables en `api` y `worker` (puedes compartir las variables comunes del proyecto):
+Cada push a `main` que toca `apps/api` ejecuta [`api-deploy.yml`](.github/workflows/api-deploy.yml):
+construye la imagen, ejecuta `alembic upgrade head` en el job `caj-fakesnews-migrate` y, solo si
+las migraciones terminan bien, actualiza la API y el worker. Los cambios en `infra/` los despliega
+[`infra.yml`](.github/workflows/infra.yml). Los dos entran en Azure por OIDC, con una managed
+identity cuya credencial federada solo acepta `main`, así que en GitHub no hay ningún secreto de
+Azure.
 
-```dotenv
-ENVIRONMENT=production
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-REDIS_URL=${{Redis.REDIS_URL}}
-JWT_SECRET_KEY=<secreto aleatorio de al menos 48 bytes>
-TOTP_SECRET_ENCRYPTION_KEY=<clave Fernet generada para este entorno>
-ANTHROPIC_API_KEY=<clave de Anthropic>
-ANTHROPIC_MODEL=claude-sonnet-5
-CORS_ORIGINS=["https://app.example.com"]
-COOKIE_DOMAIN=.example.com
-```
+### La web hace de proxy de la API
 
-`COOKIE_DOMAIN` es obligatorio cuando web y API están en subdominios distintos: sin él, las cookies
-quedan atadas a `api.example.com`, la web no puede leer `csrf_token` (todo `POST` falla con `403`) y
-`proxy.ts` no ve la sesión, así que cada página protegida redirige a `/login`.
-
-La API arranca con el `CMD` del Dockerfile, que escucha en el `$PORT` que inyecta Railway. Para que
-el rate limiting y el bloqueo por intentos usen la IP real del cliente, configura
-`TRUSTED_PROXY_HOPS=1` (solo el proxy de Railway). La API toma la IP contando proxies desde la derecha
-de `X-Forwarded-For`, así un cliente no puede falsificarla añadiendo entradas a la cabecera.
-
-En `web`, configura `NEXT_PUBLIC_API_URL=https://api.example.com`. Es una variable de build y debe
-estar definida antes de desplegar la web. La API normaliza las URLs PostgreSQL `postgres://` y
-`postgresql://` del proveedor al driver `asyncpg` requerido por la aplicación.
-
-### Web en Vercel sin dominio propio
-
-Si la web está en `*.vercel.app` y la API en `*.up.railway.app`, no comparten dominio y las cookies
-no llegarían. En ese caso la web hace de proxy de la API en `/api`, así las cookies quedan en el
-dominio de la web:
+La web (`*.vercel.app`) y la API (`*.azurecontainerapps.io`) no comparten dominio, así que las
+cookies de sesión no llegarían. Por eso la web hace de proxy de la API en `/api`, y las cookies
+quedan en el dominio de la web:
 
 - En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` (se lee al compilar),
-  `API_PROXY_TARGET=https://<api>.up.railway.app` y `API_PROXY_SECRET=<secreto aleatorio>`.
-- En `api`: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío,
+  `API_PROXY_TARGET=https://<api>.azurecontainerapps.io` y `API_PROXY_SECRET=<secreto aleatorio>`.
+- En la API: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío,
   `CORS_ORIGINS=["https://<web>.vercel.app"]`, `TRUSTED_PROXY_HOPS=1` y el mismo
-  `API_PROXY_SECRET`.
+  `API_PROXY_SECRET` (en Key Vault).
 
-El proxy de `/api` está en `apps/web/proxy.ts`: reenvía la petición y añade la IP del visitante
+El proxy de `/api` está en `apps/web/proxy.ts`. Reenvía la petición y añade la IP del visitante
 (`X-Client-IP`, tomada de las cabeceras que fija el edge de Vercel) junto con `X-Proxy-Secret`. La
-API solo acepta esa IP si el secreto coincide; quien llame directamente a `*.up.railway.app` queda
-identificado por la IP que vio Railway, así que no puede elegir una IP falsa para saltarse el rate
-limiting. Este esquema confía en el edge de Vercel: si alojas la web en otro sitio, asegúrate de que
-su proxy sobrescriba `X-Real-IP`/`X-Forwarded-For` antes de usar `API_PROXY_SECRET`.
+API solo acepta esa IP si el secreto coincide. Quien llame directamente a la API queda identificado
+por la IP que vio el ingress de Container Apps, que es el único salto que se cuenta con
+`TRUSTED_PROXY_HOPS=1`. Así nadie puede falsificar la IP añadiendo entradas a `X-Forwarded-For`
+para saltarse el rate limiting. Este esquema confía en el edge de Vercel: si alojas la web en otro
+sitio, asegúrate de que su proxy sobrescriba `X-Real-IP`/`X-Forwarded-For` antes de usar
+`API_PROXY_SECRET`.
 
-Genera los secretos con los comandos documentados en [.env.example](.env.example); no reutilices
-claves entre desarrollo y producción. El procesamiento con Claude requiere una clave con acceso a
-`messages.parse` y a la herramienta de búsqueda web. Configura recursos suficientes para el worker:
-la transcripción de video usa FFmpeg y descarga el modelo Whisper al procesar videos.
-
-Tras el primer despliegue, comprueba `https://api.example.com/health/ready`, abre la web y completa
-un registro/login con TOTP. Envía un texto de prueba y revisa que el worker lo lleve a `done`; un
-estado `failed` suele indicar una clave/modelo de Anthropic inválido o un error de acceso al
-servicio externo.
+Genera los secretos con los comandos documentados en [.env.example](.env.example) y no reutilices
+claves entre desarrollo y producción. `JWT_SECRET_KEY` y `TOTP_SECRET_ENCRYPTION_KEY` no se pueden
+rotar sin más: invalidan las sesiones y los secretos TOTP cifrados, y nadie con 2FA podría entrar.
+El procesamiento con Claude requiere una clave con acceso a `messages.parse` y a la herramienta de
+búsqueda web.
 
 Para la demo en producción, siembra el usuario demo a propósito con
-`railway ssh -s <api> -- uv run python -m app.cli.seed_demo --production`: genera una contraseña
-aleatoria (distinta en cada ejecución; la fija del repo nunca se usa en producción) y la imprime una
-sola vez junto al secreto TOTP. `make seed` sin `--production` se niega a correr ahí.
+`az containerapp exec -g rg-fakesnews-prod -n ca-fakesnews-api --command "uv run python -m app.cli.seed_demo --production"`.
+Genera una contraseña aleatoria, distinta en cada ejecución (la fija del repo nunca se usa en
+producción), y la imprime una sola vez junto al secreto TOTP. `make seed` sin `--production` se
+niega a correr ahí.
 
 ## Desarrollo local del backend (sin Docker)
 
