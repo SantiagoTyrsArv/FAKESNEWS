@@ -18,3 +18,7 @@ param appSettings = [
   { name: 'CORS_ORIGINS', value: '["https://fakesnews.vercel.app"]' }
   { name: 'TRUSTED_PROXY_HOPS', value: '1' }
 ]
+
+// A cold start measured 30 s (2026-11-04), over the 25 s budget behind the
+// Vercel proxy, so the API keeps one replica warm. The worker scales to zero.
+param apiMinReplicas = 1
