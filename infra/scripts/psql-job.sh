@@ -13,7 +13,7 @@ SQL=${1:?usage: psql-job.sh "<sql>"}
 RG=${RG:-rg-fakesnews-prod}
 JOB=caj-fakesnews-psql
 ENV_NAME=cae-fakesnews
-IMAGE=docker.io/library/postgres:16-alpine
+IMAGE=docker.io/library/postgres:18-alpine
 KV_NAME=$(az keyvault list -g "$RG" --query "[0].name" -o tsv)
 IDENTITY_ID=$(az identity show -g "$RG" -n id-fakesnews-apps --query id -o tsv)
 

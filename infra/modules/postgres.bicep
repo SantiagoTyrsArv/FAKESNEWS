@@ -13,7 +13,7 @@ resource server 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   sku: { name: 'Standard_B1ms', tier: 'Burstable' }
   identity: { type: 'SystemAssigned' }
   properties: {
-    version: '16'
+    version: '18'
     administratorLogin: adminLogin
     administratorLoginPassword: adminPassword
     storage: { storageSizeGB: 32, autoGrow: 'Disabled' }
