@@ -9,7 +9,7 @@ import { useMotion } from "@/components/motion/motion-provider";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/auth";
 import { onceInSession } from "@/lib/motion/env.mjs";
-import { gsap } from "@/lib/motion/gsap";
+import { loadGsap } from "@/lib/motion/load-gsap";
 import { DURATION, EASE, scaled } from "@/lib/motion/tokens.mjs";
 import { cn } from "@/lib/utils";
 
@@ -45,14 +45,23 @@ export function SiteHeader({ variant = "app" }: Readonly<{ variant?: HeaderVaria
     if (!ready || reduced || !el) return;
     drops.current ??= onceInSession("fn-header", () => sessionStorage);
     if (!drops.current) return;
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        el,
-        { y: scaled(-HEADER_DROP, intensity), opacity: HEADER_FROM_OPACITY },
-        { y: 0, opacity: 1, duration: DURATION.enter * 0.7, ease: EASE.out, clearProps: "transform,opacity" },
-      );
-    }, el);
-    return () => ctx.revert();
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    void loadGsap().then(({ gsap }) => {
+      if (cancelled) return;
+      const ctx = gsap.context(() => {
+        gsap.fromTo(
+          el,
+          { y: scaled(-HEADER_DROP, intensity), opacity: HEADER_FROM_OPACITY },
+          { y: 0, opacity: 1, duration: DURATION.enter * 0.7, ease: EASE.out, clearProps: "transform,opacity" },
+        );
+      }, el);
+      cleanup = () => ctx.revert();
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
   }, [ready, reduced, intensity]);
 
   async function handleLogout() {
