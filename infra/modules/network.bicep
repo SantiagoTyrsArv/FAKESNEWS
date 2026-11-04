@@ -20,6 +20,8 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         name: 'snet-pg'
         properties: {
           addressPrefix: '10.20.2.0/28'
+          // Added by the Postgres service on creation; declared so redeploys keep it.
+          serviceEndpoints: [{ service: 'Microsoft.Storage' }]
           delegations: [
             { name: 'pg', properties: { serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers' } }
           ]
