@@ -61,7 +61,9 @@ def test_dry_run_prints_cases_and_estimate_without_calling_api(
     assert run_module.main(["--dry-run"]) == 0
     out = capsys.readouterr().out
     assert "co-falso-1" in out
-    assert "estimado" in out and "0,06" in out and "0,18" in out
+    assert "estimado" in out
+    assert "0,06" in out
+    assert "0,18" in out
 
 
 def test_run_writes_json_and_report(cases_file, monkeypatch, tmp_path) -> None:
