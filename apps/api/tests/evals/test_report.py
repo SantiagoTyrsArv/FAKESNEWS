@@ -65,7 +65,9 @@ def test_report_marks_severe_and_contaminated() -> None:
     md = render_report(run, cases)
     assert "✗ grave" in md
     assert "| sí |" in md
-    assert "2 USD" in md and "10 USD" in md and "0,01 USD" in md
+    assert "2 USD" in md
+    assert "10 USD" in md
+    assert "0,01 USD" in md
     assert "0,75 USD" in md
     assert "Explicación de c1." in md
     assert "https://colombiacheck.com/chequeos/c1" in md
