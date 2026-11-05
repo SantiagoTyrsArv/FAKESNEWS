@@ -24,7 +24,7 @@ const POLL_INTERVAL_MS = 2000;
 // of spinning forever. Measured from created_at, so a reload doesn't reset it.
 const STALE_AFTER_MS = 16 * 60 * 1000;
 
-export function ReportClient({ params }: { params: Promise<{ id: string }> }) {
+export function ReportClient({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = use(params);
   const router = useRouter();
   const [submission, setSubmission] = useState<Submission | null>(null);

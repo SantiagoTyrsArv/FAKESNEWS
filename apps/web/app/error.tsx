@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 
-export default function Error({
+export default function ErrorPage({
   reset,
 }: Readonly<{
   error: Error & { digest?: string };

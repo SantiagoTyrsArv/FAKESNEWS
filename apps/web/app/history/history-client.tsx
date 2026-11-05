@@ -50,21 +50,21 @@ function StatusPill({ status }: Readonly<{ status: SubmissionStatus }>) {
 // jump when the data lands.
 function HistorySkeleton() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border bg-card" aria-hidden="true">
-      <span role="status" className="sr-only">
-        Cargando…
-      </span>
-      {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex items-center gap-4 border-b px-4 py-4 last:border-b-0 sm:px-5">
-          <Skeleton className="size-9 shrink-0 rounded-lg" />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-3 w-28" />
+    <>
+      <output className="sr-only">Cargando…</output>
+      <div className="flex flex-col overflow-hidden rounded-2xl border bg-card" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="flex items-center gap-4 border-b px-4 py-4 last:border-b-0 sm:px-5">
+            <Skeleton className="size-9 shrink-0 rounded-lg" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
           </div>
-          <Skeleton className="h-6 w-24 rounded-full" />
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }
 

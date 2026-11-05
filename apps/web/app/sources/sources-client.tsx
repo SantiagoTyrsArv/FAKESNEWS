@@ -150,26 +150,26 @@ export function SourcesClient() {
 // Skeleton rows matching the loaded table: header bar plus source rows.
 function SourcesSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card" aria-hidden="true">
-      <span role="status" className="sr-only">
-        Cargando…
-      </span>
-      <div className="border-b bg-muted/50 px-4 py-3.5 sm:px-5">
-        <Skeleton className="h-3 w-44" />
-      </div>
-      {Array.from({ length: 6 }, (_, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between gap-4 border-b px-4 py-4 last:border-b-0 sm:px-5"
-        >
-          <div className="flex min-w-0 flex-col gap-2">
-            <Skeleton className="h-4 w-36" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-          <Skeleton className="h-4 w-24 shrink-0" />
+    <>
+      <output className="sr-only">Cargando…</output>
+      <div className="overflow-hidden rounded-2xl border bg-card" aria-hidden="true">
+        <div className="border-b bg-muted/50 px-4 py-3.5 sm:px-5">
+          <Skeleton className="h-3 w-44" />
         </div>
-      ))}
-    </div>
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between gap-4 border-b px-4 py-4 last:border-b-0 sm:px-5"
+          >
+            <div className="flex min-w-0 flex-col gap-2">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <Skeleton className="h-4 w-24 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
