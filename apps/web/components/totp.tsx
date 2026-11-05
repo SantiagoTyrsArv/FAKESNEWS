@@ -39,7 +39,7 @@ export function QrEnrollment({
           </p>
         </details>
       )}
-      <Button className="h-10 w-full" onClick={onContinue}>
+      <Button size="md" className="w-full" onClick={onContinue}>
         Ya lo escaneé
       </Button>
     </div>
@@ -70,7 +70,7 @@ export function RecoveryCodes({ codes }: Readonly<{ codes: string[] }>) {
           </li>
         ))}
       </ol>
-      <Button variant="outline" className="h-9" onClick={download}>
+      <Button variant="outline" size="lg" onClick={download}>
         <Download />
         Descargar códigos
       </Button>

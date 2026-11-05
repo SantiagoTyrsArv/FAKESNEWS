@@ -11,8 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { Cursor } from "@/components/motion/cursor";
-import { gsap, ScrollTrigger } from "@/lib/motion/gsap";
 import { getMotionEnv } from "@/lib/motion/env.mjs";
+import { loadGsap } from "@/lib/motion/load-gsap";
 import { intensityFor } from "@/lib/motion/tokens.mjs";
 
 type MotionState = {
@@ -74,25 +74,31 @@ export function MotionProvider({ children }: Readonly<{ children: ReactNode }>) 
 
   useEffect(() => {
     if (!lenisAllowed) return;
-    // Loaded on demand: touch and reduced-motion visitors never download it.
+    // Both loaded on demand: touch and reduced-motion visitors download
+    // neither the smooth scroller nor the animation engine.
     let cancelled = false;
     let lenis: Lenis | undefined;
-    const onScroll = () => ScrollTrigger.update();
-    const tick = (time: number) => lenis?.raf(time * 1000);
-    void import("lenis").then(({ default: LenisClass }) => {
-      if (cancelled) return;
-      lenis = new LenisClass();
-      lenis.on("scroll", onScroll);
-      gsap.ticker.add(tick);
-      gsap.ticker.lagSmoothing(0);
-    });
+    let cleanup: (() => void) | undefined;
+    void Promise.all([import("lenis"), loadGsap()]).then(
+      ([{ default: LenisClass }, { gsap, ScrollTrigger }]) => {
+        if (cancelled) return;
+        lenis = new LenisClass();
+        const onScroll = () => ScrollTrigger.update();
+        lenis.on("scroll", onScroll);
+        const tick = (time: number) => lenis?.raf(time * 1000);
+        gsap.ticker.add(tick);
+        gsap.ticker.lagSmoothing(0);
+        cleanup = () => {
+          gsap.ticker.remove(tick);
+          lenis?.off("scroll", onScroll);
+          lenis?.destroy();
+          gsap.ticker.lagSmoothing(500, 33); // GSAP's default
+        };
+      },
+    );
     return () => {
       cancelled = true;
-      if (!lenis) return;
-      gsap.ticker.remove(tick);
-      lenis.off("scroll", onScroll);
-      lenis.destroy();
-      gsap.ticker.lagSmoothing(500, 33); // GSAP's default
+      cleanup?.();
     };
   }, [lenisAllowed]);
 

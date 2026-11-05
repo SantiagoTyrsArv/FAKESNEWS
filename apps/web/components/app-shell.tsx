@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
 import { type HeaderVariant, SiteHeader } from "@/components/site-header";
-import { gsap, SplitText } from "@/lib/motion/gsap";
+import { loadGsap } from "@/lib/motion/load-gsap";
 import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
 import { cn } from "@/lib/utils";
 
@@ -51,23 +51,32 @@ export function PageHeading({
   useLayoutEffect(() => {
     const h1 = ref.current;
     if (!ready || reduced || touch || !h1) return;
-    const split = SplitText.create(h1, { type: "lines", mask: "lines" });
-    const tween = gsap.fromTo(
-      split.lines,
-      { yPercent: 110, rotation: scaled(LINE_ROTATE, intensity) },
-      {
-        yPercent: 0,
-        rotation: 0,
-        transformOrigin: "0% 100%",
-        duration: DURATION.enter,
-        ease: EASE.out,
-        stagger: scaled(STAGGER.base, intensity),
-        onComplete: () => split.revert(),
-      },
-    );
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    void loadGsap().then(({ gsap, SplitText }) => {
+      if (cancelled || !h1.isConnected) return;
+      const split = SplitText.create(h1, { type: "lines", mask: "lines" });
+      const tween = gsap.fromTo(
+        split.lines,
+        { yPercent: 110, rotation: scaled(LINE_ROTATE, intensity) },
+        {
+          yPercent: 0,
+          rotation: 0,
+          transformOrigin: "0% 100%",
+          duration: DURATION.enter,
+          ease: EASE.out,
+          stagger: scaled(STAGGER.base, intensity),
+          onComplete: () => split.revert(),
+        },
+      );
+      cleanup = () => {
+        tween.kill();
+        split.revert();
+      };
+    });
     return () => {
-      tween.kill();
-      split.revert();
+      cancelled = true;
+      cleanup?.();
     };
   }, [ready, reduced, touch, intensity]);
 

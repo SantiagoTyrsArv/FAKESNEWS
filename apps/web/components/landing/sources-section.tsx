@@ -31,8 +31,8 @@ export function SourcesSection() {
           <div data-reveal className="pt-2">
             <Button
               data-magnetic="0.35"
-              size="lg"
-              className="h-11 bg-white px-5 text-base font-semibold text-collage-blue hover:bg-white/90"
+              size="xl"
+              className="bg-white text-base font-semibold text-collage-blue hover:bg-white/90"
               render={<Link href="/sources" />}
             >
               Ver la confiabilidad de las fuentes

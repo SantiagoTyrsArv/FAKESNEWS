@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { newsreader, publicSans } from "@/app/fonts";
 import { MotionProvider } from "@/components/motion/motion-provider";
-import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -34,7 +33,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <MotionProvider>{children}</MotionProvider>
-        <Toaster />
       </body>
     </html>
   );

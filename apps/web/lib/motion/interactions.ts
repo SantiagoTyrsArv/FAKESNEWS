@@ -1,5 +1,7 @@
-import { gsap } from "@/lib/motion/gsap";
+import type { gsap as GsapValue } from "gsap";
 import { DURATION, EASE } from "@/lib/motion/tokens.mjs";
+
+type Gsap = typeof GsapValue;
 
 const RELEASE_DURATION = 0.8;
 const TILT_DEG = 10;
@@ -8,9 +10,10 @@ const LIFT_PX = 4;
 /**
  * Makes `el` follow the cursor by `strength` (0..1) times the pointer's offset
  * from its center, and spring back with `EASE.release` when the pointer leaves.
- * Returns the cleanup function.
+ * Returns the cleanup function. The gsap instance comes from the caller's
+ * loadGsap() so this module adds nothing to the first-load bundle.
  */
-export function attachMagnetic(el: HTMLElement, strength: number): () => void {
+export function attachMagnetic(gsap: Gsap, el: HTMLElement, strength: number): () => void {
   const s = Math.min(Math.max(strength, 0), 1);
   const xTo = gsap.quickTo(el, "x", { duration: DURATION.hover, ease: EASE.out });
   const yTo = gsap.quickTo(el, "y", { duration: DURATION.hover, ease: EASE.out });
@@ -54,9 +57,10 @@ function innerCutouts(el: HTMLElement) {
 /**
  * `"3d"`: rotates `el` up to ±10° on X/Y towards the cursor; `"lift"`: raises it
  * 4 px. Both straighten the cutout tilt (`--cutout-rotate`) to 0 while hovered
- * and restore it on leave. Returns the cleanup function.
+ * and restore it on leave. Returns the cleanup function. The gsap instance
+ * comes from the caller's loadGsap().
  */
-export function attachTilt(el: HTMLElement, mode: "3d" | "lift"): () => void {
+export function attachTilt(gsap: Gsap, el: HTMLElement, mode: "3d" | "lift"): () => void {
   const cutouts = innerCutouts(el);
   const nodes = cutouts.map((c) => c.node);
   const hover = { duration: DURATION.hover, ease: EASE.out, overwrite: "auto" as const };
