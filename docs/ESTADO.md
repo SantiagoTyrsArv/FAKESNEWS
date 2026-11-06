@@ -1,6 +1,6 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-11-04**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-11-06**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
@@ -9,9 +9,9 @@
 | Web (producción) | https://fakesnews.vercel.app (Vercel, despliega `main`) |
 | API (producción) | Azure Container Apps, `ca-fakesnews-api` en `rg-fakesnews-prod` (`northcentralus`). Despliega `main` con `api-deploy.yml` y la web la llama a través de `/api`. Runbook: [AZURE.md](AZURE.md) |
 | Datos | PostgreSQL Flexible 18 privado (`psql-fakesnews`) y Redis interno (`ca-fakesnews-redis`). Secretos en Key Vault (`kv-fakesnews-4q4yxz5r`) |
-| Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos) |
+| Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos y gate en verde en `main`, comprobado el 2026-11-06) |
 | CI/CD | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build), `api-deploy.yml` (imagen a GHCR, después las migraciones y después el rollout) e `infra.yml` (Bicep), más Dependabot (npm, uv y Actions) |
-| Ramas | Solo `main`, en local y en remoto. Se trabaja en una rama por cambio con PR. |
+| Ramas | Se trabaja en una rama por cambio con PR. Quedan ramas viejas por limpiar (ver «Para retomar»). |
 
 ## Historial de PR fusionados
 
@@ -43,25 +43,33 @@
 | #57 | `feat/azure-migration` | Infraestructura de Azure en Bicep y despliegue continuo por OIDC (sale del #55, que se cerró por mezclar infraestructura y web) |
 | #58 | `fix/oidc-subject` | Sujeto OIDC con IDs inmutables y despliegues de Azure en serie |
 | #59 | `fix/postgres-18` | Postgres 18 igual que en Railway, y scripts de volcado y restauración |
+| #56 | `feat/web-audit` | Auditoría de la web: botones, limpieza, componentes de reportes, metadatos y GSAP diferido |
+| #60, #61 | `docs/azure-runbook`, `docs/status-2026-11-04-close` | Runbook de Azure y cierre de la sesión del 2026-11-04 |
+| #62 | `fix/sonar-main` | Issues de Sonar en `main` |
+| #63 | `fix/osv-2026-11-06` | Avisos de OSV (`dnspython`, `minimatch`, `deepmerge`) y fallo de Dependabot `uv` |
 
-## Para retomar (cierre del 2026-11-04)
+## Para retomar (2026-11-06)
 
-Producción funciona entera sobre Azure. Lo primero en la próxima sesión:
+Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
-1. **Railway se vuelve a levantar con cada merge a `main`**, porque sigue enlazado a GitHub (pasó con el #60 y se volvió a parar). Después de cada merge, comprueba con `railway status` y, si `FAKESNEWS` o `upbeat-wholeness` tienen un despliegue activo, ejecuta `railway down -s FAKESNEWS -y` y `railway down -s upbeat-wholeness -y`. La solución definitiva es que el dueño desconecte el repo en Railway (Settings → Source → Disconnect, en cada servicio).
-2. **SonarCloud en `main` tiene la nota E de seguridad** por los 2 issues de Bicep (Key Vault público y Redis TCP sin `clientCertificateMode`). Se aceptaron en el #57, pero esa aceptación no pasa a `main`. El dueño tiene que marcarlos como *Accept* en la rama `main`: no hay token de Sonar en el equipo.
-3. **El #56** (auditoría de la web, de otra sesión) está abierto con 8 issues de Sonar: el nombre `Error` en `error.tsx`, tres `!important` en `globals.css`, `role="status"` en lugar de `<output>` (×2), un ternario anidado en `verdict.tsx` y unas props sin `readonly`. Falta decidir quién lo corrige.
+1. **Decidir la configuración de GitHub** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): alertas y actualizaciones de seguridad de Dependabot, y protección de `main`. Las tres están desactivadas.
+2. **Confirmar Dependabot `uv`** en su siguiente ejecución semanal, que debería llegar hacia el 2026-11-07. Es lo único del #63 que no se pudo comprobar. Si falla, mirar el log con `gh run list --workflow "Dependabot Updates"`.
+3. **Railway se vuelve a levantar con cada merge a `main`**, porque sigue enlazado a GitHub. Después de cada merge, comprueba con `railway status`. Si `FAKESNEWS` o `upbeat-wholeness` tienen un despliegue activo, ejecuta `railway down -s FAKESNEWS -y` y `railway down -s upbeat-wholeness -y`. El 2026-11-06, antes del #63, `FAKESNEWS` estaba en `Failed`, `upbeat-wholeness` en `Offline`, y **Postgres y Redis de Railway también en `Offline`**: ya no están encendidos como se esperaba, así que no hay que contar con ellos como respaldo sin comprobarlos antes. La solución definitiva es que el dueño desconecte el repo en Railway (Settings → Source → Disconnect, en cada servicio).
 4. **El 2026-11-11, borrar Railway** (tarea 10 de `superpowers/plans/2026-11-04-azure-migration.md`), con la confirmación del dueño. Después, borrar `railway.toml`, `apps/api/railway.worker.toml` y la clave SSH `fakesnews-railway`, tanto en Railway como en `~/.ssh`.
-5. **Ramas y worktrees que quedan:**
-   - `feat/azure-infra` (la del #55 cerrado; el checkout principal sigue en ella y la usó otra sesión);
-   - `feat/web-audit`, en el worktree `../FAKESNEWS-web` (#56).
-
-   Las ramas ya fusionadas (`feat/azure-migration`, `fix/oidc-subject`, `fix/postgres-18`, `docs/azure-runbook`) se pueden borrar.
-6. **Registro detallado de la ejecución:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
+5. **Limpiar ramas ya fusionadas o cerradas,** sobre todo en remoto: `claude/upbeat-bardeen-j3a12a`, `dependabot/uv/apps/api/yt-dlp-2026.10.21`, `docs/azure-runbook`, `docs/status-2026-11-04-close`, `feat/azure-infra`, `feat/azure-migration`, `feat/web-audit`, `fix/oidc-subject`, `fix/postgres-18` y `fix/sonar-main`. Antes de borrar `feat/3d-experiences`, que solo está en local, hay que preguntar al dueño.
+6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
    - la app usa el usuario administrador de Postgres;
    - si Redis se reinicia, se pierde la cola (B-03);
    - `docker-compose.yml` sigue con Postgres 16;
    - los scripts pasan secretos como argumento de `az` en local.
+
+## Sesión del 2026-11-06: fallos de GitHub y OSV-Scanner
+
+- **CI en `main`:** sin fallos. Los últimos `web`, `api-deploy`, `infra` y SonarCloud están en verde. No había PR abiertos antes del #63. El fallo de `infra` del 2026-11-04 fue en `fix/oidc-subject`, y el #58 lo resolvió.
+- **Dependabot `uv` fallaba cada semana desde el 2026-10-24:** proponía `redis` 8.1.0, pero `arq` exige `redis<6`. Ahora ignora los saltos mayores de `redis`.
+- **OSV-Scanner:** 3 avisos nuevos. `dnspython` y `minimatch` se corrigieron. `deepmerge` no tiene versión corregida y queda aceptado hasta el 2027-02-06. Detalle en [SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06).
+- **SonarCloud:** los 2 issues de Bicep ya no están abiertos en `main`, así que ese pendiente queda cerrado.
+- **Verificación:** API con 216 pruebas bien y 1 omitida, `ruff` limpio; web con lint, Stylelint, `tsc`, pruebas y build limpio bien.
 
 ## Sesión del 2026-11-04: migración de Railway a Azure
 
@@ -90,7 +98,6 @@ Motivo: el dueño tiene **Azure for Students (100 USD para un año)** y quiere a
 - **Corte:** el 2026-11-04, de 20:41 a 20:46 UTC, **unos 5 minutos** de caída. Conteos y revisión de alembic idénticos (10/10). `API_PROXY_TARGET` de Vercel apunta a Azure en producción, preview y development. La prueba de humo del dueño (login con 2FA, historial y `/sources`) fue bien, y después del corte no hubo ningún 5xx.
 - **Datos de producción en el corte:** 1 usuario (el dueño), 25 fuentes y ningún envío.
 - **SonarCloud:** en Bicep se aceptaron 2 issues: Key Vault con acceso público (cerrarlo exige un private endpoint de ~7 USD al mes) y Redis sin `clientCertificateMode` (no aplica a un ingress TCP). Hay que aceptarlos también en la rama `main`, no solo en el PR.
-- **El #56** (auditoría de la web de otra sesión, sacada del #55) está abierto con 8 issues de Sonar.
 - **Railway queda pausado hasta el 2026-11-11:** la API y el worker sin despliegue (`railway down`), y Postgres y Redis encendidos. Después se borra (tarea 10 del plan). **Ojo:** Railway sigue enlazado a GitHub, así que cada push a `main` vuelve a desplegar su API y su worker contra la base vieja. Mientras dure la pausa, hay que volver a ejecutar `railway down` después de cada merge, o desconectar el repo en Railway.
 
 ## Sesión del 2026-11-03
@@ -161,7 +168,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 0. **Retirar Railway el 2026-11-11** (tarea 10 del plan de Azure), con la confirmación del dueño: borrar los servicios y el proyecto, borrar `railway.toml` y `apps/api/railway.worker.toml`, y borrar la clave SSH `fakesnews-railway` de Railway (y de `~/.ssh` si ya no se usa). Hasta entonces, comprobar que Railway no vuelve a levantarse después de cada merge.
 1. **Evaluación de veredictos (en curso):** correr los 4 casos restantes (`co-falso-2`, `co-verdadero-2`, `co-mixto-1` y `co-mixto-2`), unos 0,35 USD, **solo con la aprobación del dueño**. Después, con datos, decidir si se abarata producción: `effort: medium` en `verify`, búsquedas máximas de 5 a 3 y afirmaciones por envío de 8 a 4. Cada cambio va aparte y se mide con la evaluación. Mejoras menores pendientes de la evaluación: si se interrumpe con Ctrl+C se pierden los resultados, y `--dry-run` no avisa cuando el máximo estimado pasa el tope.
-2. **CI de la API:** un `.github/workflows/api.yml` con `ruff check`, `ruff format --check` y `pytest`, más OSV-Scanner programado. Es lo único que queda de SEGURIDAD.md (H-10) y protege todo lo demás.
+2. **CI de la API:** un `.github/workflows/api.yml` con `ruff check`, `ruff format --check` y `pytest`, más OSV-Scanner programado. Es lo que queda de H-10 en SEGURIDAD.md y protege todo lo demás: el #63 solo se pudo probar en local en la parte de la API.
 3. **Robustez del backend** (AUDITORIA.md §7):
    - bloqueos de fila en refresh y en códigos de recuperación (B-02);
    - recolector de casos colgados y healthcheck del worker (B-03, O-04);
