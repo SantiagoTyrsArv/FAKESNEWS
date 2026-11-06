@@ -34,7 +34,9 @@ jobs:
           version: "0.12.3"
           enable-cache: true
           cache-dependency-glob: apps/api/uv.lock
-      - run: uv sync --frozen
-      - run: uv run --frozen ruff check .
-      - run: uv run --frozen ruff format --check .
-      - run: uv run --frozen python -m pytest -q
+      # Wheels only and no project install, like the Dockerfile: nothing runs a
+      # package's build scripts. pytest finds the app through pythonpath.
+      - run: uv sync --frozen --no-install-project --no-build
+      - run: uv run --frozen --no-install-project --no-build ruff check .
+      - run: uv run --frozen --no-install-project --no-build ruff format --check .
+      - run: uv run --frozen --no-install-project --no-build python -m pytest -q
