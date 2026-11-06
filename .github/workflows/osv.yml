@@ -1,0 +1,42 @@
+name: osv
+
+# Scans the lockfiles with OSV-Scanner. The weekly run matters most: a new
+# advisory can affect a lockfile that has not changed. Accepted advisories live
+# in apps/web/osv-scanner.toml and expire, so the scan reports them again.
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/uv.lock"
+      - "apps/web/pnpm-lock.yaml"
+      - "apps/web/osv-scanner.toml"
+      - ".github/workflows/osv.yml"
+  pull_request:
+    paths:
+      - "apps/api/uv.lock"
+      - "apps/web/pnpm-lock.yaml"
+      - "apps/web/osv-scanner.toml"
+      - ".github/workflows/osv.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osv-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        with:
+          scan-args: |-
+            --recursive
+            ./
