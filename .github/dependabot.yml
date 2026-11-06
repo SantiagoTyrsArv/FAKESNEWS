@@ -19,3 +19,8 @@ updates:
     directory: /apps/api
     schedule:
       interval: weekly
+    ignore:
+      # arq requires redis<6, so a major bump can never resolve and fails the
+      # whole weekly run. Drop this once arq allows a newer redis.
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
