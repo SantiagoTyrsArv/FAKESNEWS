@@ -52,5 +52,23 @@
     "rating": "Cuestionable",
     "kind": "mixed",
     "claim": "Durante el gobierno de Gustavo Petro se registró la mayor tasa de ocupación laboral de Colombia, tanto en número de personas como en porcentaje."
+  },
+  {
+    "id": "py-verdadero-1",
+    "factchecker": "bbc.com",
+    "factcheck_url": "https://www.bbc.com/mundo/articles/cqx28zrgd0yxo",
+    "factcheck_date": "2026-11-05",
+    "rating": "Verdadero (noticia publicada)",
+    "kind": "true",
+    "claim": "Ueno Bank cerró, generando una crisis en Paraguay."
+  },
+  {
+    "id": "co-inventado-1",
+    "factchecker": "",
+    "factcheck_url": "",
+    "factcheck_date": "2026-11-07",
+    "rating": "Inventada para esta evaluación",
+    "kind": "invented",
+    "claim": "Abelardo de la Espriella se reunió con Donald Trump para hacer un plan de bombardear Gaza."
   }
 ]

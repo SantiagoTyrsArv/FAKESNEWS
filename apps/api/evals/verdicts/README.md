@@ -1,30 +1,29 @@
 # Evaluación de veredictos
 
-Pasa 6 afirmaciones colombianas, ya calificadas por un fact-checker, por el `verify_claim` real
+Pasa 8 afirmaciones, 6 de ellas ya calificadas por un fact-checker, por el `verify_claim` real
 y compara el veredicto de la app con la calificación publicada. Diseño:
 `docs/superpowers/specs/2026-11-03-verdict-eval-design.md`.
 
-**Gasta créditos reales de la API, de la misma clave que usa producción.** No corre en el CI.
-Antes de usarla, pon un límite de gasto en la consola de Anthropic: el script solo *estima*
-lo gastado; la consola sí corta.
+**Usa la cuota gratuita de producción:** unos 2 créditos de Tavily por caso. No corre en el CI.
 
 ## Uso
 
-Desde `apps/api`, con `ANTHROPIC_API_KEY` en `apps/api/.env` o en el entorno:
+Desde `apps/api`, con `GEMINI_API_KEY` y `TAVILY_API_KEY` en el entorno:
 
 ```
 uv run python -m evals.verdicts.run --dry-run                              # no gasta
 uv run python -m evals.verdicts.run --cases co-falso-1,co-verdadero-1      # primera prueba
-uv run python -m evals.verdicts.run                                        # los 6 casos
+uv run python -m evals.verdicts.run                                        # todos los casos
 ```
 
-- `--max-usd` fija el tope por ejecución (por defecto 0,75 USD). El script se detiene antes
-  de empezar un caso que pasaría el tope.
+- `--max-credits` fija el tope de créditos de Tavily por ejecución (40 por defecto).
+- La evaluación avisa si `GEMINI_MODEL` no es el modelo de `infra/main.bicepparam`: sus resultados solo hablan del modelo con el que corrió.
+- Una afirmación cuya verificación falló cuenta como error de ejecución, no como veredicto.
 - Cada ejecución deja en `results/` un JSON con todas las respuestas y un informe en Markdown.
-  Se versionan, para releerlos sin volver a pagar.
+  Se versionan, para releerlos sin volver a gastar cuota.
 
 ## Casos
 
-`cases.json`. Cada caso enlaza a su verificación publicada; ningún veredicto esperado es
-inventado. `kind` es `false`, `true` o `mixed` (engañoso, cuestionable…); las equivalencias
+`cases.json`. Los casos enlazan a su verificación o noticia publicada, salvo `co-inventado-1`,
+que es una afirmación inventada a propósito y debe dar `INSUFFICIENT`. `kind` es `false`, `true`, `mixed` (engañoso, cuestionable…) o `invented`; las equivalencias
 con los veredictos de la app están en `scoring.py`.

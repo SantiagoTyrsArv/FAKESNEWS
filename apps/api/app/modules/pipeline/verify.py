@@ -122,6 +122,15 @@ def _trusted_domain(domain: str, allowed_set: set[str]) -> str | None:
     return None
 
 
+def _plain_host(url: str) -> str | None:
+    """The URL's host, or None if it hides it: browsers read a backslash as a
+    slash, so `https://evil.com\@afp.com/` opens evil.com."""
+    parts = urlparse(url.strip())
+    if "\\" in url or parts.username is not None or parts.password is not None:
+        return None
+    return parts.hostname
+
+
 def _trusted_results(
     results: list[SearchResult], allowed_set: set[str]
 ) -> dict[int, tuple[SearchResult, str]]:
@@ -130,7 +139,8 @@ def _trusted_results(
     for result in results:
         if not _is_http_url(result.url):
             continue  # javascript:, data: and the like never become a link
-        domain = _trusted_domain(normalize_domain(result.url), allowed_set)
+        host = _plain_host(result.url)
+        domain = _trusted_domain(normalize_domain(host), allowed_set) if host else None
         if domain is not None:
             trusted[result.result_id] = (result, domain)
     return trusted

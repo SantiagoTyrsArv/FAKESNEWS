@@ -15,6 +15,9 @@ from evals.verdicts.scoring import domain_matches, grade, is_contaminated
         ("mixed", "CONTRADICTED", "ok"),
         ("mixed", "INSUFFICIENT", "ok"),
         ("mixed", "SUPPORTED", "severe"),
+        ("invented", "INSUFFICIENT", "ok"),
+        ("invented", "CONTRADICTED", "fail"),
+        ("invented", "SUPPORTED", "severe"),
     ],
 )
 def test_grade(kind: str, got: str, expected: str) -> None:

@@ -160,6 +160,24 @@ async def test_only_untrusted_results_skip_gemini(monkeypatch: pytest.MonkeyPatc
     assert fakes.prompts == []
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://evil.com\@factual.afp.com/a",
+        "https://user@factual.afp.com/a",
+        "https://factual.afp.com:pw@evil.com/a",
+    ],
+)
+async def test_urls_that_hide_their_host_never_reach_gemini(
+    monkeypatch: pytest.MonkeyPatch, url: str
+) -> None:
+    fakes = _Fakes(monkeypatch, [_result(1, url)])
+
+    await _verify()
+
+    assert fakes.prompts == []
+
+
 async def test_non_http_results_never_reach_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
     fakes = _Fakes(monkeypatch, [_result(1, "javascript:alert(1)//colombiacheck.com")])
 
