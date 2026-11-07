@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, TypeAdapter
 
 Kind = Literal["false", "true", "mixed", "invented"]
-Verdict = Literal["SUPPORTED", "CONTRADICTED", "INSUFFICIENT"]
+Verdict = Literal["SUPPORTED", "CHANGED", "CONTRADICTED", "INSUFFICIENT"]
 
 
 class Case(BaseModel):

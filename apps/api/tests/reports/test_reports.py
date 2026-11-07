@@ -98,6 +98,7 @@ async def test_report_for_done_case_includes_claims_evidence_and_sources(
         "failed": 0,
         "total_claims": 2,
         "supported": 1,
+        "changed": 0,
         "contradicted": 0,
         "insufficient": 1,
     }
@@ -147,6 +148,28 @@ async def test_report_of_another_user_is_404(
     resp = await app_client.get(f"/reports/{submission.id}")
 
     assert resp.status_code == 404
+
+
+async def test_report_counts_changed_claims(
+    app_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _login_full_session(app_client, "changed-report@example.com")
+    user_id = await _user_id(db_session, "changed-report@example.com")
+    submission = await _seed_done_case(db_session, user_id)
+    db_session.add(
+        Claim(
+            submission_id=submission.id,
+            text="La inflación cayó del 13 % al 5 %.",
+            verdict="CHANGED",
+            rationale="Bajó, pero volvió a subir.",
+        )
+    )
+    await db_session.commit()
+
+    body = (await app_client.get(f"/reports/{submission.id}")).json()
+
+    assert body["summary"]["changed"] == 1
+    assert body["summary"]["total_claims"] == 3
 
 
 async def test_report_counts_failed_claims_apart_from_insufficient(

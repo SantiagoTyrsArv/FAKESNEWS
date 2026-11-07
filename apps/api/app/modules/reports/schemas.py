@@ -44,6 +44,7 @@ class ReportSubmission(BaseModel):
 class ReportSummary(BaseModel):
     total_claims: int
     supported: int
+    changed: int
     contradicted: int
     insufficient: int
     failed: int

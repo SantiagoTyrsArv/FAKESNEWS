@@ -25,5 +25,5 @@ uv run python -m evals.verdicts.run                                        # tod
 ## Casos
 
 `cases.json`. Los casos enlazan a su verificación o noticia publicada, salvo `co-inventado-1`,
-que es una afirmación inventada a propósito y debe dar `INSUFFICIENT`. `kind` es `false`, `true`, `mixed` (engañoso, cuestionable…) o `invented`; las equivalencias
+que es una afirmación inventada a propósito y debe dar `INSUFFICIENT`. `kind` es `false`, `true`, `mixed` (engañoso, cuestionable…: debe dar `CHANGED`) o `invented`; las equivalencias
 con los veredictos de la app están en `scoring.py`.

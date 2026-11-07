@@ -34,6 +34,25 @@ async def _events_for_claim(db: AsyncSession, claim_id: uuid.UUID) -> list[Sourc
     return list(result.scalars().all())
 
 
+async def test_changed_verdict_scores_nobody(db_session: AsyncSession) -> None:
+    # A 2022 source with the figure of its day was not wrong.
+    a = await _make_source(db_session, alpha=8, beta=2)
+    # Unequal weights: an exact tie would score nobody anyway.
+    b = await _make_source(db_session, alpha=2, beta=8)
+    claim_id = uuid.uuid4()
+
+    await reputation.update_reputation_for_claim(
+        db_session,
+        claim_id=claim_id,
+        verdict="CHANGED",
+        evidence=[(a.id, "supports"), (b.id, "contradicts")],
+    )
+
+    assert await _events_for_claim(db_session, claim_id) == []
+    await db_session.refresh(a)
+    assert (a.alpha, a.beta, a.cases_count) == (8, 2, 0)
+
+
 async def test_two_independent_sources_agree_both_get_hits(db_session: AsyncSession) -> None:
     a = await _make_source(db_session, alpha=8, beta=2)  # score .8
     b = await _make_source(db_session, alpha=2, beta=8)  # score .2

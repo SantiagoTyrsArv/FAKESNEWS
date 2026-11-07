@@ -68,12 +68,13 @@ async def update_reputation_for_claim(
     for one claim, against the weighted consensus of that evidence.
 
     No-ops (no rows written, no scores changed) when: the verdict is
-    INSUFFICIENT, fewer than 2 independent sources took a directional
+    INSUFFICIENT or CHANGED (a source with the figure of its day wasn't
+    wrong), fewer than 2 independent sources took a directional
     stance, or the weighted consensus is an exact tie. Safe to call more
     than once for the same claim — already-scored sources are skipped via
     the (source_id, claim_id) unique constraint on source_score_events.
     """
-    if verdict == "INSUFFICIENT" or not evidence:
+    if verdict in ("INSUFFICIENT", "CHANGED") or not evidence:
         return
 
     directional = [
