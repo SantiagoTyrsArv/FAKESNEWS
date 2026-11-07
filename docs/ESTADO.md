@@ -56,7 +56,7 @@
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Confirmar la clave en producción:** tras cambiar el secreto y reiniciar, un envío real del dueño salió «sin evidencia suficiente». La afirmación parece inventada, así que puede ser correcto, pero falta ver si Claude llegó a buscar. Basta con mirar la explicación del reporte: «No se pudo completar la verificación» indica fallo. También sirve `llm_usage` en Log Analytics, que requiere `az login --scope https://api.loganalytics.io/.default`.
+2. **Decidir el modelo de producción:** corre `claude-sonnet-5`, mientras que toda la evaluación se hizo con `claude-sonnet-5-5`. Los 5 aciertos de 6 no dicen cómo se comporta el modelo de producción. O se cambia en `infra/main.bicepparam`, o se repite la evaluación con el modelo de producción. Ver la sesión del 2026-11-07, «Veredictos perdidos».
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
@@ -82,6 +82,17 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 - **CI de la API (#76):** Sonar exigió `--no-build` (regla `githubactions:S8541`). `uv run` no acepta `--no-install-project`, solo `uv sync`, por eso los pasos usan `--no-sync --no-build`.
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
+
+## Veredictos perdidos por el parser (2026-11-07)
+
+Dos envíos reales del dueño salieron «sin evidencia suficiente», uno de ellos con una noticia real (el cierre de Ueno Bank).
+
+- **La clave de producción funciona.** Los logs muestran respuestas de Claude con decenas de miles de tokens.
+- **Causa:** `claude-sonnet-5` escribe texto antes del JSON, y lo pone dentro de un bloque de código, aunque el prompt lo prohíbe. `_extract_final_json_text` solo leía el último bloque de texto y exigía JSON puro, así que descartaba la respuesta (`verify_claim_invalid_json`). Tras los reintentos devolvía `INSUFFICIENT`. Pasó en 4 de 5 respuestas registradas.
+- **Reproducción:** una llamada igual a la de producción, de unos 0,13 USD, devolvió `SUPPORTED` con fuentes de El Tiempo, El Colombiano y Chequeado, y el parser antiguo falló.
+- **Por qué la evaluación no lo vio:** usa el `ANTHROPIC_MODEL` del `.env` (`claude-sonnet-5-5`), que no produce ese formato.
+- **Corrección (#83):** se unen todos los bloques de texto y se toma el último objeto JSON con `verdict`. Las evidencias se siguen validando contra los resultados reales de la búsqueda.
+- **Gasto:** los dos envíos costaron unos 0,80 USD, porque los reintentos se cobran. Con el diagnóstico quedan unos **3,35 USD** si los créditos no cambiaron con la clave nueva.
 
 ## Evaluación de veredictos del 2026-11-07
 

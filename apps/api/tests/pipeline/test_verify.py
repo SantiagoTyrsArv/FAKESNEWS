@@ -461,3 +461,70 @@ async def test_verify_claim_logs_domains_blocked_for_search(
 
     assert result.verdict == "INSUFFICIENT"
     assert any(log["event"] == "verify_claim_domains_blocked" for log in logs)
+
+
+def _layout_of_a_real_answer(url: str, answer: str) -> list:
+    """How Claude answered in production: prose split by citations, with the
+    JSON at the end of the last text block."""
+    return [
+        _search_tool_result_block([_web_search_result(url)]),
+        _text_block("La búsqueda confirma la afirmación. "),
+        _text_block("El Banco Central ordenó el cierre"),
+        _text_block(answer),
+    ]
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        ".\n\nLa afirmación está respaldada.\n\n```json\n{json}\n```",
+        ".\n\nLa afirmación está respaldada.\n\n{json}",
+        "{json}\n\nEso es todo.",
+        "Usé el formato {{}} pedido.\n{json}",
+    ],
+)
+async def test_verify_claim_reads_json_surrounded_by_text(
+    monkeypatch: pytest.MonkeyPatch, answer: str
+) -> None:
+    url = "https://colombiacheck.com/a"
+    content = _layout_of_a_real_answer(url, answer.replace("{json}", _supported_json(url)))
+    fake = _FakeClient([_response(content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake)
+
+    result = await verify_module.verify_claim("c", allowed_domains=["colombiacheck.com"])
+
+    assert result.verdict == "SUPPORTED"
+    assert len(fake.messages.calls) == 1
+
+
+async def test_verify_claim_reads_json_split_across_text_blocks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://colombiacheck.com/a"
+    answer = _supported_json(url)
+    middle = len(answer) // 2
+    content = [
+        _search_tool_result_block([_web_search_result(url)]),
+        _text_block(answer[:middle]),
+        _text_block(answer[middle:]),
+    ]
+    fake = _FakeClient([_response(content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake)
+
+    result = await verify_module.verify_claim("c", allowed_domains=["colombiacheck.com"])
+
+    assert result.verdict == "SUPPORTED"
+
+
+async def test_verify_claim_uses_the_last_verdict_in_the_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://colombiacheck.com/a"
+    draft = json.dumps({"verdict": "CONTRADICTED", "rationale": "borrador", "evidence": []})
+    content = _layout_of_a_real_answer(url, f"{draft}\nCorrijo:\n{_supported_json(url)}")
+    fake = _FakeClient([_response(content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake)
+
+    result = await verify_module.verify_claim("c", allowed_domains=["colombiacheck.com"])
+
+    assert result.verdict == "SUPPORTED"
