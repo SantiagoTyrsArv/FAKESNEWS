@@ -98,7 +98,10 @@ class Settings(BaseSettings):
     rate_limit_submissions_per_minute: int = Field(
         default=5, alias="RATE_LIMIT_SUBMISSIONS_PER_MINUTE"
     )
-    max_submissions_per_day: int = Field(default=20, alias="MAX_SUBMISSIONS_PER_DAY")
+    max_submissions_per_day: int = Field(default=5, alias="MAX_SUBMISSIONS_PER_DAY")
+    # App-wide, on top of the per-account limits: it keeps one account from
+    # using up the free search quota for everybody else.
+    max_claims_per_month: int = Field(default=450, alias="MAX_CLAIMS_PER_MONTH")
     max_active_submissions_per_user: int = Field(default=2, alias="MAX_ACTIVE_SUBMISSIONS_PER_USER")
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
@@ -127,8 +130,8 @@ class Settings(BaseSettings):
         ]
     )
 
-    max_claims_per_submission: int = Field(default=8, alias="MAX_CLAIMS_PER_SUBMISSION")
-    verify_concurrency_limit: int = Field(default=4, alias="VERIFY_CONCURRENCY_LIMIT")
+    max_claims_per_submission: int = Field(default=4, alias="MAX_CLAIMS_PER_SUBMISSION")
+    verify_concurrency_limit: int = Field(default=2, alias="VERIFY_CONCURRENCY_LIMIT")
     verify_timeout_seconds: int = Field(default=30, alias="VERIFY_TIMEOUT_SECONDS")
     # Hard ceiling for one whole case in the worker. Past it arq cancels the
     # job and the orchestrator marks the case failed.

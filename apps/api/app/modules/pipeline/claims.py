@@ -12,7 +12,7 @@ from app.core.logging import get_logger
 settings = get_settings()
 logger = get_logger(__name__)
 
-SYSTEM_PROMPT = """Eres un asistente que extrae afirmaciones factuales verificables de un texto.
+SYSTEM_PROMPT = f"""Eres un asistente que extrae afirmaciones factuales verificables de un texto.
 
 Reglas estrictas:
 - Extrae SOLO afirmaciones fácticas y comprobables (eventos, cifras, declaraciones \
@@ -20,7 +20,7 @@ atribuidas a alguien, hechos concretos).
 - Descarta opiniones, valoraciones subjetivas, predicciones futuras y preguntas retóricas.
 - Cada afirmación debe ser autocontenida: comprensible sin leer el resto del texto \
 (resuelve pronombres y referencias ambiguas).
-- Extrae como máximo 8 afirmaciones. Si hay más candidatas, prioriza las más centrales \
+- Extrae como máximo {settings.max_claims_per_submission} afirmaciones. Si hay más candidatas, prioriza las más centrales \
 y más verificables.
 - Si no hay ninguna afirmación factual verificable, devuelve una lista vacía.
 
@@ -35,7 +35,7 @@ class ExtractedClaim(BaseModel):
 
 
 class ClaimsExtractionResult(BaseModel):
-    claims: list[ExtractedClaim] = Field(max_length=8)
+    claims: list[ExtractedClaim] = Field(max_length=settings.max_claims_per_submission)
 
 
 class ClaimsExtractionError(Exception):

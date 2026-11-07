@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.queue import enqueue
 from app.core.rate_limit import RateLimitExceeded, check_rate_limit
+from app.modules.pipeline.models import Claim
 from app.modules.submissions.models import Submission
 
 settings = get_settings()
@@ -73,6 +74,22 @@ async def _check_quota(
         raise SubmissionQuotaError(
             "Alcanzaste el límite diario de casos. Intenta de nuevo mañana.",
             max(retry_after, 1),
+        )
+
+    await _check_monthly_claims(db)
+
+
+async def _check_monthly_claims(db: AsyncSession) -> None:
+    now = datetime.now(UTC)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    claims = await db.scalar(
+        select(func.count()).select_from(Claim).where(Claim.created_at >= month_start)
+    )
+    if claims >= settings.max_claims_per_month:
+        next_month = (month_start + timedelta(days=32)).replace(day=1)
+        raise SubmissionQuotaError(
+            "La cuota mensual de verificaciones se agotó. Vuelve el próximo mes.",
+            int((next_month - now).total_seconds()),
         )
 
 
