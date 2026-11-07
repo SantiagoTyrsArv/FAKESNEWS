@@ -65,9 +65,9 @@
 
 Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo primero en la próxima sesión:
 
-0. **Confirmar que el #90 se fusionó y se desplegó:** si no, revisar el CI y `api-deploy`. Después, **borrar el secreto `anthropic-api-key` de Key Vault** cuando el dueño lo confirme. El SDK y sus ajustes ya se retiraron, antes de la semana prevista y a petición suya. La clave ya no se usa.
+0. **Anthropic está retirado:** el SDK salió en el #90 y el secreto `anthropic-api-key` se borró el 2026-11-07, tras comprobar que ninguna app ni job lo usaba. Key Vault permite recuperarlo durante 7 días. Queda revocar la clave en la consola de Anthropic.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Preguntar al dueño qué mostró el reporte de su envío real de Ueno** (`f74facf7`). Los logs prueban que corrió sin errores, pero no guardan el veredicto. También hay que **vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
+2. **Mejorar las evidencias del reporte:** con `advanced`, Tavily devuelve fragmentos muy largos que incluyen menús y texto de la página, y la fecha sale en formato crudo. También hay que **vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
@@ -112,7 +112,7 @@ Los créditos de Anthropic se agotaron, y el dueño no quiere gastar más. Dise�
 - **Cautela:** 5 de esos casos están contaminados, así que solo 3 son limpios (2 de 3). `co-mixto-1` es inestable: salió bien en la fase 0 y mal en la evaluación final. También fallaba con Claude, y la causa de fondo es que no hay veredicto para lo que es cierto solo en parte.
 - **Prompt:** se aclaró que no mencionar algo no es contradecirlo, lo que resolvió la afirmación inventada.
 - **Límites de Gemini:** Google no publica los del plan gratuito. Si se agotan, las afirmaciones salen como «No se pudo verificar».
-- **Comprobado en producción:** un envío real del dueño hizo 2 búsquedas y 3 llamadas a Gemini, sin errores, en 5,2 s (`f74facf7`). Los secretos se llaman `gemini-api-key` y `tavily-api-key`.
+- **Comprobado en producción:** un envío real del dueño hizo 2 búsquedas y 3 llamadas a Gemini, sin errores, en 5,2 s (`f74facf7`). El reporte salió bien: las 2 afirmaciones sobre Ueno, respaldadas, con 7 y 8 fuentes, entre ellas AP, BBC y EFE. Los secretos se llaman `gemini-api-key` y `tavily-api-key`.
 - **Despliegue:** `infra` falló la primera vez porque los secretos tenían otros nombres. Si cambia el mapa de secretos, hay que comprobar los nombres antes de fusionar.
 - **La evaluación ya usa el modelo de producción:** avisa si el del entorno es distinto. Es el problema que escondió el fallo del parser.
 
