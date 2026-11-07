@@ -60,6 +60,8 @@
 | #88 | `feat/tavily-gemini` | **La verificación pasa a Tavily y Gemini** |
 | #89 | `docs/tavily-gemini-live` | Registro del cambio en producción |
 | #90 | `chore/remove-anthropic` | Se retira el SDK de Anthropic y sus ajustes |
+| #94 | `feat/cleaner-evidence` | Citas cortas y limpias (`snippet.py`, reglas fijas, sin modelo) y fechas en español |
+| #95 | `feat/steps-hero` | La sección «Paso a paso» muestra un resultado real y tres datos en escritorio |
 
 ## Para retomar (2026-11-07)
 
@@ -68,7 +70,8 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 0. **Anthropic está retirado:** el SDK salió en el #90 y el dueño borró el secreto `anthropic-api-key` el 2026-11-07 a las 05:12 UTC. Ninguna app ni job lo usa. Key Vault permite recuperarlo hasta el 2026-11-14, igual que `gemini-key` y `travily-key`, los nombres anteriores de los secretos nuevos. Queda revocar la clave en la consola de Anthropic.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
 2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
-3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
+3. **Actualizar «entre uno y tres minutos»** en la portada y en `/submit`: un caso de texto tardó 5 s. Los videos tardan más, así que hace falta medirlos antes de cambiar el texto.
+3b. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
