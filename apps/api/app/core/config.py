@@ -107,8 +107,6 @@ class Settings(BaseSettings):
     )
     max_active_submissions_per_user: int = Field(default=2, alias="MAX_ACTIVE_SUBMISSIONS_PER_USER")
 
-    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_MODEL")
     tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")

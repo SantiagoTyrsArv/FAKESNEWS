@@ -56,7 +56,7 @@
 
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
-0. **Retirar Anthropic el 2026-11-14,** si producción sigue estable (tarea 10 del plan `superpowers/plans/2026-11-07-tavily-gemini.md`): quitar el SDK y los ajustes, y borrar `anthropic-api-key` con la confirmación del dueño.
+0. **Borrar el secreto `anthropic-api-key` de Key Vault** cuando el dueño lo confirme. El SDK y sus ajustes ya se retiraron, antes de la semana prevista y a petición suya. La clave ya no se usa.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
 2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
