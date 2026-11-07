@@ -1,4 +1,11 @@
-import { CircleAlert, CircleCheck, CircleHelp, CircleX, type LucideIcon } from "lucide-react";
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
+  History,
+  type LucideIcon,
+} from "lucide-react";
 import type { Verdict } from "@/lib/cases";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +29,15 @@ export const VERDICTS: Record<Verdict, VerdictStyle> = {
     mark: "mark-supported",
     bar: "bg-supported",
   },
+  CHANGED: {
+    label: "Cambió con el tiempo",
+    plural: "con cambios en el tiempo",
+    icon: History,
+    text: "text-changed",
+    tint: "bg-changed-tint",
+    mark: "mark-changed",
+    bar: "bg-changed",
+  },
   CONTRADICTED: {
     label: "Contradicha por fuentes",
     plural: "contradichas",
@@ -42,7 +58,7 @@ export const VERDICTS: Record<Verdict, VerdictStyle> = {
   },
 };
 
-export const VERDICT_ORDER: Verdict[] = ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT"];
+export const VERDICT_ORDER: Verdict[] = ["SUPPORTED", "CHANGED", "CONTRADICTED", "INSUFFICIENT"];
 
 export function VerdictLabel({ verdict, className }: Readonly<{ verdict: Verdict; className?: string }>) {
   const { label, icon: Icon, text } = VERDICTS[verdict];

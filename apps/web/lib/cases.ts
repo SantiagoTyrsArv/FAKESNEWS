@@ -12,7 +12,7 @@ export type SubmissionStatus =
   | "done"
   | "failed";
 
-export type Verdict = "SUPPORTED" | "CONTRADICTED" | "INSUFFICIENT";
+export type Verdict = "SUPPORTED" | "CHANGED" | "CONTRADICTED" | "INSUFFICIENT";
 
 export type Stance = "supports" | "contradicts" | "neutral";
 
@@ -57,6 +57,8 @@ export interface Report {
   summary: {
     total_claims: number;
     supported: number;
+    // Optional until every deployed API sends it.
+    changed?: number;
     contradicted: number;
     insufficient: number;
     failed: number;

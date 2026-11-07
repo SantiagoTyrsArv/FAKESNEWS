@@ -11,13 +11,25 @@ const STANCE_STYLES: Record<Stance, { label: string; className: string }> = {
   neutral: { label: "Neutral", className: "bg-muted text-muted-foreground" },
 };
 
-export function EvidenceItem({ evidence }: Readonly<{ evidence: ReportEvidence }>) {
+export function EvidenceItem({
+  evidence,
+  onTimeline = false,
+}: Readonly<{ evidence: ReportEvidence; onTimeline?: boolean }>) {
   const { source } = evidence;
   const stance = STANCE_STYLES[evidence.stance];
   const href = evidenceUrl(evidence.url);
 
   return (
-    <li className="flex flex-col gap-3 rounded-xl bg-muted/50 p-4">
+    <li
+      data-testid={onTimeline ? "timeline-item" : undefined}
+      className="relative flex flex-col gap-3 rounded-xl bg-muted/50 p-4"
+    >
+      {onTimeline && (
+        <span
+          aria-hidden="true"
+          className="absolute top-5 -left-[1.4rem] size-2.5 rounded-full bg-changed"
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-semibold">{source.name}</span>

@@ -58,6 +58,8 @@
   --color-contradicted-tint: var(--contradicted-tint);
   --color-insufficient: var(--insufficient);
   --color-insufficient-tint: var(--insufficient-tint);
+  --color-changed: var(--changed);
+  --color-changed-tint: var(--changed-tint);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -143,6 +145,8 @@
   --contradicted-tint: oklch(0.91 0.06 25);
   --insufficient: oklch(0.52 0.12 80); /* ≥ 4.5:1 on card, background and its tint */
   --insufficient-tint: oklch(0.94 0.08 92);
+  --changed: oklch(0.5 0.13 295); /* 6.3:1 on card, 5.9:1 on background, 5.1:1 on its tint */
+  --changed-tint: oklch(0.93 0.05 295);
   --chart-1: var(--supported);
   --chart-2: var(--contradicted);
   --chart-3: var(--insufficient);
@@ -216,6 +220,10 @@
 
   .mark-insufficient {
     --mark-color: var(--insufficient-tint);
+  }
+
+  .mark-changed {
+    --mark-color: var(--changed-tint);
   }
 
   /* One orchestrated moment: the hero marks draw in, left to right. */

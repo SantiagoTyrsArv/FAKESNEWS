@@ -252,7 +252,7 @@ export default function Home() {
 
         <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance">
-            Tres resultados posibles por afirmación
+            Cuatro resultados posibles por afirmación
           </h2>
           <dl className="flex flex-col divide-y">
             {VERDICT_ORDER.map((verdict) => (
@@ -263,6 +263,8 @@ export default function Home() {
                 <dd className="text-sm leading-relaxed text-muted-foreground">
                   {verdict === "SUPPORTED" &&
                     "Fuentes de confianza publican información que coincide con la afirmación."}
+                  {verdict === "CHANGED" &&
+                    "Las fuentes confirman una parte o un dato que fue cierto, pero otras lo matizan o lo actualizan."}
                   {verdict === "CONTRADICTED" &&
                     "Fuentes de confianza publican información que la desmiente."}
                   {verdict === "INSUFFICIENT" &&
