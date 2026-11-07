@@ -1,0 +1,307 @@
+{
+  "started_at": "2026-11-07T19:01:38.782670Z",
+  "model": "gemini-3.5-flash-lite",
+  "max_credits": 40,
+  "results": [
+    {
+      "case_id": "co-falso-1",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman de manera explícita que la captura de alias 'Malayo' ocurrió el 30 de junio, durante el gobierno de Gustavo Petro y antes de la posesión de Abelardo de la Espriella, por lo que la afirmación es falsa.",
+      "evidence": [
+        {
+          "url": "https://colombiacheck.com/chequeos/captura-de-alias-malayo-ocurrio-en-el-gobierno-petro-no-en-el-de-de-la-espriella",
+          "domain": "colombiacheck.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://colombiacheck.com/autores/paola-benjumea-brito/pagina/3",
+          "domain": "colombiacheck.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.eltiempo.com/justicia/conflicto-y-narcotrafico/cayo-en-riohacha-la-guajira-alias-malayo-considerado-como-hombre-de-confianza-de-alias-nain-jefe-de-las-acsn-3568048",
+          "domain": "eltiempo.com",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "colombiacheck.com",
+        "eltiempo.com",
+        "elcolombiano.com",
+        "elpais.com",
+        "english.elpais.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-falso-2",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "Los resultados de búsqueda indican que la información sobre la propuesta de teletrabajo en la Casa de Nariño para evitar atentados es falsa y proviene de páginas de parodia y desinformación en redes sociales. Aunque Abelardo de la Espriella anunció inicialmente que no despacharía desde la Casa de Nariño y propondría convertirla en museo, nunca propuso el teletrabajo por motivos de seguridad.",
+      "evidence": [
+        {
+          "url": "https://www.lasillavacia.com/detector-de-mentiras/falso/detector-de-la-espriella-no-propuso-teletrabajar-por-riesgos-a-su-seguridad",
+          "domain": "lasillavacia.com",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "lasillavacia.com",
+        "efe.com",
+        "eltiempo.com",
+        "elespectador.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que durante el gobierno de Gustavo Petro millones de colombianos salieron de la pobreza (de hecho, cifras oficiales y verificaciones de prensa sitúan el total acumulado de personas que salieron de la pobreza monetaria durante su administración en torno a los 3,8 millones, superando ampliamente la cifra de 2,5 millones mencionada en la afirmación).",
+      "evidence": [
+        {
+          "url": "https://www.eltiempo.com/politica/gobierno/presidente-gustavo-petro-hace-alocucion-presidencial-este-31-de-diciembre-3413927",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://colombiacheck.com/chequeos/lista-con-diez-supuestos-logros-del-gobierno-petro-combina-afirmaciones-cuestionables-con",
+          "domain": "colombiacheck.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://colombiacheck.com/chequeos/pobreza-bajo-y-crecio-la-clase-media-pero-petro-infla-cifra-de-personas-que-salieron-de-la",
+          "domain": "colombiacheck.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.lasillavacia.com/detector-de-mentiras/cierto-pero/en-el-gobierno-petro-si-disminuyo-en-3-8-millones-el-numero-de-personas-en-pobreza",
+          "domain": "lasillavacia.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://m.elcolombiano.com/negocios/pobreza-monetaria-colombia-petro-empleo-subsidios-DJ39651534",
+          "domain": "elcolombiano.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/2026-06-12/la-pobreza-en-colombia-cae-a-28-el-nivel-mas-bajo-en-su-historia.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "eltiempo.com",
+        "colombiacheck.com",
+        "lasillavacia.com",
+        "m.elcolombiano.com",
+        "elpais.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-verdadero-2",
+      "kind": "true",
+      "rating": "Verdadero",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que durante el gobierno de Gustavo Petro se han alcanzado cifras récord de turismo, superando los 6,5 millones de visitantes (con cerca de 6,7 millones en 2024 y registros superiores a 6,5 millones en el periodo acumulado hasta 2025).",
+      "evidence": [
+        {
+          "url": "https://elpais.com/america-colombia/2025-01-21/colombia-rompe-su-record-de-turismo-con-casi-siete-millones-de-visitantes-en-2024.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/politica/gobierno/el-turismo-es-ahora-mas-estrategico-que-el-carbon-y-el-petroleo-gustavo-petro-en-anato-2025-3430755",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elespectador.com/economia/cuantos-turistas-extranjeros-llegaron-a-colombia-en-enero-de-2025-y-de-que-paises",
+          "domain": "elespectador.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.lasillavacia.com/silla-nacional/cinco-claves-del-pico-historico-del-turismo-en-2024",
+          "domain": "lasillavacia.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/elecciones-presidenciales/2026-05-28/colombia-llega-a-las-urnas-con-los-mejores-indicadores-sociales-del-siglo-y-un-deficit-solo-superado-en-pandemia.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elpais.com",
+        "eltiempo.com",
+        "colombiacheck.com",
+        "elespectador.com",
+        "lasillavacia.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-mixto-1",
+      "kind": "mixed",
+      "rating": "Cuestionable",
+      "got": "SUPPORTED",
+      "grade": "severe",
+      "rationale": "Los resultados confirman que la inflación en Colombia alcanzó un pico cercano al 13% (13,12% en 2022) y posteriormente descendió hasta situarse alrededor del 5% (5,1% al cierre de 2025) durante el mandato de Gustavo Petro.",
+      "evidence": [
+        {
+          "url": "https://colombiacheck.com/chequeos/lista-con-diez-supuestos-logros-del-gobierno-petro-combina-afirmaciones-cuestionables-con",
+          "domain": "colombiacheck.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/2026-01-08/colombia-cierra-2025-con-una-inflacion-del-51-un-ano-perdido-en-el-control-del-encarecimiento.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "colombiacheck.com",
+        "elpais.com",
+        "elcolombiano.com",
+        "extranet.who.int"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-mixto-2",
+      "kind": "mixed",
+      "rating": "Cuestionable",
+      "got": "CHANGED",
+      "grade": "ok",
+      "rationale": "Las fuentes confirman que durante el gobierno de Gustavo Petro sí se alcanzó el mayor número total de personas ocupadas, pero aclaran que no se registró la mayor tasa de ocupación porcentual, la cual corresponde a administraciones anteriores como la de Juan Manuel Santos.",
+      "evidence": [
+        {
+          "url": "https://colombiacheck.com/chequeos/petro-acierta-en-reduccion-del-desempleo-y-crecimiento-del-salario-minimo-pero-exagera",
+          "domain": "colombiacheck.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.lasillavacia.com/detector-de-mentiras/detector-al-ultimo-discurso-de-petro-ante-el-congreso-2026",
+          "domain": "lasillavacia.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.lasillavacia.com/detector-de-mentiras/petro-logro-la-menor-tasa-de-desempleo-del-siglo-pero-no-la-mayor-de-ocupacion",
+          "domain": "lasillavacia.com",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "colombiacheck.com",
+        "lasillavacia.com",
+        "elpais.com",
+        "eltiempo.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "py-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero (noticia publicada)",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que el Banco Central de Paraguay intervino y cerró Ueno Bank debido a problemas de solvencia, lo que congeló los fondos de millones de clientes y desencadenó una grave crisis política y social en el país, incluyendo protestas y la caída del presidente.",
+      "evidence": [
+        {
+          "url": "https://www.eltiempo.com/mundo/latinoamerica/intervencion-de-ueno-bank-en-paraguay-que-pasara-con-los-ahorros-y-por-que-el-presidente-santiago-pena-podria-enfrentar-un-juicio-politico-3598351",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.bbc.com/mundo/articles/cqx28zrgd0yxo",
+          "domain": "bbc.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.reuters.com/world/americas/paraguay-president-pea-resigns-under-mounting-pressure-bank-collapse-2026-11-05",
+          "domain": "reuters.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.bbc.com/news/articles/c68jzzvjgdy9o",
+          "domain": "bbc.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "eltiempo.com",
+        "bbc.com",
+        "reuters.com",
+        "apnews.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-inventado-1",
+      "kind": "invented",
+      "rating": "Inventada para esta evaluación",
+      "got": "INSUFFICIENT",
+      "grade": "ok",
+      "rationale": "Los resultados muestran que Abelardo de la Espriella se ha reunido y alineado con la administración de Donald Trump y que mencionó planes de bombardear a grupos narcotraficantes en Colombia, pero no aportan información sobre ninguna reunión o plan para bombardear Gaza.",
+      "evidence": [
+        {
+          "url": "https://english.elpais.com/international/2026-09-07/from-the-shield-of-the-americas-to-the-golan-heights-de-la-espriella-keeps-his-promise-to-align-with-trump-and-netanyahu.html",
+          "domain": "elpais.com",
+          "stance": "neutral"
+        },
+        {
+          "url": "https://english.elpais.com/international/2026-09-09/de-la-espriella-and-rubio-relaunch-colombiaus-ties-with-security-and-investment-agenda.html",
+          "domain": "elpais.com",
+          "stance": "neutral"
+        },
+        {
+          "url": "https://www.bbc.com/news/articles/c9v278ny9meo",
+          "domain": "bbc.com",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "english.elpais.com",
+        "eltiempo.com",
+        "apnews.com",
+        "bbc.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    }
+  ],
+  "skipped_case_ids": [],
+  "spent_credits": 16
+}
