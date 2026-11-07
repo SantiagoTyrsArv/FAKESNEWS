@@ -25,8 +25,6 @@ export function ClaimCard({ claim, index }: Readonly<{ claim: ReportClaim; index
         <p className="text-sm text-muted-foreground">{claim.confidence_note}</p>
       )}
       <ClaimEvidence claim={claim} />
-    </p>
-      )}
     </li>
   );
 }
