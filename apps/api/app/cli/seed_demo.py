@@ -5,7 +5,7 @@ Run inside the API container:  make seed
 
 In production, only on purpose:  uv run python -m app.cli.seed_demo --production
 
-Why pre-processed cases: the real pipeline needs ANTHROPIC_API_KEY. With
+Why pre-processed cases: the real pipeline needs the Gemini and Tavily keys. With
 these rows the report, history and source pages can be demoed without it.
 
 Design decisions:
@@ -219,7 +219,7 @@ DEMO_CASES = [
         "status": "failed",
         "error": (
             "Caso de demostración: así se ve un fallo del pipeline (p. ej. sin "
-            "ANTHROPIC_API_KEY el paso de extracción de afirmaciones no puede ejecutarse)."
+            "GEMINI_API_KEY el paso de extracción de afirmaciones no puede ejecutarse)."
         ),
         "age": timedelta(hours=3),
         "claims": [],

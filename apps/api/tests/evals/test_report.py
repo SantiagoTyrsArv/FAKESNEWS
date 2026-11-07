@@ -35,22 +35,19 @@ def _result(case_id: str, kind: str, got: str | None, grade: str, *, contaminate
         evidence=evidence if contaminated else [],
         contaminated=contaminated,
         search_domains=["colombiacheck.com"],
-        cost_usd=0.1,
-        input_tokens=1000,
-        output_tokens=100,
-        web_searches=2,
+        credits=2,
+        gemini_calls=1,
     )
 
 
 def _run(results, skipped=()):
     return RunResult(
         started_at=datetime(2026, 11, 3, tzinfo=UTC),
-        model="claude-sonnet-5",
-        max_usd=0.75,
-        prices_as_of="2026-11-03",
+        model="gemini-test",
+        max_credits=40,
         results=results,
         skipped_case_ids=list(skipped),
-        spent_usd=sum(r.cost_usd for r in results),
+        spent_credits=sum(r.credits for r in results),
     )
 
 
@@ -65,10 +62,8 @@ def test_report_marks_severe_and_contaminated() -> None:
     md = render_report(run, cases)
     assert "✗ grave" in md
     assert "| sí |" in md
-    assert "2 USD" in md
-    assert "10 USD" in md
-    assert "0,01 USD" in md
-    assert "0,75 USD" in md
+    assert "`gemini-test`" in md
+    assert "4 de 40 créditos" in md
     assert "Explicación de c1." in md
     assert "https://colombiacheck.com/chequeos/c1" in md
 

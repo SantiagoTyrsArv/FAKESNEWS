@@ -14,15 +14,17 @@ _REDACTED_KEYS = {
     "authorization",
     "code",
     "recovery_code",
-    "anthropic_api_key",
     "jwt_secret_key",
     "totp_secret_encryption_key",
 }
+# Any provider's key, so that a new one is covered without touching this list.
+_REDACTED_SUFFIXES = ("api_key", "api-key")
 
 
 def _redact_sensitive(_logger: object, _method_name: str, event_dict: dict) -> dict:
     for key in list(event_dict.keys()):
-        if key.lower() in _REDACTED_KEYS:
+        name = key.lower()
+        if name in _REDACTED_KEYS or name.endswith(_REDACTED_SUFFIXES):
             event_dict[key] = "***REDACTED***"
     return event_dict
 

@@ -38,5 +38,14 @@ def test_load_cases_rejects_unknown_kind(tmp_path: Path) -> None:
 
 def test_bundled_cases_file_is_valid() -> None:
     cases = load_cases(CASES_PATH)
-    assert len(cases) == 6
-    assert sorted(c.kind for c in cases) == ["false", "false", "mixed", "mixed", "true", "true"]
+    assert len(cases) == 8
+    assert sorted(c.kind for c in cases) == [
+        "false",
+        "false",
+        "invented",
+        "mixed",
+        "mixed",
+        "true",
+        "true",
+        "true",
+    ]

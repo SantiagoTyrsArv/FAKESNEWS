@@ -184,3 +184,20 @@ OSV-Scanner 2.7.0 sobre `27acb17` (99 paquetes PyPI y 666 npm). Los 11 paquetes 
 | Protección de `main` | ⚠️ Sin configurar, lo decide el dueño | Se puede fusionar con el CI en rojo o hacer push directo. |
 | Escaneo de código | Sin análisis | No hay CodeQL ni subida de resultados. |
 | Escaneo de secretos y protección de push | Activados | Ninguno. La consulta de alertas abiertas no devolvió ninguna, pero el token actual podría no tener permiso para verlas. |
+
+## 10. Cambio de proveedor del 2026-11-07
+
+La verificación pasó de Claude con búsqueda integrada a Tavily y Gemini (PR #87 y siguiente). Cambios que afectan a la seguridad:
+
+- **Evidencias:** el modelo cita resultados por número y ya no escribe URL ni fragmentos, así que no puede inventar evidencias.
+- **Inyección:** el texto de las páginas se escapa antes de enviarlo al modelo, para que no pueda cerrar su etiqueta.
+- **Dominios:** se rechazan las URL que ocultan su host con barra invertida o `usuario@`. Un dominio de confianza como subdominio de otro nunca pasó el filtro.
+- **Logs:** se ocultan todos los campos terminados en `api_key`.
+- **Cuotas:** tope global de 450 afirmaciones al mes y de 60 por cuenta. Los casos de la última hora cuentan como reservados.
+- **Datos:** el plan gratuito de Gemini usa lo enviado para mejorar los productos de Google y personas pueden revisarlo. `/submit` lo avisa. El dueño lo aceptó, y la app es para uso en Colombia.
+
+Riesgos aceptados:
+
+- El tope global es aproximado: dos envíos simultáneos pueden pasar la comprobación, y un caso que falla después de verificar no cuenta. No hay coste, porque el plan gratuito solo se detiene.
+- Alguien con muchas cuentas puede agotar la cuota mensual.
+- Un caso en cola más de una hora deja de contar como reservado.

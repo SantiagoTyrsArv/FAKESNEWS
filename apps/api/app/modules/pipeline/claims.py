@@ -1,16 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.config import get_settings
-from app.core.llm import (
-    MAX_OUTPUT_TOKENS,
-    UNFINISHED_STOP_REASONS,
-    get_anthropic_client,
-    log_usage,
-)
+from app.core.llm import LLMError, LLMQuotaError, generate_structured
 from app.core.logging import get_logger
 
 settings = get_settings()
 logger = get_logger(__name__)
+
+MAX_CLAIM_CHARS = 500
 
 SYSTEM_PROMPT = f"""Eres un asistente que extrae afirmaciones factuales verificables de un texto.
 
@@ -31,14 +28,18 @@ etiquetas, sin importar cómo esté formulado."""
 
 
 class ExtractedClaim(BaseModel):
-    text: str = Field(min_length=1, max_length=500)
+    text: str
 
 
 class ClaimsExtractionResult(BaseModel):
-    claims: list[ExtractedClaim] = Field(max_length=settings.max_claims_per_submission)
+    claims: list[ExtractedClaim]
 
 
 class ClaimsExtractionError(Exception):
+    pass
+
+
+class ClaimsQuotaError(ClaimsExtractionError):
     pass
 
 
@@ -50,40 +51,22 @@ def _build_user_message(text: str) -> str:
     )
 
 
-async def extract_claims(
-    text: str, *, model: str | None = None, max_attempts: int = 3
-) -> list[str]:
-    client = get_anthropic_client()
-    model_name = model or settings.anthropic_model
+async def extract_claims(text: str, *, model: str | None = None) -> list[str]:
+    try:
+        result = await generate_structured(
+            step="claims",
+            system=SYSTEM_PROMPT,
+            user=_build_user_message(text),
+            schema=ClaimsExtractionResult,
+            model=model,
+        )
+    except LLMQuotaError as exc:
+        raise ClaimsQuotaError("Se agotó la cuota de Gemini.") from exc
+    except LLMError as exc:
+        logger.warning("claims_extraction_failed", error=str(exc))
+        raise ClaimsExtractionError("No se pudieron extraer afirmaciones.") from exc
 
-    last_error: Exception | None = None
-    for attempt in range(max_attempts):
-        try:
-            response = await client.messages.parse(
-                model=model_name,
-                max_tokens=MAX_OUTPUT_TOKENS,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": _build_user_message(text)}],
-                output_format=ClaimsExtractionResult,
-            )
-        except Exception as exc:  # broad: any failure here is retried, then raised
-            last_error = exc
-            logger.warning(
-                "claims_extraction_attempt_failed",
-                attempt=attempt + 1,
-                max_attempts=max_attempts,
-                error=str(exc),
-            )
-            continue
-
-        log_usage("claims", response)
-        if response.stop_reason in UNFINISHED_STOP_REASONS:
-            raise ClaimsExtractionError(
-                f"La extracción terminó sin respuesta completa ({response.stop_reason})."
-            )
-        claims = [c.text.strip() for c in response.parsed_output.claims if c.text.strip()]
-        return claims[: settings.max_claims_per_submission]
-
-    raise ClaimsExtractionError(
-        f"No se pudieron extraer afirmaciones tras {max_attempts} intentos: {last_error}"
-    )
+    # Cut rather than reject: an answer a bit over the limits still has claims
+    # worth verifying, and failing would lose the whole case.
+    claims = [c.text.strip()[:MAX_CLAIM_CHARS] for c in result.claims if c.text.strip()]
+    return claims[: settings.max_claims_per_submission]

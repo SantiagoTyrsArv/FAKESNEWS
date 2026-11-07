@@ -13,7 +13,8 @@ param pgAdminPassword = az.getSecret(subscriptionId, resourceGroupName, kvName, 
 // Same values as the Railway services (2026-11-04). Secrets live in Key Vault.
 param appSettings = [
   { name: 'ENVIRONMENT', value: 'production' }
-  { name: 'ANTHROPIC_MODEL', value: 'claude-sonnet-5' }
+  { name: 'GEMINI_MODEL', value: 'gemini-3.5-flash-lite' }
+  { name: 'MAX_CLAIMS_PER_MONTH', value: '450' }
   { name: 'COOKIE_PATH_PREFIX', value: '/api' }
   { name: 'CORS_ORIGINS', value: '["https://fakesnews.vercel.app"]' }
   { name: 'TRUSTED_PROXY_HOPS', value: '1' }

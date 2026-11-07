@@ -10,6 +10,8 @@ EXPECTED: dict[Kind, frozenset[Verdict]] = {
     "false": frozenset({"CONTRADICTED"}),
     "true": frozenset({"SUPPORTED"}),
     "mixed": frozenset({"CONTRADICTED", "INSUFFICIENT"}),
+    # Nobody published anything about it: there is nothing to contradict it with.
+    "invented": frozenset({"INSUFFICIENT"}),
 }
 
 # The verdict that is not just wrong but backwards for each kind.
@@ -17,6 +19,7 @@ _SEVERE: dict[Kind, Verdict] = {
     "false": "SUPPORTED",
     "true": "CONTRADICTED",
     "mixed": "SUPPORTED",
+    "invented": "SUPPORTED",
 }
 
 

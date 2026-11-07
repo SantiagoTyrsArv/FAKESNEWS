@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.modules.auth.models import User
 from app.modules.pipeline.models import Claim
 from app.modules.submissions import service as submissions_service
 from app.modules.submissions.models import Submission
@@ -253,10 +254,89 @@ async def test_claims_from_last_month_do_not_count_towards_the_cap(
     assert (await _post_text(app_client)).status_code == 201
 
 
+async def test_cases_in_flight_count_towards_the_monthly_cap(
+    app_client: AsyncClient, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_submission", 4)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_month", 4)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+
+    resp = await _post_text(app_client)
+
+    assert resp.status_code == 429
+    assert "cuota mensual" in resp.json()["detail"]
+
+
+async def test_a_stuck_case_stops_counting_towards_the_monthly_cap(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_submission", 4)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_month", 4)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+    stuck = (await db_session.execute(select(Submission))).scalars().one()
+    stuck.created_at = datetime.now(UTC) - timedelta(hours=2)
+    await db_session.commit()
+
+    assert (await _post_text(app_client)).status_code == 201
+
+
+async def test_one_account_stops_at_its_own_monthly_cap(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_account_per_month", 1)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+    await _mark_all(db_session, "done")
+    await _add_claim_created_at(db_session, datetime.now(UTC))
+
+    resp = await _post_text(app_client)
+
+    assert resp.status_code == 429
+    assert "tu límite mensual" in resp.json()["detail"]
+
+
+async def test_other_accounts_claims_do_not_use_your_monthly_cap(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_account_per_month", 1)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+    await _mark_all(db_session, "done")
+    other = User(email="otra@example.com", password_hash="x")
+    db_session.add(other)
+    await db_session.flush()
+    theirs = Submission(user_id=other.id, input_type="text", raw_input="x", status="done")
+    db_session.add(theirs)
+    await db_session.flush()
+    db_session.add(Claim(submission_id=theirs.id, text="a", verdict="INSUFFICIENT", rationale="r"))
+    await db_session.commit()
+
+    assert (await _post_text(app_client)).status_code == 201
+
+
 def test_default_limits() -> None:
     settings = get_settings()
 
     assert settings.max_claims_per_month == 450
+    assert settings.max_claims_per_account_per_month == 60
     assert settings.max_submissions_per_day == 5
     assert settings.max_claims_per_submission == 4
     assert settings.verify_concurrency_limit == 2

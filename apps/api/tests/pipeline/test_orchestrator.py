@@ -3,6 +3,8 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from app.core import llm, search
+from app.core.config import get_settings
 from app.core.security import hash_password
 from app.modules.auth.models import User
 from app.modules.pipeline import claims as claims_module
@@ -419,3 +421,42 @@ def test_video_transcriber_is_shared_across_cases() -> None:
     # The Whisper model lives on the transcriber; a new one per case would
     # reload the model every time.
     assert orchestrator._get_transcriber() is orchestrator._get_transcriber()
+
+
+async def test_run_pipeline_tells_the_user_when_the_quota_ran_out(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission_id = await _create_user_and_submission(db_session_factory, email="quota@example.com")
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def no_quota(_text: str, **_kwargs) -> list[str]:
+        raise claims_module.ClaimsQuotaError("cuota")
+
+    monkeypatch.setattr(ingest_module, "ingest_text", lambda _raw_text: "texto")
+    monkeypatch.setattr(claims_module, "extract_claims", no_quota)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        submission = await check_db.get(Submission, uuid.UUID(submission_id))
+        assert submission.status == "failed"
+        assert submission.error == orchestrator.QUOTA_FAILURE
+
+
+def test_a_claim_with_retries_fits_in_the_verify_timeout() -> None:
+    settings = get_settings()
+    search_budget = 2 * search.TIMEOUT_SECONDS + search.RETRY_WAIT_SECONDS
+    llm_budget = 2 * llm.TIMEOUT_SECONDS + llm.MAX_RETRY_WAIT_SECONDS
+
+    assert search_budget + llm_budget < settings.verify_timeout_seconds
+
+
+def test_a_full_case_fits_in_the_job_timeout() -> None:
+    settings = get_settings()
+    batches = -(-settings.max_claims_per_submission // settings.verify_concurrency_limit)
+    llm_budget = 2 * llm.TIMEOUT_SECONDS + llm.MAX_RETRY_WAIT_SECONDS
+
+    assert (
+        llm_budget + batches * settings.verify_timeout_seconds
+        < settings.pipeline_job_timeout_seconds
+    )

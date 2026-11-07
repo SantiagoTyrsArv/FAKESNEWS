@@ -95,7 +95,7 @@ Se mantiene la regla actual: un veredicto direccional sin evidencia que lo respa
 
 ### 6.4 Extracción de afirmaciones
 
-Mismo prompt y mismo esquema, con Gemini y salida estructurada. El máximo baja de 8 a 4 afirmaciones por envío, tanto en `MAX_CLAIMS_PER_SUBMISSION` como en el prompt y en el esquema, que hoy fijan 8.
+Mismo prompt y mismo esquema, con Gemini y salida estructurada. El máximo baja de 8 a 4 afirmaciones por envío, en `MAX_CLAIMS_PER_SUBMISSION` y en el prompt. Si el modelo devuelve más, o una afirmación demasiado larga, se recorta en lugar de perder el caso.
 
 ### 6.5 Fallos técnicos
 
@@ -115,6 +115,9 @@ Cualquiera puede registrarse, así que hace falta un tope de toda la app, ademá
 - Antes de aceptar un envío, se cuentan las afirmaciones creadas en el mes en curso. Con `MAX_CLAIMS_PER_MONTH` (450 por defecto) o más, el envío se rechaza con un mensaje que explica que se agotó la cuota. Se cuenta en Postgres, como el tope diario, para que sobreviva a un vaciado de Redis.
 - 450 afirmaciones dan para unos 112 envíos completos al mes y gastan 900 créditos. Quedan 100 créditos de margen para la evaluación.
 - El tope por cuenta de 20 envíos al día baja a 5.
+- Cada cuenta tiene además un tope de 60 afirmaciones al mes (`MAX_CLAIMS_PER_ACCOUNT_PER_MONTH`), para que ninguna agote la cuota común.
+- Los casos en curso cuentan como `MAX_CLAIMS_PER_SUBMISSION` afirmaciones cada uno, porque se guardan al terminar. El tope sigue siendo aproximado: dos envíos simultáneos pueden pasar la comprobación a la vez, y el margen de 100 créditos cubre esa diferencia.
+- Riesgo aceptado: alguien con muchas cuentas aún puede agotar la cuota. No hay coste, porque el plan gratuito simplemente se detiene.
 - Si Tavily o Gemini responden que la cuota se agotó, se registra un evento propio en los logs y las afirmaciones cuentan como fallo técnico.
 
 ### 6.7 Datos y privacidad

@@ -99,13 +99,19 @@ class Settings(BaseSettings):
         default=5, alias="RATE_LIMIT_SUBMISSIONS_PER_MINUTE"
     )
     max_submissions_per_day: int = Field(default=5, alias="MAX_SUBMISSIONS_PER_DAY")
-    # App-wide, on top of the per-account limits: it keeps one account from
-    # using up the free search quota for everybody else.
+    # The free search quota is shared by the whole app: the first cap keeps
+    # within it, and the second keeps one account from using most of it.
     max_claims_per_month: int = Field(default=450, alias="MAX_CLAIMS_PER_MONTH")
+    max_claims_per_account_per_month: int = Field(
+        default=60, alias="MAX_CLAIMS_PER_ACCOUNT_PER_MONTH"
+    )
     max_active_submissions_per_user: int = Field(default=2, alias="MAX_ACTIVE_SUBMISSIONS_PER_USER")
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_MODEL")
+    tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
 
     # Video ingest downloads media and runs Whisper on the worker's CPU; turn it
     # off where the worker lacks the memory or time for it.
@@ -132,7 +138,7 @@ class Settings(BaseSettings):
 
     max_claims_per_submission: int = Field(default=4, alias="MAX_CLAIMS_PER_SUBMISSION")
     verify_concurrency_limit: int = Field(default=2, alias="VERIFY_CONCURRENCY_LIMIT")
-    verify_timeout_seconds: int = Field(default=30, alias="VERIFY_TIMEOUT_SECONDS")
+    verify_timeout_seconds: int = Field(default=75, alias="VERIFY_TIMEOUT_SECONDS")
     # Hard ceiling for one whole case in the worker. Past it arq cancels the
     # job and the orchestrator marks the case failed.
     pipeline_job_timeout_seconds: int = Field(default=900, alias="PIPELINE_JOB_TIMEOUT_SECONDS")

@@ -1,13 +1,16 @@
 from datetime import date
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
+from app.core.config import get_settings
+from app.core.search import CREDITS_PER_SEARCH, SearchResult
 from app.modules.pipeline import verify as verify_module
 from app.modules.pipeline.verify import EvidenceItem, VerifyResult
 from evals.verdicts.cases import Case
 from evals.verdicts.runner import load_allowed_domains, run_cases
+
+URL = "https://colombiacheck.com/chequeos/x"
 
 
 def _case(case_id: str, kind: str) -> Case:
@@ -22,50 +25,43 @@ def _case(case_id: str, kind: str) -> Case:
     )
 
 
-def _fake_verify(verdict: str, *, input_tokens: int = 100_000, fail_on: set[str] = frozenset()):
-    """A stand-in for verify_claim that reports usage through log_usage, as
-    the real one does, so the meter counts it. 100k input tokens = 0.20 USD,
-    plus 10 searches = 0.10 USD: 0.30 USD per call."""
-    url = "https://colombiacheck.com/chequeos/x"
+@pytest.fixture(autouse=True)
+def _fake_search(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def search(_query: str, _domains: list[str]) -> list[SearchResult]:
+        return [SearchResult(result_id=1, url=URL, title="t", content="c", published_at=None)]
+
+    monkeypatch.setattr(verify_module, "search_trusted", search)
+
+
+def _fake_verify(verdict: str, *, fail_on: set[str] = frozenset()):
+    """A stand-in for verify_claim that searches through the module, as the
+    real one does, so the meter counts it."""
 
     async def verify(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
         if any(case_id in claim_text for case_id in fail_on):
             raise RuntimeError("network down")
-        content = [
-            SimpleNamespace(
-                type="web_search_tool_result",
-                content=[SimpleNamespace(type="web_search_result", url=url)],
-            )
-        ]
-        usage = SimpleNamespace(
-            input_tokens=input_tokens,
-            output_tokens=0,
-            server_tool_use=SimpleNamespace(web_search_requests=10),
-        )
-        verify_module.log_usage(
-            "verify", SimpleNamespace(content=content, usage=usage, stop_reason="end_turn")
-        )
+        await verify_module.search_trusted(claim_text, allowed_domains)
         evidence = [
-            EvidenceItem(url=url, domain="colombiacheck.com", snippet="...", stance="contradicts")
+            EvidenceItem(url=URL, domain="colombiacheck.com", snippet="...", stance="contradicts")
         ]
         return VerifyResult(verdict=verdict, rationale="porque sí", evidence=evidence)
 
     return verify
 
 
-async def test_run_cases_grades_and_costs() -> None:
+async def test_run_cases_grades_and_counts_credits() -> None:
     cases = [_case("c1", "false"), _case("c2", "true")]
     run = await run_cases(
         cases,
         allowed_domains=["colombiacheck.com"],
-        max_usd=5.0,
+        max_credits=40,
         verify=_fake_verify("CONTRADICTED"),
     )
     assert [r.grade for r in run.results] == ["ok", "severe"]
     assert run.results[0].contaminated is True
-    assert run.results[0].cost_usd == pytest.approx(0.30)
+    assert run.results[0].credits == CREDITS_PER_SEARCH
     assert run.results[0].search_domains == ["colombiacheck.com"]
-    assert run.spent_usd == pytest.approx(sum(r.cost_usd for r in run.results))
+    assert run.spent_credits == 2 * CREDITS_PER_SEARCH
     assert run.skipped_case_ids == []
 
 
@@ -74,12 +70,11 @@ async def test_run_cases_stops_before_exceeding_budget() -> None:
     run = await run_cases(
         cases,
         allowed_domains=["colombiacheck.com"],
-        max_usd=0.75,
+        max_credits=2 * CREDITS_PER_SEARCH,
         verify=_fake_verify("CONTRADICTED"),
     )
     assert len(run.results) == 2
     assert run.skipped_case_ids == ["c3", "c4"]
-    assert run.spent_usd <= 0.75
 
 
 async def test_run_cases_records_exception_and_continues() -> None:
@@ -87,7 +82,7 @@ async def test_run_cases_records_exception_and_continues() -> None:
     run = await run_cases(
         cases,
         allowed_domains=["colombiacheck.com"],
-        max_usd=5.0,
+        max_credits=40,
         verify=_fake_verify("CONTRADICTED", fail_on={"c1"}),
     )
     assert run.results[0].grade == "error"
@@ -102,18 +97,30 @@ def test_load_allowed_domains_reads_trusted_sources() -> None:
     assert len(domains) == 25
 
 
-async def test_run_cases_flags_case_with_no_api_usage_as_error() -> None:
-    # verify_claim swallows API errors (bad key, outage) and answers
-    # INSUFFICIENT; with no tokens used that is not a verdict to grade.
-    async def swallowed_error(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
-        return VerifyResult(verdict="INSUFFICIENT", rationale="No se pudo completar.", evidence=[])
+async def test_run_cases_flags_a_failed_verification_as_error() -> None:
+    async def failed(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
+        return VerifyResult(
+            verdict="INSUFFICIENT",
+            rationale="No se pudo completar.",
+            evidence=[],
+            verification_failed=True,
+        )
 
     run = await run_cases(
         [_case("c1", "false")],
         allowed_domains=["colombiacheck.com"],
-        max_usd=5.0,
-        verify=swallowed_error,
+        max_credits=40,
+        verify=failed,
     )
     assert run.results[0].grade == "error"
-    assert run.results[0].got == "INSUFFICIENT"
-    assert "API" in run.results[0].error
+    assert "falló" in run.results[0].error
+
+
+async def test_run_reports_the_model_in_use() -> None:
+    run = await run_cases(
+        [],
+        allowed_domains=[],
+        max_credits=40,
+        verify=_fake_verify("CONTRADICTED"),
+    )
+    assert run.model == get_settings().gemini_model
