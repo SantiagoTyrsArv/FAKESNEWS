@@ -1,5 +1,4 @@
 import base64
-import binascii
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -223,7 +222,7 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
     try:
         created_at, submission_id = base64.urlsafe_b64decode(cursor).decode().split("|")
         return datetime.fromisoformat(created_at), uuid.UUID(submission_id)
-    except (binascii.Error, UnicodeDecodeError, ValueError) as exc:
+    except ValueError as exc:  # also covers bad base64 and bad UTF-8
         raise InvalidCursorError() from exc
 
 

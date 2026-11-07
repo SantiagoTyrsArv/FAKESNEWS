@@ -103,8 +103,8 @@ export function HistoryClient() {
         setSubmissions((current) => [...(current ?? []), ...res.submissions]);
         setNextCursor(res.next_cursor ?? null);
       })
-      .catch(showError)
-      .finally(() => setLoadingMore(false));
+      .finally(() => setLoadingMore(false))
+      .catch(showError);
   }, [nextCursor, showError]);
 
   return (
