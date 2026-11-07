@@ -55,7 +55,7 @@
 
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
-0. **Migrar la verificación a Tavily + Gemini:** los créditos de Anthropic se agotaron. Especificación en `superpowers/specs/2026-11-07-tavily-gemini-design.md`, pendiente de aprobación y de las 3 decisiones del dueño de su §11.
+0. **Migrar la verificación a Tavily + Gemini:** los créditos de Anthropic se agotaron. Especificación aprobada en `superpowers/specs/2026-11-07-tavily-gemini-design.md`. Lo siguiente es la fase 0, para la que el dueño debe crear las claves de Google AI Studio y Tavily.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
 2. **Decidir el modelo de producción:** corre `claude-sonnet-5`, mientras que toda la evaluación se hizo con `claude-sonnet-5-5`. Los 5 aciertos de 6 no dicen cómo se comporta el modelo de producción. O se cambia en `infra/main.bicepparam`, o se repite la evaluación con el modelo de producción. Ver la sesión del 2026-11-07, «Veredictos perdidos».
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.

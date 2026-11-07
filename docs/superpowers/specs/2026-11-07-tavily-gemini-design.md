@@ -1,6 +1,6 @@
 # Verificación gratuita con Tavily y Gemini
 
-**Estado:** borrador, pendiente de aprobación del dueño. No se ha escrito código.
+**Estado:** aprobada por el dueño el 2026-11-07.
 **Fecha:** 2026-11-07.
 
 ## 1. Por qué
@@ -119,7 +119,7 @@ Cualquiera puede registrarse, así que hace falta un tope de toda la app, ademá
 
 ### 6.7 Datos y privacidad
 
-- `/submit` muestra un aviso visible antes de enviar: el contenido se procesa con Google y Tavily, y personas de Google pueden revisarlo, así que no hay que incluir datos personales ni sensibles.
+- `/submit` muestra un aviso visible antes de enviar: el contenido se procesa con Google y Tavily, y personas de Google pueden revisarlo, así que no hay que incluir datos personales ni sensibles. También indica que la app es para uso en Colombia.
 - Solo se envía a Google el texto del caso y los resultados de búsqueda, nunca datos de la cuenta.
 - Se mantiene que el contenido extraído no se escribe en los logs.
 
@@ -167,7 +167,7 @@ Un script corre los 6 casos de la evaluación más los 2 nuevos, y responde:
 | Fragmentos cortos | Peor veredicto que leyendo la página | La fase 0 lo mide. Se puede subir a `advanced`, a 2 créditos. |
 | Una sola búsqueda por afirmación | Se escapa evidencia que Claude encontraba reformulando | La fase 0 lo mide. |
 | Salida estructurada en preview | Puede cambiar | Se aísla en `app/core/llm.py` y las pruebas fijan el formato. |
-| Usuarios del EEE, Suiza o Reino Unido | Los términos exigen servicios de pago | Decisión pendiente en §11. |
+| Usuarios del EEE, Suiza o Reino Unido | Los términos exigen servicios de pago | La app solo se usa en Colombia (§11). Si eso cambia, hay que pasar a un plan de pago. |
 | La vuelta atrás a Claude | Necesita créditos | Se revierte el PR y se recarga, si el dueño quiere. |
 
 ## 10. Decisiones tomadas por Claude, para revisar
@@ -181,9 +181,11 @@ Un script corre los 6 casos de la evaluación más los 2 nuevos, y responde:
 
 ## 11. Decisiones del dueño
 
-1. **¿Aceptas las condiciones del plan gratuito de Gemini?** Personas de Google pueden leer lo que se envía, y se usa para mejorar sus productos. La alternativa es pagar Gemini, que no tiene esas condiciones.
-2. **¿Limitamos la app a usuarios fuera del EEE, Suiza y Reino Unido?** El público previsto es colombiano. Propuesta: dejarlo escrito en el aviso de `/submit`, sin bloqueo técnico.
-3. **¿Te parece bien el criterio de 6 de 8 de la fase 0?**
+Tomadas el 2026-11-07:
+
+1. **Acepta las condiciones del plan gratuito de Gemini,** incluido que personas de Google puedan leer lo enviado y que se use para mejorar sus productos.
+2. **La app solo se usa en Colombia.** El aviso de `/submit` lo indica. No hay bloqueo técnico.
+3. **Criterio de la fase 0:** al menos 6 de 8 aciertos, como en §7.
 
 ## 12. Lo que se decide en el plan
 
