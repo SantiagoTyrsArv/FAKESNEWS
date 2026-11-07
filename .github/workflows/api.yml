@@ -1,25 +1,45 @@
 name: api
 
+# Runs on every PR, because branch protection requires it: a required check
+# that never starts would block the PR forever. The `changes` job skips the
+# work when the API isn't touched, and a skipped job counts as passed.
+# On main, api-deploy.yml calls this workflow before deploying.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/api.yml"
   pull_request:
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/api.yml"
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: api-${{ github.ref }}
-  cancel-in-progress: true
+  group: api-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$PR" ] || gh pr diff "$PR" --repo "$REPO" --name-only |
+            grep -qE '^(apps/api/|\.github/workflows/api(-deploy)?\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  api-check:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

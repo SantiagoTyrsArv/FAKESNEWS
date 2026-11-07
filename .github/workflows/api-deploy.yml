@@ -1,8 +1,8 @@
 name: api-deploy
 
-# Builds the API image and rolls it out to Azure Container Apps: migrations
-# first (the job caj-fakesnews-migrate), then the api and the worker. If the
-# migration fails, the running apps are left untouched.
+# Tests the API, builds its image and rolls it out to Azure Container Apps:
+# migrations first (the job caj-fakesnews-migrate), then the api and the worker.
+# If the tests or the migration fail, the running apps are left untouched.
 on:
   push:
     branches: [main]
@@ -25,7 +25,14 @@ env:
   RESOURCE_GROUP: rg-fakesnews-prod
 
 jobs:
+  test:
+    uses: ./.github/workflows/api.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
