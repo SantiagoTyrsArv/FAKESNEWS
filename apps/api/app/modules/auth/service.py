@@ -103,7 +103,20 @@ def _check_not_locked(user: User) -> None:
         raise AccountLockedError(retry_after_seconds=max(retry_after, 1))
 
 
+async def _lock_user(db: AsyncSession, user: User) -> None:
+    """Hold the user's row until commit and reload it, so concurrent requests
+    for one account take turns: counters aren't lost, and a recovery code or
+    TOTP step can't be spent twice."""
+    await db.execute(
+        select(User)
+        .where(User.id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 async def _register_failed_attempt(db: AsyncSession, user: User) -> None:
+    await _lock_user(db, user)
     user.failed_attempts += 1
     if user.failed_attempts >= settings.max_login_attempts:
         user.locked_until = _now() + timedelta(minutes=settings.lockout_minutes)
@@ -267,6 +280,7 @@ async def _check_second_factor(
         f"verify:user:{user.id}", settings.rate_limit_verify_per_minute, client=redis_client
     )
 
+    await _lock_user(db, user)
     _check_not_locked(user)
 
     if not user.mfa_enabled:
@@ -364,14 +378,18 @@ async def issue_session(db: AsyncSession, user: User) -> dict:
     }
 
 
-async def _get_refresh_token_by_plain(db: AsyncSession, refresh_plain: str) -> RefreshToken | None:
+async def _get_refresh_token_by_plain(
+    db: AsyncSession, refresh_plain: str, *, lock: bool = False
+) -> RefreshToken | None:
     token_hash = hash_opaque_token(refresh_plain)
-    result = await db.execute(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    query = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+    result = await db.execute(query.with_for_update() if lock else query)
     return result.scalar_one_or_none()
 
 
 async def rotate_refresh_token(db: AsyncSession, refresh_plain: str) -> dict:
-    row = await _get_refresh_token_by_plain(db, refresh_plain)
+    # Locked: a second request with this token waits and then sees it spent.
+    row = await _get_refresh_token_by_plain(db, refresh_plain, lock=True)
 
     if row is None:
         raise InvalidRefreshTokenError()
