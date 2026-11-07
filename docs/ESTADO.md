@@ -56,9 +56,9 @@
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Clave de Anthropic del `.env` rechazada (urgente):** el 2026-11-07, `GET /v1/models` respondió 401 y los 4 casos de la evaluación fallaron con `invalid x-api-key`. Funcionó el 2026-11-03, así que se revocó o se cambió después. Si la de producción (`anthropic-api-key` en Key Vault) es la misma, todas las verificaciones acabarían en `INSUFFICIENT`. Hay que comprobarla y actualizar el `.env`.
+2. **Actualizar `anthropic-api-key` en Key Vault (urgente):** la clave antigua del `.env` daba 401 y el dueño la cambió el 2026-11-07. Si producción usaba esa misma clave, todas las verificaciones acaban en `INSUFFICIENT` hasta cambiar el secreto. Pasos en [AZURE.md](AZURE.md#secretos).
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
-4. **Correr los 4 casos de la evaluación que faltan** en cuanto haya clave válida: `anthropic` 2.4.0 sigue sin probarse con una llamada real. Costo estimado 0,35 USD, ya aprobado por el dueño.
+4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación que Colombiacheck califica de «Cuestionable» (error grave de la evaluación). Falta `co-mixto-2`, que no corrió por el tope de gasto (unos 0,20 USD, necesita aprobación).
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
    - la app usa el usuario administrador de Postgres;
@@ -82,6 +82,17 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 - **CI de la API (#76):** Sonar exigió `--no-build` (regla `githubactions:S8541`). `uv run` no acepta `--no-install-project`, solo `uv sync`, por eso los pasos usan `--no-sync --no-build`.
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
+
+## Evaluación de veredictos del 2026-11-07
+
+Informe en `apps/api/evals/verdicts/results/2026-11-06_195418.md`. Con `anthropic` 2.4.0 y `claude-sonnet-5-5`.
+
+- **`anthropic` 2.4.0 funciona con llamadas reales:** 3 casos completos y ningún error de ejecución.
+- **Resultado:** 2 aciertos de 3, y 1 de 2 sin contar los casos contaminados. Junto con la ejecución del 2026-11-03 son 4 de 5.
+- **Error grave en `co-mixto-1`:** «la inflación cayó del 13% a cerca del 5%» salió `SUPPORTED`, con Colombiacheck en «Cuestionable». La explicación sí menciona que después repuntó a 6,29%, pero el veredicto no lo refleja. Se esperaba `CONTRADICTED` o `INSUFFICIENT`. La app no tiene un veredicto intermedio para lo que es cierto solo en parte.
+- **Sin correr:** `co-mixto-2`, por el tope de 0,55 USD.
+- **Gasto:** 0,45 USD, más que los 0,35 USD estimados. El caso con 3 búsquedas costó 0,20 USD, por encima de los 0,085 USD por afirmación medidos antes. Un envío de 8 afirmaciones podría costar hasta unos **1,60 USD**, no 0,70 USD.
+- **Gasto acumulado de la evaluación:** 0,62 USD. Quedan unos 4,38 USD si los créditos no cambiaron con la clave nueva.
 
 ## Limpieza del 2026-11-07: ramas y Railway
 
