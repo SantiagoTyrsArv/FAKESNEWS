@@ -256,6 +256,43 @@ async def test_directional_verdict_needs_matching_evidence(
     assert verify_module.UNBACKED_VERDICT_NOTE in result.rationale
 
 
+async def test_changed_verdict_keeps_its_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    results = [_result(1), _result(2, url="https://afp.com/b")]
+    _Fakes(monkeypatch, results, _answer("CHANGED", (1, "supports"), (2, "contradicts")))
+
+    result = await _verify()
+
+    assert result.verdict == "CHANGED"
+    assert [e.stance for e in result.evidence] == ["supports", "contradicts"]
+
+
+async def test_changed_needs_two_valid_citations(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Result 9 doesn't exist, so only one citation survives.
+    _Fakes(monkeypatch, [_result()], _answer("CHANGED", (1, "supports"), (9, "contradicts")))
+
+    result = await _verify()
+
+    assert result.verdict == "INSUFFICIENT"
+    assert result.rationale.startswith(verify_module.UNBACKED_VERDICT_NOTE)
+    assert len(result.evidence) == 1
+
+
+async def test_the_same_citation_twice_does_not_back_changed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _Fakes(monkeypatch, [_result()], _answer("CHANGED", (1, "supports"), (1, "contradicts")))
+
+    assert (await _verify()).verdict == "INSUFFICIENT"
+
+
+async def test_prompt_asks_for_changed_on_partial_claims(monkeypatch: pytest.MonkeyPatch) -> None:
+    fakes = _Fakes(monkeypatch, [_result()], _answer("SUPPORTED", (1, "supports")))
+
+    await _verify()
+
+    assert "responde CHANGED, nunca SUPPORTED ni CONTRADICTED" in fakes.prompts[0]["system"]
+
+
 async def test_directional_verdict_without_evidence_is_insufficient(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

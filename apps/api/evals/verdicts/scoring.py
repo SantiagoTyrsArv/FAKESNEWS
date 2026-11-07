@@ -9,7 +9,7 @@ Grade = Literal["ok", "fail", "severe", "error"]
 EXPECTED: dict[Kind, frozenset[Verdict]] = {
     "false": frozenset({"CONTRADICTED"}),
     "true": frozenset({"SUPPORTED"}),
-    "mixed": frozenset({"CONTRADICTED", "INSUFFICIENT"}),
+    "mixed": frozenset({"CHANGED"}),
     # Nobody published anything about it: there is nothing to contradict it with.
     "invented": frozenset({"INSUFFICIENT"}),
 }

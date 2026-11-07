@@ -48,8 +48,8 @@ ajuste al cálculo del score en sí.
 Al terminar `verify` para una afirmación, `sources/reputation.py` decide si actualizar
 reputación siguiendo estas reglas, en orden:
 
-1. **El veredicto de la afirmación no puede ser `INSUFFICIENT`.** Sin veredicto claro no
-   hay nada que puntuar.
+1. **El veredicto de la afirmación no puede ser `INSUFFICIENT` ni `CHANGED`.** Sin veredicto
+   claro no hay nada que puntuar, y una fuente de 2022 con el dato de entonces no se equivocó.
 2. **Solo cuenta evidencia direccional** (`stance` = `supports` o `contradicts`).
    La evidencia `neutral` no participa ni en el conteo de independencia ni en el consenso.
 3. **Deduplicación por independencia**: las fuentes que comparten `syndication_group`

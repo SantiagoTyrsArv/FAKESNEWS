@@ -92,6 +92,7 @@ async def build_report(
         summary=ReportSummary(
             total_claims=len(claims),
             supported=verdicts["SUPPORTED"],
+            changed=verdicts["CHANGED"],
             contradicted=verdicts["CONTRADICTED"],
             insufficient=verdicts["INSUFFICIENT"],
             failed=sum(c.verification_failed for c in claims),

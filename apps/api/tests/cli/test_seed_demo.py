@@ -90,6 +90,7 @@ async def test_seeded_user_can_log_in_and_read_a_report(
     assert report["summary"] == {
         "total_claims": 3,
         "supported": 1,
+        "changed": 0,
         "contradicted": 1,
         "insufficient": 1,
         "failed": 0,
