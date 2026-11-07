@@ -40,6 +40,7 @@ UNSEARCHABLE_DOMAINS = frozenset(
     }
 )
 _BLOCKED_DOMAINS_ERROR = "not accessible to our user agent"
+_JSON_DECODER = json.JSONDecoder()
 
 SYSTEM_PROMPT = """Eres un asistente de verificación de hechos. Tu única tarea es \
 investigar UNA afirmación usando la herramienta de búsqueda web (restringida a un \
@@ -153,16 +154,33 @@ def _extract_real_results(content: list) -> dict[str, str | None]:
     return real
 
 
+def _last_verdict_object(text: str) -> str | None:
+    """The last top-level JSON object with a verdict, wherever it sits in the text."""
+    found = None
+    start = text.find("{")
+    while start != -1:
+        next_search = start + 1
+        try:
+            value, end = _JSON_DECODER.raw_decode(text, start)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(value, dict) and "verdict" in value:
+                found = text[start:end]
+                next_search = end
+        start = text.find("{", next_search)
+    return found
+
+
 def _extract_final_json_text(content: list) -> str | None:
+    """The verdict JSON of the answer. The model may write prose or a code
+    fence around it, despite the prompt, and citations split the text into
+    several blocks, so no single block can be trusted to be the JSON."""
     text_blocks = [block.text for block in content if getattr(block, "type", None) == "text"]
     if not text_blocks:
         return None
-    candidate = text_blocks[-1].strip()
-    if candidate.startswith("```"):
-        candidate = candidate.strip("`")
-        if candidate.startswith("json"):
-            candidate = candidate[len("json") :]
-    return candidate.strip()
+    text = "".join(text_blocks)
+    return _last_verdict_object(text) or text.strip()
 
 
 async def verify_claim(
