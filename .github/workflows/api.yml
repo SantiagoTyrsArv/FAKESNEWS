@@ -37,6 +37,6 @@ jobs:
       # Wheels only and no project install, like the Dockerfile: nothing runs a
       # package's build scripts. pytest finds the app through pythonpath.
       - run: uv sync --frozen --no-install-project --no-build
-      - run: uv run --frozen --no-install-project --no-build ruff check .
-      - run: uv run --frozen --no-install-project --no-build ruff format --check .
-      - run: uv run --frozen --no-install-project --no-build python -m pytest -q
+      - run: uv run --frozen --no-sync --no-build ruff check .
+      - run: uv run --frozen --no-sync --no-build ruff format --check .
+      - run: uv run --frozen --no-sync --no-build python -m pytest -q
