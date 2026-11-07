@@ -2,20 +2,29 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as redis_asyncio
-from sqlalchemy import func, select
+from redis.exceptions import RedisError
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.core.queue import enqueue
 from app.core.rate_limit import RateLimitExceeded, check_rate_limit
 from app.modules.pipeline.models import Claim
 from app.modules.submissions.models import Submission
 
 settings = get_settings()
+logger = get_logger(__name__)
 
 TERMINAL_STATUSES = ("done", "failed")
+ENQUEUE_FAILURE = "No se pudo poner el caso en cola. Envíalo de nuevo en un momento."
+STUCK_FAILURE = "El análisis no terminó a tiempo. Envía el caso de nuevo."
 _DAY = timedelta(days=1)
 _IN_FLIGHT_WINDOW = timedelta(hours=1)
+# Past the job timeout, nothing is working on a case. With this margin the
+# limit is 20 minutes, when the query in infra/modules/worker.bicep also stops
+# waking the worker: a case still queued by then will never start.
+_STUCK_MARGIN = timedelta(minutes=5)
 
 
 class SubmissionNotFoundError(Exception):
@@ -26,6 +35,10 @@ class InputTypeDisabledError(Exception):
     pass
 
 
+class SubmissionEnqueueError(Exception):
+    pass
+
+
 class SubmissionQuotaError(Exception):
     """The user spent part of their budget; `message` says which one."""
 
@@ -33,6 +46,32 @@ class SubmissionQuotaError(Exception):
         super().__init__(message)
         self.message = message
         self.retry_after_seconds = retry_after_seconds
+
+
+async def _fail_stuck_cases(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Close the user's cases nothing will ever finish: the job or the queue
+    was lost. It runs on the API, not on a schedule in the worker, because the
+    worker scales to zero once no recent case is pending."""
+    limit = timedelta(seconds=settings.pipeline_job_timeout_seconds) + _STUCK_MARGIN
+    result = await db.execute(
+        update(Submission)
+        .where(
+            Submission.user_id == user_id,
+            Submission.status.not_in(TERMINAL_STATUSES),
+            Submission.created_at < datetime.now(UTC) - limit,
+        )
+        .values(status="failed", error=STUCK_FAILURE)
+    )
+    if result.rowcount:
+        logger.warning("submissions_marked_stuck", user_id=str(user_id), count=result.rowcount)
+        await db.commit()
+
+
+async def _serialize_user(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Make one user's submissions take turns until commit, so parallel ones
+    can't all pass the quota. SQLite has no advisory locks."""
+    if db.get_bind().dialect.name == "postgresql":
+        await db.execute(select(func.pg_advisory_xact_lock(user_id.int % 2**63)))
 
 
 async def _check_quota(
@@ -126,6 +165,8 @@ async def create_submission(
     if input_type == "video" and not settings.video_ingest_enabled:
         raise InputTypeDisabledError()
 
+    await _fail_stuck_cases(db, user_id)
+    await _serialize_user(db, user_id)
     await _check_quota(db, redis_client, user_id)
 
     submission = Submission(
@@ -138,7 +179,15 @@ async def create_submission(
     await db.commit()
     await db.refresh(submission)
 
-    await enqueue("run_pipeline", str(submission.id))
+    try:
+        await enqueue("run_pipeline", str(submission.id))
+    except (RedisError, OSError) as exc:
+        # Without a job the case would count as active until it went stale.
+        logger.error("submission_enqueue_failed", submission_id=str(submission.id), error=str(exc))
+        submission.status = "failed"
+        submission.error = ENQUEUE_FAILURE
+        await db.commit()
+        raise SubmissionEnqueueError() from exc
 
     return submission
 
@@ -146,6 +195,7 @@ async def create_submission(
 async def get_submission(
     db: AsyncSession, *, submission_id: uuid.UUID, user_id: uuid.UUID
 ) -> Submission:
+    await _fail_stuck_cases(db, user_id)
     result = await db.execute(
         select(Submission).where(Submission.id == submission_id, Submission.user_id == user_id)
     )
@@ -156,6 +206,7 @@ async def get_submission(
 
 
 async def list_submissions(db: AsyncSession, *, user_id: uuid.UUID) -> list[Submission]:
+    await _fail_stuck_cases(db, user_id)
     result = await db.execute(
         select(Submission)
         .where(Submission.user_id == user_id)

@@ -32,3 +32,5 @@ class WorkerSettings:
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     job_timeout = settings.pipeline_job_timeout_seconds
+    # What `arq --check` reads in the docker-compose healthcheck.
+    health_check_interval = 30

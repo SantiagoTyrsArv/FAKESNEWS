@@ -57,6 +57,12 @@ async def create_submission(
             exc.message,
             headers={"Retry-After": str(exc.retry_after_seconds)},
         ) from exc
+    except service.SubmissionEnqueueError as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            service.ENQUEUE_FAILURE,
+            headers={"Retry-After": "30"},
+        ) from exc
     return _to_response(submission)
 
 
