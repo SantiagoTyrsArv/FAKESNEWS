@@ -21,6 +21,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Only the Dockerfile sets this. Vercel builds its own way, and on Windows a
+  // standalone build can need extra privileges for its symlinks.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // No "X-Powered-By: Next.js": don't advertise the stack.
   poweredByHeader: false,
   headers() {
