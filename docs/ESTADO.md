@@ -56,9 +56,9 @@
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Confirmar la clave en producción con un envío real:** el dueño cambió `anthropic-api-key` en Key Vault el 2026-11-07 a las 02:52 UTC, y la API y el worker se reiniciaron a las 02:58 UTC. No se ha hecho ninguna llamada real desde producción (un envío grande cuesta hasta ~1,60 USD).
+2. **Confirmar la clave en producción:** tras cambiar el secreto y reiniciar, un envío real del dueño salió «sin evidencia suficiente». La afirmación parece inventada, así que puede ser correcto, pero falta ver si Claude llegó a buscar. Basta con mirar la explicación del reporte: «No se pudo completar la verificación» indica fallo. También sirve `llm_usage` en Log Analytics, que requiere `az login --scope https://api.loganalytics.io/.default`.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
-4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación que Colombiacheck califica de «Cuestionable» (error grave de la evaluación). Falta `co-mixto-2`, que no corrió por el tope de gasto (unos 0,20 USD, necesita aprobación).
+4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
    - la app usa el usuario administrador de Postgres;
@@ -88,11 +88,12 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 Informe en `apps/api/evals/verdicts/results/2026-11-06_195418.md`. Con `anthropic` 2.4.0 y `claude-sonnet-5-5`.
 
 - **`anthropic` 2.4.0 funciona con llamadas reales:** 3 casos completos y ningún error de ejecución.
-- **Resultado:** 2 aciertos de 3, y 1 de 2 sin contar los casos contaminados. Junto con la ejecución del 2026-11-03 son 4 de 5.
+- **Resultado de los 3 primeros casos:** 2 aciertos de 3, y 1 de 2 sin contar los casos contaminados.
 - **Error grave en `co-mixto-1`:** «la inflación cayó del 13% a cerca del 5%» salió `SUPPORTED`, con Colombiacheck en «Cuestionable». La explicación sí menciona que después repuntó a 6,29%, pero el veredicto no lo refleja. Se esperaba `CONTRADICTED` o `INSUFFICIENT`. La app no tiene un veredicto intermedio para lo que es cierto solo en parte.
-- **Sin correr:** `co-mixto-2`, por el tope de 0,55 USD.
+- **`co-mixto-2`:** corrió aparte (informe `2026-11-06_201320.md`), con `CONTRADICTED`, acierto contaminado y 0,10 USD. `--max-usd` debe ser al menos 0,35, porque el script reserva esa cantidad para el primer caso.
+- **Los 6 casos:** 5 aciertos de 6, pero solo 2 casos sin contaminar, con 1 acierto y el error grave de `co-mixto-1`. La muestra es pequeña.
 - **Gasto:** 0,45 USD, más que los 0,35 USD estimados. El caso con 3 búsquedas costó 0,20 USD, por encima de los 0,085 USD por afirmación medidos antes. Un envío de 8 afirmaciones podría costar hasta unos **1,60 USD**, no 0,70 USD.
-- **Gasto acumulado de la evaluación:** 0,62 USD. Quedan unos 4,38 USD si los créditos no cambiaron con la clave nueva.
+- **Gasto acumulado de la evaluación:** 0,72 USD, sin contar el envío real del dueño. Quedan unos 4,28 USD si los créditos no cambiaron con la clave nueva.
 
 ## Limpieza del 2026-11-07: ramas y Railway
 
