@@ -219,7 +219,7 @@ DEMO_CASES = [
         "status": "failed",
         "error": (
             "Caso de demostración: así se ve un fallo del pipeline (p. ej. sin "
-            "ANTHROPIC_API_KEY el paso de extracción de afirmaciones no puede ejecutarse)."
+            "GEMINI_API_KEY el paso de extracción de afirmaciones no puede ejecutarse)."
         ),
         "age": timedelta(hours=3),
         "claims": [],

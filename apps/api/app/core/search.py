@@ -16,7 +16,7 @@ SEARCH_DEPTH = "advanced"
 CREDITS_PER_SEARCH = 2
 MAX_RESULTS = 8
 MAX_QUERY_CHARS = 400
-TIMEOUT_SECONDS = 15
+TIMEOUT_SECONDS = 10
 RETRY_WAIT_SECONDS = 1
 # Tavily's codes for a used-up plan and a used-up pay-as-you-go limit.
 QUOTA_STATUSES = frozenset({432, 433})

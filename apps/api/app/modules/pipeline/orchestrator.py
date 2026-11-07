@@ -24,9 +24,18 @@ logger = get_logger(__name__)
 GENERIC_FAILURE = (
     "No se pudo completar el análisis de este caso. Intenta enviarlo de nuevo más tarde."
 )
+QUOTA_FAILURE = "Se agotó la cuota gratuita de verificación. Intenta de nuevo más tarde."
 TIMEOUT_FAILURE = "El análisis superó el tiempo máximo permitido y se detuvo."
 INTERRUPTED_FAILURE = "El análisis se interrumpió antes de terminar. Envía el caso de nuevo."
 ALL_CLAIMS_FAILED_MESSAGE = "No pudimos verificar ninguna afirmación. Intenta de nuevo más tarde."
+
+
+def _user_error(exc: Exception) -> str:
+    if isinstance(exc, ingest_module.IngestError):
+        return str(exc)
+    if isinstance(exc, claims_module.ClaimsQuotaError):
+        return QUOTA_FAILURE
+    return GENERIC_FAILURE
 
 
 async def _set_status(
@@ -203,7 +212,7 @@ async def _run_pipeline(submission_id: str) -> None:
             logger.error("run_pipeline_failed", submission_id=submission_id, error=str(exc))
             # IngestError messages are written for the user (empty text, video
             # too long, URL not allowed); anything else stays in the logs.
-            user_error = str(exc) if isinstance(exc, ingest_module.IngestError) else GENERIC_FAILURE
+            user_error = _user_error(exc)
             await db.rollback()
             failed_submission = await db.get(Submission, uuid.UUID(submission_id))
             if failed_submission is not None:

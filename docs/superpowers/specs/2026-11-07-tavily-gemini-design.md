@@ -95,7 +95,7 @@ Se mantiene la regla actual: un veredicto direccional sin evidencia que lo respa
 
 ### 6.4 Extracción de afirmaciones
 
-Mismo prompt y mismo esquema, con Gemini y salida estructurada. El máximo baja de 8 a 4 afirmaciones por envío, tanto en `MAX_CLAIMS_PER_SUBMISSION` como en el prompt y en el esquema, que hoy fijan 8.
+Mismo prompt y mismo esquema, con Gemini y salida estructurada. El máximo baja de 8 a 4 afirmaciones por envío, en `MAX_CLAIMS_PER_SUBMISSION` y en el prompt. Si el modelo devuelve más, o una afirmación demasiado larga, se recorta en lugar de perder el caso.
 
 ### 6.5 Fallos técnicos
 

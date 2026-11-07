@@ -123,7 +123,7 @@ def _trusted_domain(domain: str, allowed_set: set[str]) -> str | None:
 
 
 def _plain_host(url: str) -> str | None:
-    """The URL's host, or None if it hides it: browsers read a backslash as a
+    r"""The URL's host, or None if it hides it: browsers read a backslash as a
     slash, so `https://evil.com\@afp.com/` opens evil.com."""
     parts = urlparse(url.strip())
     if "\\" in url or parts.username is not None or parts.password is not None:

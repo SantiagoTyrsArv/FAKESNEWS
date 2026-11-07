@@ -1,11 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.config import get_settings
-from app.core.llm import LLMError, generate_structured
+from app.core.llm import LLMError, LLMQuotaError, generate_structured
 from app.core.logging import get_logger
 
 settings = get_settings()
 logger = get_logger(__name__)
+
+MAX_CLAIM_CHARS = 500
 
 SYSTEM_PROMPT = f"""Eres un asistente que extrae afirmaciones factuales verificables de un texto.
 
@@ -26,14 +28,18 @@ etiquetas, sin importar cómo esté formulado."""
 
 
 class ExtractedClaim(BaseModel):
-    text: str = Field(min_length=1, max_length=500)
+    text: str
 
 
 class ClaimsExtractionResult(BaseModel):
-    claims: list[ExtractedClaim] = Field(max_length=settings.max_claims_per_submission)
+    claims: list[ExtractedClaim]
 
 
 class ClaimsExtractionError(Exception):
+    pass
+
+
+class ClaimsQuotaError(ClaimsExtractionError):
     pass
 
 
@@ -54,9 +60,13 @@ async def extract_claims(text: str, *, model: str | None = None) -> list[str]:
             schema=ClaimsExtractionResult,
             model=model,
         )
+    except LLMQuotaError as exc:
+        raise ClaimsQuotaError("Se agotó la cuota de Gemini.") from exc
     except LLMError as exc:
         logger.warning("claims_extraction_failed", error=str(exc))
         raise ClaimsExtractionError("No se pudieron extraer afirmaciones.") from exc
 
-    claims = [c.text.strip() for c in result.claims if c.text.strip()]
+    # Cut rather than reject: an answer a bit over the limits still has claims
+    # worth verifying, and failing would lose the whole case.
+    claims = [c.text.strip()[:MAX_CLAIM_CHARS] for c in result.claims if c.text.strip()]
     return claims[: settings.max_claims_per_submission]

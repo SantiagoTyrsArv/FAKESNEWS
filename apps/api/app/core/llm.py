@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 TIMEOUT_SECONDS = 20
 RETRY_WAIT_SECONDS = 2
-MAX_RETRY_WAIT_SECONDS = 30
+MAX_RETRY_WAIT_SECONDS = 10
 RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
 # A project on prepay with no balance: waiting does not help.
 QUOTA_STATUSES = frozenset({402})
@@ -60,6 +60,14 @@ def _parse[T: BaseModel](response: httpx.Response, schema: type[T], step: str, m
         raise LLMError("La respuesta de Gemini no cumple el esquema") from exc
 
 
+def _raise_unless_retryable(status: int) -> None:
+    if status in QUOTA_STATUSES:
+        logger.error("llm_quota_exhausted", status=status)
+        raise LLMQuotaError(f"Gemini respondió {status}")
+    if status not in RETRYABLE_STATUSES:
+        raise LLMError(f"Gemini respondió {status}")
+
+
 async def generate_structured[T: BaseModel](
     *, step: str, system: str, user: str, schema: type[T], model: str | None = None
 ) -> T:
@@ -86,20 +94,12 @@ async def generate_structured[T: BaseModel](
             error = LLMError(f"Fallo de red con Gemini: {type(exc).__name__}")
             continue
 
-        if response.status_code in QUOTA_STATUSES:
-            logger.error("llm_quota_exhausted", status=response.status_code)
-            raise LLMQuotaError(f"Gemini respondió {response.status_code}")
-        if response.status_code in RETRYABLE_STATUSES:
-            wait = _retry_wait(response)
-            error = (
-                LLMQuotaError("Gemini respondió 429")
-                if response.status_code == 429
-                else LLMError(f"Gemini respondió {response.status_code}")
-            )
-            continue
-        if response.status_code != 200:
-            raise LLMError(f"Gemini respondió {response.status_code}")
-        return _parse(response, schema, step, model_name)
+        if response.status_code == 200:
+            return _parse(response, schema, step, model_name)
+        _raise_unless_retryable(response.status_code)
+        wait = _retry_wait(response)
+        kind = LLMQuotaError if response.status_code == 429 else LLMError
+        error = kind(f"Gemini respondió {response.status_code}")
 
     if isinstance(error, LLMQuotaError):
         logger.error("llm_quota_exhausted", status=429)

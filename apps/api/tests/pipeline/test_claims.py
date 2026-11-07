@@ -1,11 +1,11 @@
 import pytest
-from pydantic import ValidationError
 
-from app.core.llm import LLMError
+from app.core.llm import LLMError, LLMQuotaError
 from app.modules.pipeline import claims as claims_module
 from app.modules.pipeline.claims import (
     ClaimsExtractionError,
     ClaimsExtractionResult,
+    ClaimsQuotaError,
     ExtractedClaim,
 )
 
@@ -66,11 +66,33 @@ async def test_extract_claims_raises_on_llm_errors(monkeypatch: pytest.MonkeyPat
         await claims_module.extract_claims("texto")
 
 
-def test_extraction_schema_allows_four_claims() -> None:
-    claims = [ExtractedClaim(text="x")] * 5
+async def test_extra_claims_are_cut_instead_of_failing_the_case(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    answer = ClaimsExtractionResult.model_validate(
+        {"claims": [{"text": f"Afirmación {i}."} for i in range(6)]}
+    )
+    _fake(monkeypatch, answer)
 
-    with pytest.raises(ValidationError):
-        ClaimsExtractionResult(claims=claims)
+    assert len(await claims_module.extract_claims("texto")) == 4
+
+
+async def test_a_very_long_claim_is_cut_instead_of_failing_the_case(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    answer = ClaimsExtractionResult.model_validate({"claims": [{"text": "x" * 900}]})
+    _fake(monkeypatch, answer)
+
+    claims = await claims_module.extract_claims("texto")
+
+    assert len(claims[0]) == claims_module.MAX_CLAIM_CHARS
+
+
+async def test_quota_during_extraction_has_its_own_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake(monkeypatch, LLMQuotaError("Gemini respondió 429"))
+
+    with pytest.raises(ClaimsQuotaError):
+        await claims_module.extract_claims("texto")
 
 
 def test_prompt_asks_for_at_most_four_claims() -> None:

@@ -138,7 +138,7 @@ class Settings(BaseSettings):
 
     max_claims_per_submission: int = Field(default=4, alias="MAX_CLAIMS_PER_SUBMISSION")
     verify_concurrency_limit: int = Field(default=2, alias="VERIFY_CONCURRENCY_LIMIT")
-    verify_timeout_seconds: int = Field(default=30, alias="VERIFY_TIMEOUT_SECONDS")
+    verify_timeout_seconds: int = Field(default=75, alias="VERIFY_TIMEOUT_SECONDS")
     # Hard ceiling for one whole case in the worker. Past it arq cancels the
     # job and the orchestrator marks the case failed.
     pipeline_job_timeout_seconds: int = Field(default=900, alias="PIPELINE_JOB_TIMEOUT_SECONDS")
