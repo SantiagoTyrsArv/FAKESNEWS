@@ -98,6 +98,15 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
 
+## Diseño del veredicto parcial (en curso)
+
+Conversación de diseño empezada el 2026-11-07, con la skill de brainstorming. **No hay especificación ni código todavía.**
+
+- **Lo que dijo el dueño:** ante una afirmación como «la inflación cayó del 13 % a cerca del 5 %», el usuario debe entender que hubo una actualización reciente, y poder ver un historial de lo anterior o ir a la noticia donde aparecía ese dato.
+- **Interpretación, pendiente de confirmar:** más que un «a medias» es un «fue cierto, pero cambió». Se mostraría como una línea de tiempo dentro de la afirmación, ordenada por fecha, con cada punto enlazado a su fuente. No haría falta guardar datos nuevos: las evidencias ya traen fecha y enlace.
+- **Pregunta abierta para el dueño:** `co-mixto-2` no está desactualizada, sino que tiene una parte cierta y otra falsa. ¿Se muestra igual que «cambió con el tiempo», o el usuario debe ver que son dos situaciones distintas?
+- **Después:** seguir la conversación, escribir la especificación en `superpowers/specs/`, aprobarla y hacer el plan. Afecta al esquema de `verify.py`, a la reputación, a `evals/verdicts/scoring.py`, al reporte de la web y a la columna `verdict`.
+
 ## Resumen de la sesión del 2026-11-06 y 2026-11-07
 
 Para quien retome: en orden, se corrigieron los avisos de OSV y Dependabot, se creó el CI de la API, se integró el lote de Dependabot, se borró Railway y las ramas viejas, se probó Claude con una clave nueva, y se descubrió que el parser descartaba veredictos válidos. Un artículo agotó los créditos de Anthropic, y la verificación se migró a Tavily y Gemini. El detalle está en las secciones siguientes.
@@ -254,7 +263,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07. Falta confirmar la purga después del 2026-11-09.
-1. **Veredicto para lo que es cierto solo en parte:** la evaluación completa da 7 de 8, pero `co-mixto-1` cambia entre ejecuciones por esta carencia. Es la mejora de calidad más importante. Además conviene ampliar la evaluación: de 8 casos, 5 están contaminados. Correrla es gratis, pero gasta unos 16 créditos de Tavily.
+1. **Veredicto para lo que es cierto solo en parte (diseño en curso, sin código):** es la mejora de calidad más importante, porque `co-mixto-1` cambia entre ejecuciones por esta carencia. Se está definiendo con el dueño, y el estado está en «Diseño del veredicto parcial». Además conviene ampliar la evaluación: de 8 casos, 5 están contaminados. Correrla es gratis, pero gasta unos 16 créditos de Tavily.
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. **Robustez del backend** (AUDITORIA.md §7):
    - bloqueos de fila en refresh y en códigos de recuperación (B-02);
