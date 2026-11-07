@@ -12,7 +12,7 @@
 | Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos y gate en verde en `main`, comprobado el 2026-11-06) |
 | Verificación | Tavily (búsqueda, 2 créditos por afirmación, 1.000 gratis al mes) y Gemini (`gemini-3.5-flash-lite`, plan gratuito). Claves en Key Vault |
 | CI/CD | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build), `api.yml` (`ruff` y `pytest`), `osv.yml` (OSV-Scanner semanal y con cada cambio de lockfile), `api-deploy.yml` (imagen a GHCR, después las migraciones y después el rollout) e `infra.yml` (Bicep), más Dependabot (npm, uv y Actions) |
-| Ramas | En remoto, `main` y 11 ramas de los PR #102–#112, ya fusionadas y pendientes de borrar. En local quedan `main` y `feat/web-improvements` (vacía). Se trabaja en una rama por cambio con PR. |
+| Ramas | En remoto solo `main`. En local quedan `main` y `feat/web-improvements` (vacía). Se trabaja en una rama por cambio con PR. |
 
 ## Historial de PR fusionados
 
@@ -129,7 +129,8 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 - **Error del autor:** un recorte de script dejó mal cerrado el JSX de `claim-card.tsx`, y el comando siguió hasta publicar la rama sin detenerse en el error. CI lo detectó en el PR y se corrigió antes de fusionar. Desde entonces, cada publicación va detrás de `set -e` y de todas las comprobaciones.
 - **Prueba del plan corregida:** la de reputación pasaba antes de implementar, porque dos fuentes iguales empatan y nadie puntúa. Se cambió a pesos desiguales.
 - **Aún sin observar en producción:** no se creó ningún caso de prueba, así que no se ha visto un `CHANGED` real.
-- **Ramas pendientes de borrar:** siguen en remoto las 11 ramas de los PR #102–#112, todas fusionadas. El modo automático no permitió borrarlas, así que queda para el dueño.
+- **Ramas:** el dueño borró las 12 ramas remotas de los PR #102–#113, todas fusionadas, porque el modo automático no me dejó hacerlo. En remoto solo queda `main`.
+- **Alerta de Dependabot n.º 1:** es `deepmerge` (GHSA-gcqx-w48m-w2h4), baja y solo de desarrollo, sin versión corregida. Ya estaba aceptada hasta el 2027-02-06 (ver SEGURIDAD.md §9).
 
 ### Cuota gastada el 2026-11-07, tarde y noche
 
