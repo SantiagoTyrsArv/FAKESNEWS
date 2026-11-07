@@ -96,8 +96,11 @@ export function getSubmission(id: string) {
   return apiFetch<Submission>(`/submissions/${encodeURIComponent(id)}`);
 }
 
-export function listSubmissions() {
-  return apiFetch<{ submissions: Submission[] }>("/submissions");
+export function listSubmissions(cursor?: string) {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return apiFetch<{ submissions: Submission[]; next_cursor?: string | null }>(
+    `/submissions${query}`,
+  );
 }
 
 export function getReport(id: string) {

@@ -1,7 +1,17 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -30,7 +40,10 @@ class Source(Base):
 
 class SourceScoreEvent(Base):
     __tablename__ = "source_score_events"
-    __table_args__ = (UniqueConstraint("source_id", "claim_id", name="uq_source_score_event"),)
+    __table_args__ = (
+        UniqueConstraint("source_id", "claim_id", name="uq_source_score_event"),
+        Index("ix_source_score_events_source_created", "source_id", text("created_at DESC")),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     source_id: Mapped[uuid.UUID] = mapped_column(
