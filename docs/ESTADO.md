@@ -65,7 +65,7 @@
 
 Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo primero en la próxima sesión:
 
-0. **Anthropic está retirado:** el SDK salió en el #90 y el secreto `anthropic-api-key` se borró el 2026-11-07, tras comprobar que ninguna app ni job lo usaba. Key Vault permite recuperarlo durante 7 días. Queda revocar la clave en la consola de Anthropic.
+0. **Anthropic está retirado:** el SDK salió en el #90 y el dueño borró el secreto `anthropic-api-key` el 2026-11-07 a las 05:12 UTC. Ninguna app ni job lo usa. Key Vault permite recuperarlo hasta el 2026-11-14, igual que `gemini-key` y `travily-key`, los nombres anteriores de los secretos nuevos. Queda revocar la clave en la consola de Anthropic.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
 2. **Mejorar las evidencias del reporte:** con `advanced`, Tavily devuelve fragmentos muy largos que incluyen menús y texto de la página, y la fecha sale en formato crudo. También hay que **vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
