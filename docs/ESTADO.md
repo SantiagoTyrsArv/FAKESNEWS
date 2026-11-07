@@ -51,14 +51,23 @@
 | #75 | `docs/status-2026-11-06` | Registro del resultado del #63 |
 | #76 | `ci/api-tests` | CI de la API y escaneo semanal con OSV-Scanner (cierra H-10) |
 | #77 | `chore/dependency-updates-2026-11-06` | Lote de Dependabot #64–#74: `next` 16.4.5 con correcciones de seguridad, `anthropic` 2.4.0 y otros |
+| #78 | `chore/remove-railway` | Se quitan `railway.toml`, `apps/api/railway.worker.toml` y `infra/scripts/dump-railway.sh` |
+| #79, #80, #82 | `docs/*` | Registro de la clave rechazada y de la evaluación de veredictos con Claude |
+| #81 | `docs/key-vault-rotation` | Registro del cambio de `anthropic-api-key` |
+| #83, #84 | `fix/verify-json-parsing`, `fix/verify-json-strict` | Lectura del veredicto cuando el modelo lo envolvía en texto. El #88 lo sustituyó |
+| #85, #86 | `docs/tavily-gemini-spec`, `docs/tavily-gemini-plan` | Diseño y plan de la migración |
+| #87 | `feat/verification-failures` | `verification_failed`, topes de uso y aviso en `/submit`. Migración `c4e8a1d27b90` |
+| #88 | `feat/tavily-gemini` | **La verificación pasa a Tavily y Gemini** |
+| #89 | `docs/tavily-gemini-live` | Registro del cambio en producción |
+| #90 | `chore/remove-anthropic` | Se retira el SDK de Anthropic y sus ajustes |
 
 ## Para retomar (2026-11-07)
 
-Producción funciona sobre Azure. Lo primero en la próxima sesión:
+Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo primero en la próxima sesión:
 
-0. **Borrar el secreto `anthropic-api-key` de Key Vault** cuando el dueño lo confirme. El SDK y sus ajustes ya se retiraron, antes de la semana prevista y a petición suya. La clave ya no se usa.
+0. **Confirmar que el #90 se fusionó y se desplegó:** si no, revisar el CI y `api-deploy`. Después, **borrar el secreto `anthropic-api-key` de Key Vault** cuando el dueño lo confirme. El SDK y sus ajustes ya se retiraron, antes de la semana prevista y a petición suya. La clave ya no se usa.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
+2. **Preguntar al dueño qué mostró el reporte de su envío real de Ueno** (`f74facf7`). Los logs prueban que corrió sin errores, pero no guardan el veredicto. También hay que **vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
@@ -84,6 +93,16 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 - **CI de la API (#76):** Sonar exigió `--no-build` (regla `githubactions:S8541`). `uv run` no acepta `--no-install-project`, solo `uv sync`, por eso los pasos usan `--no-sync --no-build`.
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
+
+## Resumen de la sesión del 2026-11-06 y 2026-11-07
+
+Para quien retome: en orden, se corrigieron los avisos de OSV y Dependabot, se creó el CI de la API, se integró el lote de Dependabot, se borró Railway y las ramas viejas, se probó Claude con una clave nueva, y se descubrió que el parser descartaba veredictos válidos. Un artículo agotó los créditos de Anthropic, y la verificación se migró a Tavily y Gemini. El detalle está en las secciones siguientes.
+
+- **Estado de la cuenta de Anthropic:** sin créditos, según el dueño. No se usa.
+- **Tavily:** 1.000 créditos al mes, con unos 50 usados en estas pruebas. La CLI `tvly` y 6 skills globales quedaron instalados en el equipo del dueño, y `~/.tavily/config.json` guarda su clave.
+- **Gemini:** la primera clave era de un proyecto de prepago sin saldo. Producción usa una de un proyecto sin facturación.
+- **Revisión final:** se hizo una revisión independiente de toda la rama del #88. Sus hallazgos se corrigieron antes de fusionar, salvo los riesgos aceptados de [SEGURIDAD.md §10](SEGURIDAD.md#10-cambio-de-proveedor-del-2026-11-07).
+- **Limitaciones de operar desde esta sesión:** `az` pide renovar la MFA con frecuencia y por recurso. Hay que usar `az login --tenant 8d36836e-6b75-4de6-bab9-5f4b1775427f`.
 
 ## Migración a Tavily y Gemini (2026-11-07)
 
@@ -231,22 +250,22 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07. Falta confirmar la purga después del 2026-11-09.
-1. **Evaluación de veredictos (en curso):** correr los 4 casos restantes (`co-falso-2`, `co-verdadero-2`, `co-mixto-1` y `co-mixto-2`), unos 0,35 USD, **solo con la aprobación del dueño**. Después, con datos, decidir si se abarata producción: `effort: medium` en `verify`, búsquedas máximas de 5 a 3 y afirmaciones por envío de 8 a 4. Cada cambio va aparte y se mide con la evaluación. Mejoras menores pendientes de la evaluación: si se interrumpe con Ctrl+C se pierden los resultados, y `--dry-run` no avisa cuando el máximo estimado pasa el tope.
-2. ~~**CI de la API**~~ Hecho en el #76. Falta que `api-deploy` dependa de las pruebas.
+1. **Veredicto para lo que es cierto solo en parte:** la evaluación completa da 7 de 8, pero `co-mixto-1` cambia entre ejecuciones por esta carencia. Es la mejora de calidad más importante. Además conviene ampliar la evaluación: de 8 casos, 5 están contaminados. Correrla es gratis, pero gasta unos 16 créditos de Tavily.
+2. **Proteger `main` y hacer que `api-deploy` dependa de las pruebas:** ahora corren en paralelo, así que una prueba en rojo no detiene un despliegue.
 3. **Robustez del backend** (AUDITORIA.md §7):
    - bloqueos de fila en refresh y en códigos de recuperación (B-02);
    - recolector de casos colgados y healthcheck del worker (B-03, O-04);
    - índices y paginación de `/submissions` (B-04, B-05);
    - tope de tamaño en yt-dlp;
    - `output: "standalone"` en la imagen web.
-4. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal. Ya hay créditos, pero el dueño eligió primero la evaluación de veredictos. Un e2e completo gasta ~0,70 USD por envío.
+4. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal. Un e2e completo ya no gasta dinero, solo cuota gratuita.
 5. **Largo plazo:**
-   - subir el mínimo de `anthropic` en `pyproject.toml` a `>=2.1` (el lock ya tiene 2.1.0), TypeScript 7 y ESLint 10;
-   - salidas estructuradas en `verify`;
+   - TypeScript 7 y ESLint 10;
    - observabilidad (alertas, métricas, backups probados);
    - Server Components para la portada y `/sources`.
 6. **Detalles menores:**
    - el `import("lenis")` no tiene `.catch`;
+   - sin fuentes de confianza configuradas, `verify_claim` devuelve `INSUFFICIENT` y no un fallo técnico;
    - pendientes de animación anotados en sesiones anteriores: SplitText antes de que carguen las fuentes, máscaras que recortan los descendentes y el cursor, que no se reclasifica al hacer scroll.
 
 ## Cómo se trabaja en este repositorio
