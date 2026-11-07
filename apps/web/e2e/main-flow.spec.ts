@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mockApi, VERDICT_LABEL } from "./mock-api";
+import { CASE_ID, changedReport, mockApi, VERDICT_LABEL } from "./mock-api";
 
 // With E2E_REAL=1 it runs against a real local API and worker, which spends
 // free search and model quota: never against production. Otherwise the API is
@@ -41,6 +41,23 @@ test("register, sign in, send a case and read its report", async ({ page, contex
     await expect(page.getByText("Un caso anterior")).toBeVisible();
     await expect(page.getByRole("button", { name: "Cargar más" })).toBeHidden();
   }
+});
+
+test("a CHANGED claim shows its sources oldest first", async ({ page, context }) => {
+  test.skip(REAL, "needs a report with a known shape");
+  await mockApi(page, context, changedReport());
+  await context.addCookies([{ name: "access_token", value: "e2e", domain: "localhost", path: "/" }]);
+
+  await page.goto(`/reports/${CASE_ID}`);
+
+  await expect(page.getByText("Cambió con el tiempo").first()).toBeVisible({ timeout: 10_000 });
+  const items = page.getByTestId("timeline-item");
+  await expect(items).toHaveCount(2);
+  await expect(items.first()).toContainText("2022");
+  await expect(items.nth(1)).toContainText("2026");
+  await expect(page.getByText("Sin fecha")).toBeVisible();
+  await expect(page.getByText("NaN")).toHaveCount(0);
+  await expect(page.getByText("con cambios en el tiempo")).toBeVisible();
 });
 
 test("a protected page sends a signed-out visitor to sign in", async ({ page }) => {

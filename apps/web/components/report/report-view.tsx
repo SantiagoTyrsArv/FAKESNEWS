@@ -16,6 +16,7 @@ export function ReportView({ report }: Readonly<{ report: Report }>) {
   const { submission, summary, claims, disclaimer } = report;
   const counts = {
     SUPPORTED: summary.supported,
+    CHANGED: summary.changed ?? 0,
     CONTRADICTED: summary.contradicted,
     INSUFFICIENT: summary.insufficient,
   };
