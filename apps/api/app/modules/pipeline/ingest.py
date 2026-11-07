@@ -60,12 +60,15 @@ async def ingest_url(url: str) -> str:
     return text.strip()[: settings.max_text_input_chars]
 
 
+_LIVE_STATUSES = ("is_live", "is_upcoming", "post_live")
+
+
 def _extract_video_info(video_url: str) -> dict:
     import yt_dlp
 
     assert_allowed_video_host(video_url, set(settings.allowed_video_hosts))
     assert_public_http_url(video_url)
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True}
     with yt_dlp.YoutubeDL(opts) as ydl:
         return ydl.extract_info(video_url, download=False)
 
@@ -89,11 +92,28 @@ def _download_audio(video_url: str, out_dir: str) -> str:
         "format": "bestaudio/best",
         "outtmpl": str(Path(out_dir) / "%(id)s.%(ext)s"),
         "noplaylist": True,
+        "playlistend": 1,
         "progress_hooks": [_stop_oversized_download],
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
         return ydl.prepare_filename(info)
+
+
+def _check_video_is_bounded(info: dict) -> None:
+    """Only a finished video of known length gets downloaded. Live streams go
+    through ffmpeg, which reports no progress for the size cap to act on, and
+    a playlist has no duration of its own."""
+    if info.get("is_live") or info.get("live_status") in _LIVE_STATUSES:
+        raise IngestError("No se pueden analizar videos en directo.")
+    duration = info.get("duration")
+    if duration is None:
+        raise IngestError("No se pudo saber cuánto dura el video.")
+    if duration > settings.max_video_duration_seconds:
+        raise IngestError(
+            f"El video dura {int(duration)}s, el máximo permitido es "
+            f"{settings.max_video_duration_seconds}s."
+        )
 
 
 async def ingest_video(video_url: str, transcriber: Transcriber) -> str:
@@ -102,12 +122,7 @@ async def ingest_video(video_url: str, transcriber: Transcriber) -> str:
     except UnsafeUrlError as exc:
         _log_blocked(video_url, exc)
         raise IngestError(str(exc)) from exc
-    duration = info.get("duration")
-    if duration is not None and duration > settings.max_video_duration_seconds:
-        raise IngestError(
-            f"El video dura {int(duration)}s, el máximo permitido es "
-            f"{settings.max_video_duration_seconds}s."
-        )
+    _check_video_is_bounded(info)
 
     try:
         with tempfile.TemporaryDirectory(prefix="fakesnews-video-") as tmp_dir:
