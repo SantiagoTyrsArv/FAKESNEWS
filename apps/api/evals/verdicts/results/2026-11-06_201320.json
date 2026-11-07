@@ -1,0 +1,51 @@
+{
+  "started_at": "2026-11-07T01:13:09.891775Z",
+  "model": "claude-sonnet-5-5",
+  "max_usd": 0.35,
+  "prices_as_of": "2026-11-03",
+  "results": [
+    {
+      "case_id": "co-mixto-2",
+      "kind": "mixed",
+      "rating": "Cuestionable",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "La afirmación tiene dos partes y solo una se cumple. Con Petro se alcanzó el mayor número de personas ocupadas registrado: unos 24,5 millones a mayo de 2026. La tasa de ocupación en porcentaje no fue la más alta. Esa tasa estuvo cerca del 59-60%, mientras que en los gobiernos de Santos llegó a 61,3% o más, según las fuentes. Dos verificaciones independientes (La Silla Vacía y Colombiacheck) califican como falsa o cuestionable la parte de la tasa porcentual. Los boletines del DANE confirman el nivel actual de la tasa de ocupación: 59,7% en mayo de 2026 y 57,4% en agosto de 2026. También confirman el número de ocupados: 24.583 mil en mayo de 2026.",
+      "evidence": [
+        {
+          "url": "https://www.lasillavacia.com/detector-de-mentiras/petro-logro-la-menor-tasa-de-desempleo-del-siglo-pero-no-la-mayor-de-ocupacion/",
+          "domain": "lasillavacia.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.colombiacheck.com/chequeos/petro-acierta-en-reduccion-del-desempleo-y-crecimiento-del-salario-minimo-pero-exagera",
+          "domain": "colombiacheck.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.dane.gov.co/files/operaciones/GEIH/bol-GEIH-may2026.pdf",
+          "domain": "dane.gov.co",
+          "stance": "neutral"
+        },
+        {
+          "url": "https://www.dane.gov.co/files/operaciones/GEIH/bol-GEIH-ago2026.pdf",
+          "domain": "dane.gov.co",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": true,
+      "search_domains": [
+        "dane.gov.co",
+        "lasillavacia.com",
+        "colombiacheck.com"
+      ],
+      "cost_usd": 0.097174,
+      "input_tokens": 32697,
+      "output_tokens": 1178,
+      "web_searches": 2,
+      "error": null
+    }
+  ],
+  "skipped_case_ids": [],
+  "spent_usd": 0.097174
+}
