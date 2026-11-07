@@ -118,6 +118,65 @@ async def test_ingest_video_rejects_too_long(monkeypatch: pytest.MonkeyPatch) ->
         await ingest_module.ingest_video("https://www.youtube.com/watch?v=too-long", transcriber)
 
 
+@pytest.mark.parametrize(
+    "info",
+    [
+        {"duration": 60, "is_live": True},
+        {"duration": 60, "live_status": "is_upcoming"},
+        {"duration": 60, "live_status": "post_live"},
+    ],
+)
+async def test_ingest_video_rejects_live_streams(
+    info: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import yt_dlp
+
+    monkeypatch.setattr(_FakeYoutubeDL, "info", info)
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", _FakeYoutubeDL)
+    transcriber = _FakeTranscriber()
+
+    with pytest.raises(IngestError, match="directo"):
+        await ingest_module.ingest_video("https://www.youtube.com/watch?v=live", transcriber)
+
+    assert transcriber.received_path is None
+
+
+@pytest.mark.parametrize("info", [{}, {"_type": "playlist", "entries": [{"duration": 60}]}])
+async def test_ingest_video_rejects_unknown_duration(
+    info: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import yt_dlp
+
+    monkeypatch.setattr(_FakeYoutubeDL, "info", info)
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", _FakeYoutubeDL)
+    transcriber = _FakeTranscriber()
+
+    with pytest.raises(IngestError, match="cuánto dura"):
+        await ingest_module.ingest_video("https://www.youtube.com/playlist?list=x", transcriber)
+
+    assert transcriber.received_path is None
+
+
+async def test_ingest_video_asks_for_one_video_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    import yt_dlp
+
+    opts_seen: list[dict] = []
+
+    class _Spy(_FakeYoutubeDL):
+        def __init__(self, opts: dict) -> None:
+            opts_seen.append(opts)
+
+    monkeypatch.setattr(_FakeYoutubeDL, "info", {"duration": 60})
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", _Spy)
+
+    await ingest_module.ingest_video(
+        "https://www.youtube.com/watch?v=ok&list=x", _FakeTranscriber()
+    )
+
+    assert [opts["noplaylist"] for opts in opts_seen] == [True, True]
+    assert [opts["playlistend"] for opts in opts_seen] == [1, 1]
+
+
 async def test_ingest_video_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import yt_dlp
 

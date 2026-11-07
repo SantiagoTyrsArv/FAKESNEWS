@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     video_ingest_enabled: bool = Field(default=True, alias="VIDEO_INGEST_ENABLED")
     whisper_model_size: str = Field(default="small", alias="WHISPER_MODEL_SIZE")
     max_video_duration_seconds: int = Field(default=600, alias="MAX_VIDEO_DURATION_SECONDS")
+    # Duration comes from the video's metadata, and it can be missing or false.
+    max_video_download_mb: int = Field(default=200, alias="MAX_VIDEO_DOWNLOAD_MB")
     max_text_input_chars: int = Field(default=20000, alias="MAX_TEXT_INPUT_CHARS")
     # SSRF hardening: yt-dlp's generic extractor will scrape *any* URL for
     # embedded media, so video submissions are restricted to these hosts.

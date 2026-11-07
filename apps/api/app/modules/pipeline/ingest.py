@@ -60,14 +60,55 @@ async def ingest_url(url: str) -> str:
     return text.strip()[: settings.max_text_input_chars]
 
 
+_LIVE_STATUSES = ("is_live", "is_upcoming", "post_live")
+_SINGLE_VIDEO_OPTS = {
+    "quiet": True,
+    "no_warnings": True,
+    "noplaylist": True,
+    "playlistend": 1,
+    "socket_timeout": 30,
+}
+
+
 def _extract_video_info(video_url: str) -> dict:
     import yt_dlp
 
     assert_allowed_video_host(video_url, set(settings.allowed_video_hosts))
     assert_public_http_url(video_url)
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    opts = {"skip_download": True, **_SINGLE_VIDEO_OPTS}
     with yt_dlp.YoutubeDL(opts) as ydl:
         return ydl.extract_info(video_url, download=False)
+
+
+def _check_video_is_bounded(info: dict) -> None:
+    """Only a finished video of known length gets downloaded. Live streams go
+    through ffmpeg, which reports no progress for the size cap to act on, and
+    a playlist has no duration of its own."""
+    if info.get("is_live") or info.get("live_status") in _LIVE_STATUSES:
+        raise IngestError("No se pueden analizar videos en directo.")
+    duration = info.get("duration")
+    if duration is None:
+        raise IngestError("No se pudo saber cuánto dura el video.")
+    if duration > settings.max_video_duration_seconds:
+        raise IngestError(
+            f"El video dura {int(duration)}s, el máximo permitido es "
+            f"{settings.max_video_duration_seconds}s."
+        )
+
+
+def _reject_unbounded_video(info: dict, *, incomplete: bool) -> None:
+    """Downloading resolves the URL again, so this checks the video actually
+    about to be fetched. `incomplete` entries don't have their data yet."""
+    if not incomplete:
+        _check_video_is_bounded(info)
+
+
+def _stop_oversized_download(progress: dict) -> None:
+    """A hook and not yt-dlp's max_filesize, which needs a Content-Length and
+    so lets through streams that don't send one."""
+    cap_mb = settings.max_video_download_mb
+    if (progress.get("downloaded_bytes") or 0) > cap_mb * 1024 * 1024:
+        raise IngestError(f"El video pesa más de {cap_mb} MB, el máximo permitido.")
 
 
 def _download_audio(video_url: str, out_dir: str) -> str:
@@ -76,11 +117,11 @@ def _download_audio(video_url: str, out_dir: str) -> str:
     assert_allowed_video_host(video_url, set(settings.allowed_video_hosts))
     assert_public_http_url(video_url)
     opts = {
-        "quiet": True,
-        "no_warnings": True,
+        **_SINGLE_VIDEO_OPTS,
         "format": "bestaudio/best",
         "outtmpl": str(Path(out_dir) / "%(id)s.%(ext)s"),
-        "noplaylist": True,
+        "match_filter": _reject_unbounded_video,
+        "progress_hooks": [_stop_oversized_download],
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
@@ -93,12 +134,7 @@ async def ingest_video(video_url: str, transcriber: Transcriber) -> str:
     except UnsafeUrlError as exc:
         _log_blocked(video_url, exc)
         raise IngestError(str(exc)) from exc
-    duration = info.get("duration")
-    if duration is not None and duration > settings.max_video_duration_seconds:
-        raise IngestError(
-            f"El video dura {int(duration)}s, el máximo permitido es "
-            f"{settings.max_video_duration_seconds}s."
-        )
+    _check_video_is_bounded(info)
 
     try:
         with tempfile.TemporaryDirectory(prefix="fakesnews-video-") as tmp_dir:
