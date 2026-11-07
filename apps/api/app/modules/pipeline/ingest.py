@@ -70,6 +70,14 @@ def _extract_video_info(video_url: str) -> dict:
         return ydl.extract_info(video_url, download=False)
 
 
+def _stop_oversized_download(progress: dict) -> None:
+    """A hook and not yt-dlp's max_filesize, which needs a Content-Length and
+    so lets through streams that don't send one."""
+    cap_mb = settings.max_video_download_mb
+    if (progress.get("downloaded_bytes") or 0) > cap_mb * 1024 * 1024:
+        raise IngestError(f"El video pesa más de {cap_mb} MB, el máximo permitido.")
+
+
 def _download_audio(video_url: str, out_dir: str) -> str:
     import yt_dlp
 
@@ -81,6 +89,7 @@ def _download_audio(video_url: str, out_dir: str) -> str:
         "format": "bestaudio/best",
         "outtmpl": str(Path(out_dir) / "%(id)s.%(ext)s"),
         "noplaylist": True,
+        "progress_hooks": [_stop_oversized_download],
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
