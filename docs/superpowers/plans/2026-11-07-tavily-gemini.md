@@ -18,7 +18,7 @@
 - La web se prueba desde `apps/web` con `pnpm lint`, `pnpm lint:css`, `pnpm exec tsc --noEmit`, `pnpm test:lib` y `pnpm build`.
 - Las pruebas no hacen llamadas de red: `respx` para `httpx`.
 - Las claves van siempre en cabeceras, nunca en URL, y nunca en logs ni mensajes para el usuario.
-- Valores fijos: `max_results` 8, `search_depth` `basic`, 4 afirmaciones por envío, `MAX_CLAIMS_PER_MONTH` 900, `MAX_SUBMISSIONS_PER_DAY` 5, `VERIFY_CONCURRENCY_LIMIT` 2.
+- Valores fijos: `GEMINI_MODEL` `gemini-3.5-flash-lite`, `max_results` 8, `search_depth` `advanced`, 4 afirmaciones por envío, `MAX_CLAIMS_PER_MONTH` 450, `MAX_SUBMISSIONS_PER_DAY` 5, `VERIFY_CONCURRENCY_LIMIT` 2.
 - No se usan modelos Gemini 2.5.
 - Las claves las crea el dueño. No se piden ni se pegan en el chat.
 
@@ -110,7 +110,7 @@ async def test_failed_claim_does_not_change_source_reputation(...):
 - Test: `apps/api/tests/submissions/test_submissions.py`, `apps/api/tests/pipeline/test_claims.py`
 
 **Interfaces:**
-- Produces: `settings.max_claims_per_month: int = 900`, alias `MAX_CLAIMS_PER_MONTH`.
+- Produces: `settings.max_claims_per_month: int = 450`, alias `MAX_CLAIMS_PER_MONTH`.
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
@@ -181,7 +181,7 @@ async def test_llm_errors_never_contain_the_api_key(...):
 async def test_search_sends_the_agreed_request(...):
     assert body["include_domains"] == ["a.com"]
     assert body["max_results"] == 8
-    assert body["search_depth"] == "basic"
+    assert body["search_depth"] == "advanced"
     assert body["include_published_date"] is True
 async def test_search_numbers_results_from_one(...):
     assert [r.result_id for r in results] == [1, 2]
@@ -190,7 +190,7 @@ async def test_search_quota_raises_search_quota_error(...): ...
 ```
 
 - [ ] **Step 2:** Correrlas y ver que fallan.
-- [ ] **Step 3:** Implementar con `httpx.AsyncClient` y la petición validada en la tarea 1. Un reintento en 429 temporal y 5xx, con `Retry-After` limitado a 30 s. `generate_structured` registra `llm_usage` con `step`, `model` y tokens. `search_trusted` registra `search_usage` con `credits=1`. Sin dependencias nuevas.
+- [ ] **Step 3:** Implementar con `httpx.AsyncClient` y la petición validada en la tarea 1. Un reintento en 429 temporal y 5xx, con `Retry-After` limitado a 30 s. `generate_structured` registra `llm_usage` con `step`, `model` y tokens. `search_trusted` registra `search_usage` con `credits=2`. Sin dependencias nuevas.
 - [ ] **Step 4:** Pasar las comprobaciones de la API.
 - [ ] **Step 5:** Commit: `feat(api): add the Gemini and Tavily clients`.
 
@@ -220,7 +220,7 @@ async def test_search_quota_raises_search_quota_error(...): ...
 
 - [ ] **Step 1: Reescribir las pruebas**
 
-Se eliminan las de bloques de texto y `pause_turn`, junto con el análisis de JSON de los PR #83 y #84. `UNSEARCHABLE_DOMAINS` y sus pruebas se eliminan solo si la tarea 1 confirmó que Tavily devuelve esos medios.
+Se eliminan las de bloques de texto y `pause_turn`, junto con el análisis de JSON de los PR #83 y #84. `UNSEARCHABLE_DOMAINS` y sus pruebas se eliminan.
 
 ```python
 async def test_evidence_comes_from_search_not_from_the_model(...):
@@ -286,7 +286,7 @@ def test_contamination_still_detects_the_factchecker(...): ...
 ```
 
 - [ ] **Step 2:** Correrlas y ver que fallan.
-- [ ] **Step 3:** Cambiar el medidor y `--max-usd` por `--max-credits`, con 20 por defecto. Quitar los precios de Anthropic.
+- [ ] **Step 3:** Cambiar el medidor y `--max-usd` por `--max-credits`, con 40 por defecto. Quitar los precios de Anthropic.
 - [ ] **Step 4:** Añadir los casos `py-verdadero-1` (Ueno, con una noticia publicada como fuente) y `co-inventado-1` (De la Espriella, Trump y Gaza). Añadir a `scoring.py` el tipo que espera `INSUFFICIENT` para el caso inventado.
 - [ ] **Step 5:** Pasar las comprobaciones.
 - [ ] **Step 6:** Commit: `feat(evals): measure Tavily credits and pin the production model`.
