@@ -56,7 +56,7 @@
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Actualizar `anthropic-api-key` en Key Vault (urgente):** la clave antigua del `.env` daba 401 y el dueño la cambió el 2026-11-07. Si producción usaba esa misma clave, todas las verificaciones acaban en `INSUFFICIENT` hasta cambiar el secreto. Pasos en [AZURE.md](AZURE.md#secretos).
+2. **Confirmar la clave en producción con un envío real:** el dueño cambió `anthropic-api-key` en Key Vault el 2026-11-07 a las 02:52 UTC, y la API y el worker se reiniciaron a las 02:58 UTC. No se ha hecho ninguna llamada real desde producción (un envío grande cuesta hasta ~1,60 USD).
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación que Colombiacheck califica de «Cuestionable» (error grave de la evaluación). Falta `co-mixto-2`, que no corrió por el tope de gasto (unos 0,20 USD, necesita aprobación).
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
