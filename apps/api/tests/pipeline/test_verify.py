@@ -243,6 +243,22 @@ async def test_verify_claim_api_error_returns_insufficient(monkeypatch: pytest.M
     )
 
     assert result.verdict == "INSUFFICIENT"
+    assert result.verification_failed is True
+
+
+async def test_verify_claim_without_evidence_is_not_a_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    answer = {"verdict": "INSUFFICIENT", "rationale": "Nada concluyente.", "evidence": []}
+    content = [_search_tool_result_block([]), _text_block(json.dumps(answer))]
+    monkeypatch.setattr(
+        verify_module, "get_anthropic_client", lambda: _FakeClient([_response(content)])
+    )
+
+    result = await verify_module.verify_claim("afirmación", allowed_domains=["colombiacheck.com"])
+
+    assert result.verdict == "INSUFFICIENT"
+    assert result.verification_failed is False
 
 
 def _verdict_with_evidence(verdict: str, stances: list[str]) -> list:

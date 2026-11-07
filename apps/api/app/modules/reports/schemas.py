@@ -29,6 +29,7 @@ class ReportClaim(BaseModel):
     verdict: str
     rationale: str
     confidence_note: str | None
+    verification_failed: bool
     evidence: list[ReportEvidence]
 
 
@@ -45,6 +46,7 @@ class ReportSummary(BaseModel):
     supported: int
     contradicted: int
     insufficient: int
+    failed: int
 
 
 class ReportResponse(BaseModel):

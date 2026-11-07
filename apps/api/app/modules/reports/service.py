@@ -80,7 +80,7 @@ async def build_report(
                 )
             )
 
-    verdicts = Counter(c.verdict for c in claims)
+    verdicts = Counter(c.verdict for c in claims if not c.verification_failed)
     return ReportResponse(
         submission=ReportSubmission(
             id=submission.id,
@@ -94,6 +94,7 @@ async def build_report(
             supported=verdicts["SUPPORTED"],
             contradicted=verdicts["CONTRADICTED"],
             insufficient=verdicts["INSUFFICIENT"],
+            failed=sum(c.verification_failed for c in claims),
         ),
         claims=[
             ReportClaim(
@@ -102,6 +103,7 @@ async def build_report(
                 verdict=c.verdict,
                 rationale=c.rationale,
                 confidence_note=c.confidence_note,
+                verification_failed=c.verification_failed,
                 evidence=evidence_by_claim[c.id],
             )
             for c in claims

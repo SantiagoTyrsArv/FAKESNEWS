@@ -1,4 +1,4 @@
-import { CircleCheck, CircleHelp, CircleX, type LucideIcon } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleHelp, CircleX, type LucideIcon } from "lucide-react";
 import type { Verdict } from "@/lib/cases";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +50,23 @@ export function VerdictLabel({ verdict, className }: Readonly<{ verdict: Verdict
     <span className={cn("inline-flex items-center gap-1.5 text-sm font-semibold", text, className)}>
       <Icon className="size-4 shrink-0" aria-hidden="true" />
       {label}
+    </span>
+  );
+}
+
+// Not a verdict: the check itself broke, so nothing is said about the sources.
+export const FAILED_LABEL = "No se pudo verificar";
+
+export function FailedLabel({ className }: Readonly<{ className?: string }>) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground",
+        className,
+      )}
+    >
+      <CircleAlert className="size-4" aria-hidden="true" />
+      {FAILED_LABEL}
     </span>
   );
 }

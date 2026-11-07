@@ -55,6 +55,12 @@ export function ReportView({ report }: Readonly<{ report: Report }>) {
                   </li>
                 );
               })}
+              {summary.failed > 0 && (
+                <li className="flex items-center gap-2 text-sm">
+                  <span className="font-semibold tabular-nums">{summary.failed}</span>
+                  <span className="text-muted-foreground">sin verificar por un error</span>
+                </li>
+              )}
             </ul>
           </div>
         )}
