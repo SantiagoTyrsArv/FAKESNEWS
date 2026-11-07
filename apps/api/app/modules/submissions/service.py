@@ -76,20 +76,37 @@ async def _check_quota(
             max(retry_after, 1),
         )
 
-    await _check_monthly_claims(db)
+    await _check_monthly_claims(db, user_id)
 
 
-async def _check_monthly_claims(db: AsyncSession) -> None:
+async def _check_monthly_claims(db: AsyncSession, user_id: uuid.UUID) -> None:
     now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    seconds_left = int(((month_start + timedelta(days=32)).replace(day=1) - now).total_seconds())
+
+    own_claims = await db.scalar(
+        select(func.count())
+        .select_from(Claim)
+        .join(Submission, Claim.submission_id == Submission.id)
+        .where(Submission.user_id == user_id, Claim.created_at >= month_start)
+    )
+    if own_claims >= settings.max_claims_per_account_per_month:
+        raise SubmissionQuotaError(
+            "Alcanzaste tu límite mensual de verificaciones. Vuelve el próximo mes.", seconds_left
+        )
+
     claims = await db.scalar(
         select(func.count()).select_from(Claim).where(Claim.created_at >= month_start)
     )
-    if claims >= settings.max_claims_per_month:
-        next_month = (month_start + timedelta(days=32)).replace(day=1)
+    # Claims are saved when a case ends, so the ones in flight aren't rows yet.
+    in_flight = await db.scalar(
+        select(func.count())
+        .select_from(Submission)
+        .where(Submission.status.not_in(TERMINAL_STATUSES))
+    )
+    if claims + in_flight * settings.max_claims_per_submission >= settings.max_claims_per_month:
         raise SubmissionQuotaError(
-            "La cuota mensual de verificaciones se agotó. Vuelve el próximo mes.",
-            int((next_month - now).total_seconds()),
+            "La cuota mensual de verificaciones se agotó. Vuelve el próximo mes.", seconds_left
         )
 
 

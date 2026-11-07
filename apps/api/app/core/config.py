@@ -99,9 +99,12 @@ class Settings(BaseSettings):
         default=5, alias="RATE_LIMIT_SUBMISSIONS_PER_MINUTE"
     )
     max_submissions_per_day: int = Field(default=5, alias="MAX_SUBMISSIONS_PER_DAY")
-    # App-wide, on top of the per-account limits: it keeps one account from
-    # using up the free search quota for everybody else.
+    # The free search quota is shared by the whole app: the first cap keeps
+    # within it, and the second keeps one account from using most of it.
     max_claims_per_month: int = Field(default=450, alias="MAX_CLAIMS_PER_MONTH")
+    max_claims_per_account_per_month: int = Field(
+        default=60, alias="MAX_CLAIMS_PER_ACCOUNT_PER_MONTH"
+    )
     max_active_submissions_per_user: int = Field(default=2, alias="MAX_ACTIVE_SUBMISSIONS_PER_USER")
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
