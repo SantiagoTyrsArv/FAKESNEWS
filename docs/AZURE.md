@@ -127,9 +127,11 @@ Antes de rotar, ten en cuenta estos tres:
 ## Migración desde Railway (histórico)
 
 El corte se hizo el 2026-11-04, de 20:41 a 20:46 UTC (unos 5 min de caída). La base se volcó
-con `infra/scripts/dump-railway.sh` (por `railway ssh`, sin abrir la base de Railway a internet)
-y se restauró con `infra/scripts/restore-azure.sh`. Los conteos y la revisión de alembic fueron
-idénticos en los dos lados. Railway queda pausado (API y worker sin despliegue, Postgres y Redis
-encendidos) hasta el 2026-11-11 como vuelta atrás. Para volver, se redespliegan los servicios en
-Railway y se restaura `API_PROXY_TARGET` en Vercel, pero se perdería lo escrito en Azure después
-del corte.
+por `railway ssh`, sin abrir la base de Railway a internet, y se restauró con
+`infra/scripts/restore-azure.sh`. Los conteos y la revisión de alembic fueron idénticos en los
+dos lados.
+
+Railway se eliminó el 2026-11-07, por decisión del dueño y 4 días antes de lo previsto, así que
+**ya no hay vuelta atrás a Railway**. Para recuperar datos están los backups de Postgres Flexible
+(7 días). El volcado de la migración, `railway.dump`, debería seguir en el recurso compartido
+`pgdump`, pero no se pudo comprobar el 2026-11-07 porque la cuenta de almacenamiento rechazó el acceso.

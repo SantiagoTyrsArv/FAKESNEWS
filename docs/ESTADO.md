@@ -11,7 +11,7 @@
 | Datos | PostgreSQL Flexible 18 privado (`psql-fakesnews`) y Redis interno (`ca-fakesnews-redis`). Secretos en Key Vault (`kv-fakesnews-4q4yxz5r`) |
 | Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos y gate en verde en `main`, comprobado el 2026-11-06) |
 | CI/CD | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build), `api.yml` (`ruff` y `pytest`), `osv.yml` (OSV-Scanner semanal y con cada cambio de lockfile), `api-deploy.yml` (imagen a GHCR, después las migraciones y después el rollout) e `infra.yml` (Bicep), más Dependabot (npm, uv y Actions) |
-| Ramas | Se trabaja en una rama por cambio con PR. Quedan ramas viejas por limpiar (ver «Para retomar»). |
+| Ramas | En remoto solo `main`. En local quedan `main`, `feat/web-improvements` (vacía) y `feat/3d-experiences` (14 commits sin fusionar). Se trabaja en una rama por cambio con PR. |
 
 ## Historial de PR fusionados
 
@@ -57,9 +57,9 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
 2. **Probar `anthropic` 2.4.0 con una llamada real:** en el #77 solo se probó con mocks. Se puede hacer con la evaluación de veredictos, que gasta créditos y necesita la aprobación del dueño.
-3. **Railway se vuelve a levantar con cada merge a `main`**, porque sigue enlazado a GitHub. Después de cada merge, comprueba con `railway status`. Si `FAKESNEWS` o `upbeat-wholeness` tienen un despliegue activo, ejecuta `railway down -s FAKESNEWS -y` y `railway down -s upbeat-wholeness -y`. Tras fusionar el #63 (2026-11-07), `FAKESNEWS` sigue en `Failed` sin despliegue activo, `upbeat-wholeness` en `Offline`, y **Postgres y Redis de Railway también en `Offline`**: ya no están encendidos como se esperaba, así que no hay que contar con ellos como respaldo sin comprobarlos antes. La solución definitiva es que el dueño desconecte el repo en Railway (Settings → Source → Disconnect, en cada servicio).
-4. **El 2026-11-11, borrar Railway** (tarea 10 de `superpowers/plans/2026-11-04-azure-migration.md`), con la confirmación del dueño. Después, borrar `railway.toml`, `apps/api/railway.worker.toml` y la clave SSH `fakesnews-railway`, tanto en Railway como en `~/.ssh`.
-5. **Limpiar ramas ya fusionadas o cerradas,** sobre todo en remoto: `claude/upbeat-bardeen-j3a12a`, `dependabot/uv/apps/api/yt-dlp-2026.10.21`, `docs/azure-runbook`, `docs/status-2026-11-04-close`, `feat/azure-infra`, `feat/azure-migration`, `feat/web-audit`, `fix/oidc-subject`, `fix/postgres-18` y `fix/sonar-main`. Antes de borrar `feat/3d-experiences`, que solo está en local, hay que preguntar al dueño.
+3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
+4. **Decidir qué hacer con `feat/3d-experiences`:** tiene 14 commits sin fusionar y solo está en local.
+5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
    - la app usa el usuario administrador de Postgres;
    - si Redis se reinicia, se pierde la cola (B-03);
@@ -82,6 +82,13 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 - **CI de la API (#76):** Sonar exigió `--no-build` (regla `githubactions:S8541`). `uv run` no acepta `--no-install-project`, solo `uv sync`, por eso los pasos usan `--no-sync --no-build`.
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
+
+## Limpieza del 2026-11-07: ramas y Railway
+
+- **Ramas:** se borraron 18 en remoto y 12 en local. Dos no estaban fusionadas como tal, pero sus parches ya estaban en `main` según `git cherry`: `feat/azure-infra` (`f4c44a1`) y `docs/azure-migration-spec` (`0714655`). Con esos SHA se pueden recuperar mientras git no los limpie.
+- **Railway:** el dueño pidió borrarlo el 2026-11-07, 4 días antes de lo previsto. `railway delete` lo deja eliminado, con purga definitiva el **2026-11-09 02:25 UTC**. Hasta esa hora se puede restaurar desde el panel de Railway. Antes de borrarlo se comprobó que la API responde desde Azure y que Postgres Flexible tiene backups desde el 2026-11-04.
+- **Clave SSH `fakesnews-railway`:** se quitó de Railway y de `~/.ssh`. `known_hosts` solo tenía `ssh.railway.com`, y el repo usa HTTPS.
+- **Repo:** se quitaron `railway.toml`, `apps/api/railway.worker.toml` e `infra/scripts/dump-railway.sh`. Siguen menciones históricas a Railway en comentarios de Bicep y pruebas: son solo texto, y tocar Bicep lanzaría `infra.yml` sin necesidad.
 
 ## Sesión del 2026-11-04: migración de Railway a Azure
 
@@ -178,7 +185,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 ## Pendiente, por prioridad
 
-0. **Retirar Railway el 2026-11-11** (tarea 10 del plan de Azure), con la confirmación del dueño: borrar los servicios y el proyecto, borrar `railway.toml` y `apps/api/railway.worker.toml`, y borrar la clave SSH `fakesnews-railway` de Railway (y de `~/.ssh` si ya no se usa). Hasta entonces, comprobar que Railway no vuelve a levantarse después de cada merge.
+0. ~~**Retirar Railway**~~ Hecho el 2026-11-07. Falta confirmar la purga después del 2026-11-09.
 1. **Evaluación de veredictos (en curso):** correr los 4 casos restantes (`co-falso-2`, `co-verdadero-2`, `co-mixto-1` y `co-mixto-2`), unos 0,35 USD, **solo con la aprobación del dueño**. Después, con datos, decidir si se abarata producción: `effort: medium` en `verify`, búsquedas máximas de 5 a 3 y afirmaciones por envío de 8 a 4. Cada cambio va aparte y se mide con la evaluación. Mejoras menores pendientes de la evaluación: si se interrumpe con Ctrl+C se pierden los resultados, y `--dry-run` no avisa cuando el máximo estimado pasa el tope.
 2. ~~**CI de la API**~~ Hecho en el #76. Falta que `api-deploy` dependa de las pruebas.
 3. **Robustez del backend** (AUDITORIA.md §7):
