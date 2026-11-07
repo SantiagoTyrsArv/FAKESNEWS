@@ -4,7 +4,7 @@
 - **Alcance:** la web en producción (`https://fakesnews.vercel.app`), la API en producción (`https://fakesnews-production.up.railway.app`), una copia local de ambas levantada con `docker compose` para los ataques, y el código de `main` (`bd1dc8e`).
 - **Referencia:** OWASP Top 10:2025.
 
-> **Estado al 2026-10-24 (tarde):** solo queda abierta la parte de H-10 que falta, el CI de la API. La [sección 8](#8-estado-al-2026-10-24-tarde) indica cómo y en qué PR se cerró cada hallazgo. El resto del documento describe el análisis tal como se hizo sobre `bd1dc8e`.
+> **Estado al 2026-11-06:** sigue abierta la parte de H-10 que falta, el CI de la API, y hay un aviso aceptado (`deepmerge`). La [sección 8](#8-estado-al-2026-10-24-tarde) indica cómo y en qué PR se cerró cada hallazgo, y la [sección 9](#9-revisión-de-dependencias-y-github-del-2026-11-06) recoge la última revisión. El resto del documento describe el análisis tal como se hizo sobre `bd1dc8e`.
 
 ## 1. Resumen
 
@@ -158,3 +158,26 @@ Lo recomendable es fijar las Actions a un SHA, añadir `.github/dependabot.yml` 
 | H-09 | ✅ PR #34. Lista local con las 5.791 contraseñas de la lista NCSC top 100k que cumplirían las reglas. No hay llamadas externas. |
 | H-10 | Parcial: Actions fijadas a SHA y Dependabot configurado. Falta el CI de la API. |
 | H-11 | ✅ PR #34. Solo las URL http(s) se convierten en enlace: se filtran en el pipeline, se validan en `EvidenceItem` y se comprueban en la web. |
+
+## 9. Revisión de dependencias y GitHub del 2026-11-06
+
+OSV-Scanner 2.7.0 sobre `27acb17` (99 paquetes PyPI y 666 npm). Los 11 paquetes de `VULNERABILIDADES.md` siguen corregidos. Aparecieron 3 avisos nuevos, tratados en el PR #63:
+
+| Aviso | Paquete | Severidad | Estado |
+|---|---|---|---|
+| GHSA-45c3-73f7-pv4m | `dnspython` 2.8.0 (vía `email-validator`) | Alta (7.5) | ✅ Actualizado a 2.9.2. |
+| GHSA-g3hv-75wg-m249 | `minimatch` 10.2.6 (vía `typescript-estree` y `@ts-morph/common`) | Media (6.9) | ✅ Override a 11.0.4 en `apps/web/pnpm-workspace.yaml`. |
+| GHSA-gcqx-w48m-w2h4 | `deepmerge` 4.3.1 (vía `shadcn`) | Media (5.3) | ⚠️ Aceptado hasta el 2027-02-06 en `apps/web/osv-scanner.toml`. **No está corregido.** |
+
+- **`minimatch`:** la corrección solo existe en la 11, que elimina `makeRe()` y otras APIs. Los dos consumidores solo llaman a `minimatch()`, que se mantiene. Se comprobó con ESLint, `tsc`, `matchGlobs` de `@ts-morph/common` y `shadcn info`. Se usa la 11.0.4 y no la 11.0.5 porque esta tenía menos de un día y no pasa el filtro `minimumReleaseAge` de pnpm. Ese filtro no se debe saltar con `minimumReleaseAgeExclude`. Hay que quitar el override cuando los consumidores acepten una versión corregida.
+- **`deepmerge`:** no hay versión corregida; la última sigue siendo la 4.3.1. Solo la usa el CLI de `shadcn`, que es una dependencia de desarrollo y se ejecuta a mano. No aparece en la salida de `pnpm build`. `shadcn` no se puede quitar porque `app/globals.css` importa `shadcn/tailwind.css`. Cuando caduque la aceptación, el escaneo lo volverá a mostrar y habrá que revisarlo.
+
+**Configuración de GitHub (pendiente, la decide el dueño):**
+
+| Ajuste | Estado | Riesgo |
+|---|---|---|
+| Alertas de Dependabot | Desactivadas | GitHub no avisa de vulnerabilidades. Las actualizaciones semanales no sustituyen a estas alertas. |
+| Actualizaciones de seguridad de Dependabot | Desactivadas | No se abren PR automáticos para corregir avisos. |
+| Protección de `main` | Sin configurar | Se puede fusionar con el CI en rojo o hacer push directo. |
+| Escaneo de código | Sin análisis | No hay CodeQL ni subida de resultados. |
+| Escaneo de secretos y protección de push | Activados | Ninguno. La consulta de alertas abiertas no devolvió ninguna, pero el token actual podría no tener permiso para verlas. |
