@@ -1,5 +1,7 @@
 # Env files
 .env
+apps/web/test-results/
+apps/web/playwright-report/
 .env.local
 .env.*.local
 
