@@ -479,7 +479,6 @@ def _layout_of_a_real_answer(url: str, answer: str) -> list:
     [
         ".\n\nLa afirmación está respaldada.\n\n```json\n{json}\n```",
         ".\n\nLa afirmación está respaldada.\n\n{json}",
-        "{json}\n\nEso es todo.",
         "Usé el formato {{}} pedido.\n{json}",
     ],
 )
@@ -516,15 +515,40 @@ async def test_verify_claim_reads_json_split_across_text_blocks(
     assert result.verdict == "SUPPORTED"
 
 
-async def test_verify_claim_uses_the_last_verdict_in_the_answer(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    "answer",
+    [
+        pytest.param("{draft}\nCorrijo:\n{json}", id="two-verdicts-that-disagree"),
+        pytest.param("{json}\n\nEso es todo.", id="text-after-the-json"),
+    ],
+)
+async def test_verify_claim_rejects_a_verdict_it_cannot_trust(
+    monkeypatch: pytest.MonkeyPatch, answer: str
 ) -> None:
     url = "https://colombiacheck.com/a"
     draft = json.dumps({"verdict": "CONTRADICTED", "rationale": "borrador", "evidence": []})
-    content = _layout_of_a_real_answer(url, f"{draft}\nCorrijo:\n{_supported_json(url)}")
-    fake = _FakeClient([_response(content)])
+    answer = answer.replace("{draft}", draft).replace("{json}", _supported_json(url))
+    content = _layout_of_a_real_answer(url, answer)
+    fake = _FakeClient([_response(content), _response(content)])
     monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake)
 
     result = await verify_module.verify_claim("c", allowed_domains=["colombiacheck.com"])
 
-    assert result.verdict == "SUPPORTED"
+    assert result.verdict == "INSUFFICIENT"
+
+
+async def test_verify_claim_ignores_verdicts_written_before_the_last_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://colombiacheck.com/a"
+    content = [
+        _text_block(_supported_json(url)),
+        _search_tool_result_block([_web_search_result(url)]),
+        _text_block("No encontré nada concluyente."),
+    ]
+    fake = _FakeClient([_response(content), _response(content)])
+    monkeypatch.setattr(verify_module, "get_anthropic_client", lambda: fake)
+
+    result = await verify_module.verify_claim("c", allowed_domains=["colombiacheck.com"])
+
+    assert result.verdict == "INSUFFICIENT"
