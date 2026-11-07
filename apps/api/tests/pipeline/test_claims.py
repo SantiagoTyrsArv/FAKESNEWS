@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 
 from app.modules.pipeline import claims as claims_module
 from app.modules.pipeline.claims import ClaimsExtractionResult, ExtractedClaim
@@ -101,3 +102,14 @@ async def test_extraction_leaves_room_for_adaptive_thinking(
     await claims_module.extract_claims("texto")
 
     assert fake_client.messages.calls[0]["max_tokens"] >= 16000
+
+
+def test_extraction_schema_allows_four_claims() -> None:
+    claims = [ExtractedClaim(text="x")] * 5
+
+    with pytest.raises(ValidationError):
+        ClaimsExtractionResult(claims=claims)
+
+
+def test_prompt_asks_for_at_most_four_claims() -> None:
+    assert "como máximo 4 afirmaciones" in claims_module.SYSTEM_PROMPT

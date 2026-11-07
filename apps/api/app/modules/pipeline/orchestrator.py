@@ -26,6 +26,7 @@ GENERIC_FAILURE = (
 )
 TIMEOUT_FAILURE = "El análisis superó el tiempo máximo permitido y se detuvo."
 INTERRUPTED_FAILURE = "El análisis se interrumpió antes de terminar. Envía el caso de nuevo."
+ALL_CLAIMS_FAILED_MESSAGE = "No pudimos verificar ninguna afirmación. Intenta de nuevo más tarde."
 
 
 async def _set_status(
@@ -51,6 +52,7 @@ async def _verify_one(
                 verdict="INSUFFICIENT",
                 rationale="Se agotó el tiempo de espera al verificar esta afirmación.",
                 evidence=[],
+                verification_failed=True,
             )
         except Exception as exc:  # noqa: BLE001 - one claim's failure must not kill the batch
             logger.warning("verify_claim_unexpected_error", error=str(exc))
@@ -58,6 +60,7 @@ async def _verify_one(
                 verdict="INSUFFICIENT",
                 rationale="No se pudo verificar esta afirmación por un error interno.",
                 evidence=[],
+                verification_failed=True,
             )
 
 
@@ -119,6 +122,7 @@ async def _save_claims(
             text=claim_text,
             verdict=result.verdict,
             rationale=result.rationale,
+            verification_failed=result.verification_failed,
         )
         db.add(claim)
         await db.flush()
@@ -182,6 +186,10 @@ async def _run_pipeline(submission_id: str) -> None:
 
             claim_evidence = await _save_claims(db, submission, claim_texts, results)
             await db.commit()
+
+            if results and all(r.verification_failed for r in results):
+                await _set_status(db, submission, "failed", error=ALL_CLAIMS_FAILED_MESSAGE)
+                return
 
             await _set_status(db, submission, "scoring")
             for claim_id, verdict, source_stances in claim_evidence:

@@ -1,4 +1,4 @@
-import { VERDICTS, VerdictLabel } from "@/components/verdict";
+import { FailedLabel, VERDICTS, VerdictLabel } from "@/components/verdict";
 import { EvidenceItem } from "@/components/report/evidence-item";
 import type { ReportClaim } from "@/lib/cases";
 import { cn } from "@/lib/utils";
@@ -11,10 +11,12 @@ export function ClaimCard({ claim, index }: Readonly<{ claim: ReportClaim; index
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-semibold text-muted-foreground">Afirmación {index}</span>
-          <VerdictLabel verdict={claim.verdict} />
+          {claim.verification_failed ? <FailedLabel /> : <VerdictLabel verdict={claim.verdict} />}
         </div>
         <h2 className="font-quote text-xl leading-[1.55] text-pretty">
-          <span className={cn("mark", verdict.mark)}>{claim.text}</span>
+          <span className={cn(!claim.verification_failed && "mark", !claim.verification_failed && verdict.mark)}>
+            {claim.text}
+          </span>
         </h2>
       </div>
       <p className="max-w-[72ch] text-[0.95rem] leading-relaxed">{claim.rationale}</p>
@@ -36,7 +38,9 @@ export function ClaimCard({ claim, index }: Readonly<{ claim: ReportClaim; index
         </div>
       ) : (
         <p className="border-t pt-4 text-sm text-muted-foreground">
-          Ninguna fuente de confianza publicó algo citable sobre esta afirmación.
+          {claim.verification_failed
+            ? "No fue posible consultar las fuentes. Envía el caso de nuevo más tarde."
+            : "Ninguna fuente de confianza publicó algo citable sobre esta afirmación."}
         </p>
       )}
     </li>

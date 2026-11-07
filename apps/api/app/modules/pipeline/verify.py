@@ -103,6 +103,8 @@ class VerifyResult(BaseModel):
     verdict: Literal["SUPPORTED", "CONTRADICTED", "INSUFFICIENT"]
     rationale: str
     evidence: list[EvidenceItem] = Field(default_factory=list)
+    # The check itself broke: INSUFFICIENT here says nothing about the sources.
+    verification_failed: bool = False
 
 
 class _RawEvidenceItem(BaseModel):
@@ -131,6 +133,12 @@ UNBACKED_VERDICT_NOTE = (
 
 def _insufficient(reason: str) -> VerifyResult:
     return VerifyResult(verdict="INSUFFICIENT", rationale=reason, evidence=[])
+
+
+def _failed(reason: str) -> VerifyResult:
+    return VerifyResult(
+        verdict="INSUFFICIENT", rationale=reason, evidence=[], verification_failed=True
+    )
 
 
 def _build_user_message(claim_text: str) -> str:
@@ -251,7 +259,7 @@ async def verify_claim(
 
         if response.stop_reason in (*UNFINISHED_STOP_REASONS, "pause_turn"):
             logger.warning("verify_claim_unfinished", stop_reason=response.stop_reason)
-            return _insufficient("No se pudo completar la verificación de esta afirmación.")
+            return _failed("No se pudo completar la verificación de esta afirmación.")
 
         real_results = _extract_real_results(content)
         raw_json = _extract_final_json_text(response.content)
@@ -271,7 +279,7 @@ async def verify_claim(
 
     # The provider's error text stays in the logs (logged per attempt above).
     logger.warning("verify_claim_gave_up", max_attempts=max_attempts, error=last_error)
-    return _insufficient("No se pudo completar la verificación de esta afirmación.")
+    return _failed("No se pudo completar la verificación de esta afirmación.")
 
 
 async def _run_turns(client: Any, model_name: str, tools: list[dict], claim_text: str):

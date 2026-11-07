@@ -1,6 +1,6 @@
 # Verificación gratuita con Tavily y Gemini
 
-**Estado:** aprobada por el dueño el 2026-11-07.
+**Estado:** aprobada por el dueño el 2026-11-07, y ajustada con los resultados de la [fase 0](2026-11-07-tavily-gemini-phase0.md): `advanced`, 450 afirmaciones al mes y `gemini-3.5-flash-lite`.
 **Fecha:** 2026-11-07.
 
 ## 1. Por qué
@@ -69,8 +69,8 @@ La búsqueda deja de ser una herramienta que el modelo decide usar. La hace la a
 
 ### 6.2 Búsqueda
 
-- Una búsqueda por afirmación, con el texto de la afirmación como consulta y `search_depth: basic`. Cuesta 1 crédito.
-- `include_domains` lleva todas las fuentes de confianza. `UNSEARCHABLE_DOMAINS` se elimina si la fase 0 confirma que Tavily devuelve esos medios.
+- Una búsqueda por afirmación, con el texto de la afirmación como consulta y `search_depth: advanced`. Cuesta 2 créditos.
+- `include_domains` lleva todas las fuentes de confianza. `UNSEARCHABLE_DOMAINS` se elimina, porque Tavily devuelve esos medios.
 - Hasta 8 resultados, con la fecha de publicación y sin el contenido completo de las páginas. Eso mantiene la petición pequeña.
 - No se filtra por fecha: hay afirmaciones sobre hechos antiguos.
 - La app vuelve a comprobar que cada dominio devuelto pertenece a una fuente de confianza, con la lógica actual de subdominios.
@@ -112,8 +112,8 @@ Hoy un error se guarda como `INSUFFICIENT`, y el reporte no permite distinguirlo
 
 Cualquiera puede registrarse, así que hace falta un tope de toda la app, además del actual por cuenta.
 
-- Antes de aceptar un envío, se cuentan las afirmaciones creadas en el mes en curso. Con `MAX_CLAIMS_PER_MONTH` (900 por defecto) o más, el envío se rechaza con un mensaje que explica que se agotó la cuota. Se cuenta en Postgres, como el tope diario, para que sobreviva a un vaciado de Redis.
-- 900 afirmaciones dan para unos 225 envíos completos al mes. Quedan 100 créditos de margen para la evaluación.
+- Antes de aceptar un envío, se cuentan las afirmaciones creadas en el mes en curso. Con `MAX_CLAIMS_PER_MONTH` (450 por defecto) o más, el envío se rechaza con un mensaje que explica que se agotó la cuota. Se cuenta en Postgres, como el tope diario, para que sobreviva a un vaciado de Redis.
+- 450 afirmaciones dan para unos 112 envíos completos al mes y gastan 900 créditos. Quedan 100 créditos de margen para la evaluación.
 - El tope por cuenta de 20 envíos al día baja a 5.
 - Si Tavily o Gemini responden que la cuota se agotó, se registra un evento propio en los logs y las afirmaciones cuentan como fallo técnico.
 
@@ -164,7 +164,7 @@ Un script corre los 6 casos de la evaluación más los 2 nuevos, y responde:
 | Riesgo | Efecto | Respuesta |
 |---|---|---|
 | Google o Tavily reducen el plan gratuito | La verificación se para | El mensaje de cuota lo hace visible. Pagar Gemini sería barato y además deja de usar los datos para entrenar. |
-| Fragmentos cortos | Peor veredicto que leyendo la página | La fase 0 lo mide. Se puede subir a `advanced`, a 2 créditos. |
+| Fragmentos cortos | Peor veredicto que leyendo la página | Medido en la fase 0: por eso se usa `advanced`. |
 | Una sola búsqueda por afirmación | Se escapa evidencia que Claude encontraba reformulando | La fase 0 lo mide. |
 | Salida estructurada en preview | Puede cambiar | Se aísla en `app/core/llm.py` y las pruebas fijan el formato. |
 | Usuarios del EEE, Suiza o Reino Unido | Los términos exigen servicios de pago | La app solo se usa en Colombia (§11). Si eso cambia, hay que pasar a un plan de pago. |
@@ -174,7 +174,7 @@ Un script corre los 6 casos de la evaluación más los 2 nuevos, y responde:
 
 - Sustituir a Anthropic en lugar de mantener dos proveedores: es menos código, y el historial de git conserva la versión anterior.
 - Una búsqueda por afirmación, en vez de dejar que el modelo decida.
-- 4 afirmaciones por envío, 900 al mes y 5 envíos al día por cuenta.
+- 4 afirmaciones por envío, 450 al mes y 5 envíos al día por cuenta.
 - Evidencias por número de resultado, en lugar de URL escritas por el modelo.
 - El indicador `verification_failed`, en lugar de un veredicto nuevo.
 - Hacer la fase 0 antes de migrar.

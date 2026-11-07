@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Uuid, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -22,6 +22,9 @@ class Claim(Base):
     verdict: Mapped[str] = mapped_column(String(20), nullable=False)
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     confidence_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verification_failed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 

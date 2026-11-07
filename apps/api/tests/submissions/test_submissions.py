@@ -1,9 +1,14 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 from httpx import AsyncClient
+from sqlalchemy import select
 
+from app.core.config import get_settings
+from app.modules.pipeline.models import Claim
 from app.modules.submissions import service as submissions_service
+from app.modules.submissions.models import Submission
 
 EMAIL = "sub@example.com"
 PASSWORD = "Str0ngPassw0rd!"
@@ -196,3 +201,62 @@ async def test_video_submissions_rejected_when_disabled(
     assert resp.status_code == 400
     assert "video" in resp.json()["detail"].lower()
     assert enqueued == []
+
+
+async def _add_claim_created_at(db_session, created_at: datetime) -> None:
+    submission = (await db_session.execute(select(Submission))).scalars().first()
+    db_session.add(
+        Claim(
+            submission_id=submission.id,
+            text="Afirmación.",
+            verdict="INSUFFICIENT",
+            rationale="Sin fuentes.",
+            created_at=created_at,
+        )
+    )
+    await db_session.commit()
+
+
+async def test_submissions_stop_at_the_monthly_claim_cap(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_month", 1)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+    await _mark_all(db_session, "done")
+    await _add_claim_created_at(db_session, datetime.now(UTC))
+
+    resp = await _post_text(app_client)
+
+    assert resp.status_code == 429
+    assert "cuota mensual" in resp.json()["detail"]
+    assert int(resp.headers["Retry-After"]) > 0
+
+
+async def test_claims_from_last_month_do_not_count_towards_the_cap(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_month", 1)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+    await _mark_all(db_session, "done")
+    await _add_claim_created_at(db_session, datetime.now(UTC) - timedelta(days=40))
+
+    assert (await _post_text(app_client)).status_code == 201
+
+
+def test_default_limits() -> None:
+    settings = get_settings()
+
+    assert settings.max_claims_per_month == 450
+    assert settings.max_submissions_per_day == 5
+    assert settings.max_claims_per_submission == 4
+    assert settings.verify_concurrency_limit == 2

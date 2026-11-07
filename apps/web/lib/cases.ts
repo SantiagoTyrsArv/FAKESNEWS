@@ -48,6 +48,7 @@ export interface ReportClaim {
   verdict: Verdict;
   rationale: string;
   confidence_note: string | null;
+  verification_failed: boolean;
   evidence: ReportEvidence[];
 }
 
@@ -58,6 +59,7 @@ export interface Report {
     supported: number;
     contradicted: number;
     insufficient: number;
+    failed: number;
   };
   claims: ReportClaim[];
   disclaimer: string;

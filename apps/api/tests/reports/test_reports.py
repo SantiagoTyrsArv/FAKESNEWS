@@ -95,6 +95,7 @@ async def test_report_for_done_case_includes_claims_evidence_and_sources(
     assert body["submission"]["id"] == str(submission.id)
     assert body["submission"]["raw_input"] == "Texto de prueba."
     assert body["summary"] == {
+        "failed": 0,
         "total_claims": 2,
         "supported": 1,
         "contradicted": 0,
@@ -146,3 +147,28 @@ async def test_report_of_another_user_is_404(
     resp = await app_client.get(f"/reports/{submission.id}")
 
     assert resp.status_code == 404
+
+
+async def test_report_counts_failed_claims_apart_from_insufficient(
+    app_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _login_full_session(app_client, "failed-report@example.com")
+    user_id = await _user_id(db_session, "failed-report@example.com")
+    submission = await _seed_done_case(db_session, user_id)
+    db_session.add(
+        Claim(
+            submission_id=submission.id,
+            text="No se pudo revisar.",
+            verdict="INSUFFICIENT",
+            rationale="No se pudo completar la verificación de esta afirmación.",
+            verification_failed=True,
+        )
+    )
+    await db_session.commit()
+
+    body = (await app_client.get(f"/reports/{submission.id}")).json()
+
+    assert body["summary"]["insufficient"] == 1
+    assert body["summary"]["failed"] == 1
+    failed = [c for c in body["claims"] if c["verification_failed"]]
+    assert [c["text"] for c in failed] == ["No se pudo revisar."]

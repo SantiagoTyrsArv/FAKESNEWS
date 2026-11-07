@@ -92,6 +92,7 @@ async def test_seeded_user_can_log_in_and_read_a_report(
         "supported": 1,
         "contradicted": 1,
         "insufficient": 1,
+        "failed": 0,
     }
     first_claim = report["claims"][0]
     assert first_claim["verdict"] == "SUPPORTED"

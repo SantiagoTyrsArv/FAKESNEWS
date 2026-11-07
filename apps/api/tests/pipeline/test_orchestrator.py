@@ -108,11 +108,11 @@ async def test_run_pipeline_marks_failed_on_ingest_error(
         assert "no se pudo procesar" in submission.error
 
 
-async def test_run_pipeline_partial_verify_failure_still_completes(
+async def test_run_pipeline_all_claims_failed_marks_the_case_failed(
     db_session_factory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     submission_id = await _create_user_and_submission(
-        db_session_factory, email="partial@example.com"
+        db_session_factory, email="allfailed@example.com"
     )
     monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
 
@@ -133,8 +133,8 @@ async def test_run_pipeline_partial_verify_failure_still_completes(
 
     async with db_session_factory() as check_db:
         submission = await check_db.get(Submission, uuid.UUID(submission_id))
-        # The whole case still completes even though one claim's verify blew up.
-        assert submission.status == "done"
+        assert submission.status == "failed"
+        assert submission.error == orchestrator.ALL_CLAIMS_FAILED_MESSAGE
 
         claims = (
             (await check_db.execute(select(Claim).where(Claim.submission_id == submission.id)))
@@ -143,6 +143,85 @@ async def test_run_pipeline_partial_verify_failure_still_completes(
         )
         assert len(claims) == 1
         assert claims[0].verdict == "INSUFFICIENT"
+        assert claims[0].verification_failed is True
+
+
+async def test_run_pipeline_some_claims_failed_still_completes(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission_id = await _create_user_and_submission(db_session_factory, email="some@example.com")
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:
+        return ["Va bien.", "Va mal."]
+
+    async def verify(claim_text: str, *, allowed_domains: list[str], **_kwargs):
+        if claim_text == "Va mal.":
+            raise RuntimeError("verify explotó")
+        return verify_module.VerifyResult(verdict="INSUFFICIENT", rationale="Sin fuentes.")
+
+    monkeypatch.setattr(ingest_module, "ingest_text", lambda _raw_text: "texto")
+    monkeypatch.setattr(claims_module, "extract_claims", fake_extract_claims)
+    monkeypatch.setattr(verify_module, "verify_claim", verify)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        submission = await check_db.get(Submission, uuid.UUID(submission_id))
+        assert submission.status == "done"
+        claims = (
+            (await check_db.execute(select(Claim).where(Claim.submission_id == submission.id)))
+            .scalars()
+            .all()
+        )
+        assert {c.text: c.verification_failed for c in claims} == {
+            "Va bien.": False,
+            "Va mal.": True,
+        }
+
+
+async def test_run_pipeline_timeout_marks_the_claim_failed(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission_id = await _create_user_and_submission(
+        db_session_factory, email="timeout-claim@example.com"
+    )
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def fake_extract_claims(_text: str, **_kwargs) -> list[str]:
+        return ["Lenta."]
+
+    async def slow_verify(_claim_text: str, *, allowed_domains: list[str], **_kwargs):
+        raise TimeoutError
+
+    monkeypatch.setattr(ingest_module, "ingest_text", lambda _raw_text: "texto")
+    monkeypatch.setattr(claims_module, "extract_claims", fake_extract_claims)
+    monkeypatch.setattr(verify_module, "verify_claim", slow_verify)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        claim = (await check_db.execute(select(Claim))).scalars().one()
+        assert claim.verification_failed is True
+
+
+async def test_run_pipeline_no_claims_is_not_a_failure(
+    db_session_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission_id = await _create_user_and_submission(db_session_factory, email="none@example.com")
+    monkeypatch.setattr(orchestrator, "async_session_factory", db_session_factory)
+
+    async def no_claims(_text: str, **_kwargs) -> list[str]:
+        return []
+
+    monkeypatch.setattr(ingest_module, "ingest_text", lambda _raw_text: "texto")
+    monkeypatch.setattr(claims_module, "extract_claims", no_claims)
+
+    await orchestrator.run_pipeline({}, submission_id)
+
+    async with db_session_factory() as check_db:
+        submission = await check_db.get(Submission, uuid.UUID(submission_id))
+        assert submission.status == "done"
 
 
 async def test_run_pipeline_scores_source_reputation_end_to_end(
