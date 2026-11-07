@@ -85,6 +85,28 @@ async def db_session_factory() -> AsyncGenerator[async_sessionmaker[AsyncSession
     await engine.dispose()
 
 
+requires_postgres = pytest.mark.skipif(
+    not os.environ.get("TEST_POSTGRES_URL"),
+    reason="set TEST_POSTGRES_URL to a throwaway database: row locks do nothing on SQLite",
+)
+
+
+@pytest_asyncio.fixture
+async def pg_session_factory() -> AsyncGenerator[async_sessionmaker[AsyncSession], None]:
+    """Real Postgres with a fresh schema, for what SQLite cannot show."""
+    import app.core.models_registry  # noqa: F401 - populates Base.metadata
+    from app.core.db import Base
+
+    engine = create_async_engine(os.environ["TEST_POSTGRES_URL"])
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield async_sessionmaker(engine, expire_on_commit=False)
+
+    await engine.dispose()
+
+
 @pytest_asyncio.fixture
 async def db_session(
     db_session_factory: async_sessionmaker[AsyncSession],
