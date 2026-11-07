@@ -32,7 +32,8 @@ var secretEnvMap = {
   REDIS_URL: 'redis-url'
   JWT_SECRET_KEY: 'jwt-secret-key'
   TOTP_SECRET_ENCRYPTION_KEY: 'totp-secret-encryption-key'
-  ANTHROPIC_API_KEY: 'anthropic-api-key'
+  GEMINI_API_KEY: 'gemini-api-key'
+  TAVILY_API_KEY: 'tavily-api-key'
   API_PROXY_SECRET: 'api-proxy-secret'
 }
 // Known at compile time (unlike vault.properties.vaultUri), so it can feed loops.

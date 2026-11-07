@@ -14,6 +14,7 @@ param pgAdminPassword = az.getSecret(subscriptionId, resourceGroupName, kvName, 
 param appSettings = [
   { name: 'ENVIRONMENT', value: 'production' }
   { name: 'GEMINI_MODEL', value: 'gemini-3.5-flash-lite' }
+  { name: 'MAX_CLAIMS_PER_MONTH', value: '450' }
   { name: 'COOKIE_PATH_PREFIX', value: '/api' }
   { name: 'CORS_ORIGINS', value: '["https://fakesnews.vercel.app"]' }
   { name: 'TRUSTED_PROXY_HOPS', value: '1' }

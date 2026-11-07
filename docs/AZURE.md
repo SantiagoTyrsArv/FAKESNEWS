@@ -98,8 +98,8 @@ MSYS_NO_PATHCONV=1 infra/scripts/psql-job.sh "select count(*) from users"
 ## Secretos
 
 Están en Key Vault, nunca en el repo ni en GitHub: `database-url`, `keda-pg-connection`,
-`redis-url`, `redis-password`, `jwt-secret-key`, `totp-secret-encryption-key`, `anthropic-api-key`,
-`api-proxy-secret` y `pg-admin-password`.
+`redis-url`, `redis-password`, `jwt-secret-key`, `totp-secret-encryption-key`, `gemini-api-key`,
+`tavily-api-key`, `api-proxy-secret` y `pg-admin-password`.
 
 Para rotar uno:
 1. `az keyvault secret set --vault-name kv-fakesnews-4q4yxz5r -n <nombre> --value "<nuevo>"`.
@@ -107,7 +107,8 @@ Para rotar uno:
    `az containerapp revision restart -g rg-fakesnews-prod -n <app> --revision <revisión>`.
    Las referencias a Key Vault también se refrescan solas, cada 30 minutos aproximadamente.
 
-Antes de rotar, ten en cuenta estos tres:
+Antes de rotar, ten en cuenta estos:
+- `gemini-api-key`: debe ser de un proyecto sin facturación, o dejará de funcionar el plan gratuito.
 - `jwt-secret-key`: cierra todas las sesiones.
 - `totp-secret-encryption-key`: deja inservibles los secretos TOTP cifrados, y nadie con 2FA podría
   entrar.

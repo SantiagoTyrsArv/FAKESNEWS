@@ -10,6 +10,7 @@
 | API (producción) | Azure Container Apps, `ca-fakesnews-api` en `rg-fakesnews-prod` (`northcentralus`). Despliega `main` con `api-deploy.yml` y la web la llama a través de `/api`. Runbook: [AZURE.md](AZURE.md) |
 | Datos | PostgreSQL Flexible 18 privado (`psql-fakesnews`) y Redis interno (`ca-fakesnews-redis`). Secretos en Key Vault (`kv-fakesnews-4q4yxz5r`) |
 | Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos y gate en verde en `main`, comprobado el 2026-11-06) |
+| Verificación | Tavily (búsqueda, 2 créditos por afirmación, 1.000 gratis al mes) y Gemini (`gemini-3.5-flash-lite`, plan gratuito). Claves en Key Vault |
 | CI/CD | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build), `api.yml` (`ruff` y `pytest`), `osv.yml` (OSV-Scanner semanal y con cada cambio de lockfile), `api-deploy.yml` (imagen a GHCR, después las migraciones y después el rollout) e `infra.yml` (Bicep), más Dependabot (npm, uv y Actions) |
 | Ramas | En remoto solo `main`. En local quedan `main` y `feat/web-improvements` (vacía). Se trabaja en una rama por cambio con PR. |
 
@@ -55,7 +56,7 @@
 
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
-0. **Migrar la verificación a Tavily + Gemini:** los créditos de Anthropic se agotaron. Especificación y plan aprobados en `superpowers/`. La fase 0 dio 7 de 8 con `gemini-3.5-flash-lite` y `advanced` en el plan gratuito. Las claves están en el `.env` local; el proyecto de Gemini no debe tener facturación.
+0. **Comprobar la verificación en producción con un envío real** tras el PR de Tavily y Gemini, y **retirar Anthropic una semana después** (tarea 10 del plan `superpowers/plans/2026-11-07-tavily-gemini.md`). El plan gratuito de Gemini exige un proyecto sin facturación.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
 2. **Decidir el modelo de producción:** corre `claude-sonnet-5`, mientras que toda la evaluación se hizo con `claude-sonnet-5-5`. Los 5 aciertos de 6 no dicen cómo se comporta el modelo de producción. O se cambia en `infra/main.bicepparam`, o se repite la evaluación con el modelo de producción. Ver la sesión del 2026-11-07, «Veredictos perdidos».
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
@@ -83,6 +84,16 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 - **CI de la API (#76):** Sonar exigió `--no-build` (regla `githubactions:S8541`). `uv run` no acepta `--no-install-project`, solo `uv sync`, por eso los pasos usan `--no-sync --no-build`.
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
+
+## Migración a Tavily y Gemini (2026-11-07)
+
+Los créditos de Anthropic se agotaron, y el dueño no quiere gastar más. Diseño, plan e informe de la fase 0 en `superpowers/`.
+
+- **Resultado con el código final:** 7 de 8 aciertos con `gemini-3.5-flash-lite` y `advanced`, sin coste. Informe en `apps/api/evals/verdicts/results/2026-11-06_215527.md`.
+- **Cautela:** 5 de esos casos están contaminados, así que solo 3 son limpios (2 de 3). `co-mixto-1` es inestable: salió bien en la fase 0 y mal en la evaluación final. También fallaba con Claude, y la causa de fondo es que no hay veredicto para lo que es cierto solo en parte.
+- **Prompt:** se aclaró que no mencionar algo no es contradecirlo, lo que resolvió la afirmación inventada.
+- **Límites de Gemini:** Google no publica los del plan gratuito. Si se agotan, las afirmaciones salen como «No se pudo verificar».
+- **La evaluación ya usa el modelo de producción:** avisa si el del entorno es distinto. Es el problema que escondió el fallo del parser.
 
 ## Veredictos perdidos por el parser (2026-11-07)
 
