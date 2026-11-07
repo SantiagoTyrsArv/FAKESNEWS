@@ -272,6 +272,24 @@ async def test_cases_in_flight_count_towards_the_monthly_cap(
     assert "cuota mensual" in resp.json()["detail"]
 
 
+async def test_a_stuck_case_stops_counting_towards_the_monthly_cap(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_submission", 4)
+    monkeypatch.setattr(submissions_service.settings, "max_claims_per_month", 4)
+    await _login_full_session(app_client)
+    assert (await _post_text(app_client)).status_code == 201
+    stuck = (await db_session.execute(select(Submission))).scalars().one()
+    stuck.created_at = datetime.now(UTC) - timedelta(hours=2)
+    await db_session.commit()
+
+    assert (await _post_text(app_client)).status_code == 201
+
+
 async def test_one_account_stops_at_its_own_monthly_cap(
     app_client: AsyncClient, db_session, monkeypatch
 ) -> None:

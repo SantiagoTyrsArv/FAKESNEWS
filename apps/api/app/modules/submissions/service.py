@@ -15,6 +15,7 @@ settings = get_settings()
 
 TERMINAL_STATUSES = ("done", "failed")
 _DAY = timedelta(days=1)
+_IN_FLIGHT_WINDOW = timedelta(hours=1)
 
 
 class SubmissionNotFoundError(Exception):
@@ -99,10 +100,14 @@ async def _check_monthly_claims(db: AsyncSession, user_id: uuid.UUID) -> None:
         select(func.count()).select_from(Claim).where(Claim.created_at >= month_start)
     )
     # Claims are saved when a case ends, so the ones in flight aren't rows yet.
+    # Only recent ones count: a stuck case must not hold the quota forever.
     in_flight = await db.scalar(
         select(func.count())
         .select_from(Submission)
-        .where(Submission.status.not_in(TERMINAL_STATUSES))
+        .where(
+            Submission.status.not_in(TERMINAL_STATUSES),
+            Submission.created_at >= now - _IN_FLIGHT_WINDOW,
+        )
     )
     if claims + in_flight * settings.max_claims_per_submission >= settings.max_claims_per_month:
         raise SubmissionQuotaError(

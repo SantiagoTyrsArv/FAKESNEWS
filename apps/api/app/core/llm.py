@@ -1,6 +1,6 @@
 import asyncio
 from functools import lru_cache
-from typing import Any, TypeVar
+from typing import Any
 
 import anthropic
 import httpx
@@ -49,8 +49,6 @@ RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
 # A project on prepay with no balance: waiting does not help.
 QUOTA_STATUSES = frozenset({402})
 
-T = TypeVar("T", bound=BaseModel)
-
 
 class LLMError(Exception):
     pass
@@ -74,7 +72,7 @@ def _retry_wait(response: httpx.Response) -> float:
     return min(wait, MAX_RETRY_WAIT_SECONDS)
 
 
-def _parse(response: httpx.Response, schema: type[T], step: str, model: str) -> T:
+def _parse[T: BaseModel](response: httpx.Response, schema: type[T], step: str, model: str) -> T:
     data = response.json()
     candidates = data.get("candidates") or []
     if not candidates or candidates[0].get("finishReason") != "STOP":
@@ -94,7 +92,7 @@ def _parse(response: httpx.Response, schema: type[T], step: str, model: str) -> 
         raise LLMError("La respuesta de Gemini no cumple el esquema") from exc
 
 
-async def generate_structured(
+async def generate_structured[T: BaseModel](
     *, step: str, system: str, user: str, schema: type[T], model: str | None = None
 ) -> T:
     """One JSON answer that fits `schema`. A temporary failure is retried
