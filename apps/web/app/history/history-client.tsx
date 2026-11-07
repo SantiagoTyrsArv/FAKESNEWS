@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Link as LinkIcon, Plus, Video } from "lucide-react";
@@ -71,19 +71,41 @@ function HistorySkeleton() {
 export function HistoryClient() {
   const router = useRouter();
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showError = useCallback(
+    (err: unknown) => {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push("/login");
+      } else {
+        setError("No se pudo cargar tu historial. Recarga la página para intentarlo de nuevo.");
+      }
+    },
+    [router],
+  );
 
   useEffect(() => {
     listSubmissions()
-      .then((res) => setSubmissions(res.submissions))
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          router.push("/login");
-        } else {
-          setError("No se pudo cargar tu historial. Recarga la página para intentarlo de nuevo.");
-        }
-      });
-  }, [router]);
+      .then((res) => {
+        setSubmissions(res.submissions);
+        setNextCursor(res.next_cursor ?? null);
+      })
+      .catch(showError);
+  }, [showError]);
+
+  const loadMore = useCallback(() => {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    listSubmissions(nextCursor)
+      .then((res) => {
+        setSubmissions((current) => [...(current ?? []), ...res.submissions]);
+        setNextCursor(res.next_cursor ?? null);
+      })
+      .catch(showError)
+      .finally(() => setLoadingMore(false));
+  }, [nextCursor, showError]);
 
   return (
     <AppShell>
@@ -156,6 +178,18 @@ export function HistoryClient() {
             );
           })}
         </ul>
+      )}
+
+      {nextCursor && (
+        <Button
+          variant="outline"
+          size="md"
+          className="mt-4 self-center"
+          disabled={loadingMore}
+          onClick={loadMore}
+        >
+          {loadingMore ? "Cargando…" : "Cargar más"}
+        </Button>
       )}
     </AppShell>
   );

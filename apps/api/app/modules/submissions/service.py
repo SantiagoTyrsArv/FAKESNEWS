@@ -1,9 +1,11 @@
+import base64
+import binascii
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as redis_asyncio
 from redis.exceptions import RedisError
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -19,6 +21,9 @@ logger = get_logger(__name__)
 TERMINAL_STATUSES = ("done", "failed")
 ENQUEUE_FAILURE = "No se pudo poner el caso en cola. Envíalo de nuevo en un momento."
 STUCK_FAILURE = "El análisis no terminó a tiempo. Envía el caso de nuevo."
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 50
+LIST_PREVIEW_CHARS = 200
 _DAY = timedelta(days=1)
 _IN_FLIGHT_WINDOW = timedelta(hours=1)
 # Past the job timeout, nothing is working on a case. With this margin the
@@ -32,6 +37,10 @@ class SubmissionNotFoundError(Exception):
 
 
 class InputTypeDisabledError(Exception):
+    pass
+
+
+class InvalidCursorError(Exception):
     pass
 
 
@@ -205,11 +214,44 @@ async def get_submission(
     return submission
 
 
-async def list_submissions(db: AsyncSession, *, user_id: uuid.UUID) -> list[Submission]:
+def _encode_cursor(submission: Submission) -> str:
+    position = f"{submission.created_at.isoformat()}|{submission.id}"
+    return base64.urlsafe_b64encode(position.encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        created_at, submission_id = base64.urlsafe_b64decode(cursor).decode().split("|")
+        return datetime.fromisoformat(created_at), uuid.UUID(submission_id)
+    except (binascii.Error, UnicodeDecodeError, ValueError) as exc:
+        raise InvalidCursorError() from exc
+
+
+async def list_submissions(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    limit: int = DEFAULT_PAGE_SIZE,
+    cursor: str | None = None,
+) -> tuple[list[Submission], str | None]:
+    """One page, newest first, and the cursor of the next one if there is
+    any. The position is (created_at, id), so a case sent while the user
+    browses doesn't shift the pages."""
+    position = _decode_cursor(cursor) if cursor else None
     await _fail_stuck_cases(db, user_id)
+
+    query = select(Submission).where(Submission.user_id == user_id)
+    if position:
+        created_at, submission_id = position
+        query = query.where(
+            or_(
+                Submission.created_at < created_at,
+                and_(Submission.created_at == created_at, Submission.id < submission_id),
+            )
+        )
     result = await db.execute(
-        select(Submission)
-        .where(Submission.user_id == user_id)
-        .order_by(Submission.created_at.desc())
+        query.order_by(Submission.created_at.desc(), Submission.id.desc()).limit(limit + 1)
     )
-    return list(result.scalars().all())
+    rows = list(result.scalars().all())
+    page = rows[:limit]
+    return page, _encode_cursor(page[-1]) if len(rows) > limit else None

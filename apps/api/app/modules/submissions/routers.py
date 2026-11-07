@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 import redis.asyncio as redis_asyncio
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -19,11 +19,11 @@ from app.modules.submissions.schemas import (
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
 
-def _to_response(submission) -> SubmissionResponse:
+def _to_response(submission, *, raw_input: str | None = None) -> SubmissionResponse:
     return SubmissionResponse(
         id=submission.id,
         input_type=submission.input_type,
-        raw_input=submission.raw_input,
+        raw_input=submission.raw_input if raw_input is None else raw_input,
         status=submission.status,
         error=submission.error,
         created_at=submission.created_at,
@@ -70,9 +70,22 @@ async def create_submission(
 async def list_submissions(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    limit: Annotated[int, Query(ge=1, le=service.MAX_PAGE_SIZE)] = service.DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
 ):
-    submissions = await service.list_submissions(db, user_id=user.id)
-    return SubmissionListResponse(submissions=[_to_response(s) for s in submissions])
+    try:
+        submissions, next_cursor = await service.list_submissions(
+            db, user_id=user.id, limit=limit, cursor=cursor
+        )
+    except service.InvalidCursorError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cursor no válido.") from exc
+    return SubmissionListResponse(
+        submissions=[
+            _to_response(s, raw_input=s.raw_input[: service.LIST_PREVIEW_CHARS])
+            for s in submissions
+        ],
+        next_cursor=next_cursor,
+    )
 
 
 @router.get("/{submission_id}", response_model=SubmissionResponse)

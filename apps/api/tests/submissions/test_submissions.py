@@ -454,3 +454,91 @@ async def test_stuck_case_of_another_user_is_left_alone(
 
     theirs = await db_session.scalar(select(Submission).where(Submission.user_id == other.id))
     assert theirs.status == "verifying"
+
+
+async def _seed_cases(db_session, count: int, *, raw_input: str = "caso") -> None:
+    user = await db_session.scalar(select(User).where(User.email == EMAIL))
+    now = datetime.now(UTC)
+    for minute in range(count):
+        db_session.add(
+            Submission(
+                user_id=user.id,
+                input_type="text",
+                raw_input=f"{raw_input} {minute}",
+                status="done",
+                # Pairs share a timestamp: the id has to break the tie.
+                created_at=now - timedelta(minutes=minute // 2),
+            )
+        )
+    await db_session.commit()
+
+
+async def test_list_walks_every_case_once_newest_first(app_client: AsyncClient, db_session) -> None:
+    await _login_full_session(app_client)
+    await _seed_cases(db_session, 7)
+
+    seen: list[dict] = []
+    cursor = None
+    for _ in range(4):
+        params = {"limit": 3} | ({"cursor": cursor} if cursor else {})
+        page = (await app_client.get("/submissions", params=params)).json()
+        seen += page["submissions"]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert len(seen) == 7
+    assert len({s["id"] for s in seen}) == 7
+    dates = [s["created_at"] for s in seen]
+    assert dates == sorted(dates, reverse=True)
+
+
+async def test_last_full_page_has_no_cursor(app_client: AsyncClient, db_session) -> None:
+    await _login_full_session(app_client)
+    await _seed_cases(db_session, 3)
+
+    page = (await app_client.get("/submissions", params={"limit": 3})).json()
+
+    assert len(page["submissions"]) == 3
+    assert page["next_cursor"] is None
+
+
+async def test_list_has_a_default_page_size(app_client: AsyncClient, db_session) -> None:
+    await _login_full_session(app_client)
+    await _seed_cases(db_session, submissions_service.DEFAULT_PAGE_SIZE + 1)
+
+    page = (await app_client.get("/submissions")).json()
+
+    assert len(page["submissions"]) == submissions_service.DEFAULT_PAGE_SIZE
+    assert page["next_cursor"] is not None
+
+
+async def test_list_rejects_a_page_over_the_maximum(app_client: AsyncClient) -> None:
+    await _login_full_session(app_client)
+
+    resp = await app_client.get(
+        "/submissions", params={"limit": submissions_service.MAX_PAGE_SIZE + 1}
+    )
+
+    assert resp.status_code == 422
+
+
+async def test_list_rejects_a_forged_cursor(app_client: AsyncClient) -> None:
+    await _login_full_session(app_client)
+
+    resp = await app_client.get("/submissions", params={"cursor": "no-es-un-cursor"})
+
+    assert resp.status_code == 400
+
+
+async def test_list_shortens_the_input_but_the_case_keeps_it(
+    app_client: AsyncClient, db_session
+) -> None:
+    await _login_full_session(app_client)
+    await _seed_cases(db_session, 1, raw_input="x" * 5000)
+
+    listed = (await app_client.get("/submissions")).json()["submissions"][0]
+    full = (await app_client.get(f"/submissions/{listed['id']}")).json()
+
+    assert len(listed["raw_input"]) == submissions_service.LIST_PREVIEW_CHARS
+    assert len(full["raw_input"]) > 5000

@@ -33,3 +33,4 @@ class SubmissionResponse(BaseModel):
 
 class SubmissionListResponse(BaseModel):
     submissions: list[SubmissionResponse]
+    next_cursor: str | None = None
