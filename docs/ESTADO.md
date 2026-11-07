@@ -12,7 +12,7 @@
 | Calidad | SonarQube Cloud, proyecto público `SantiagoTyrsArv_FAKESNEWS` (0 issues abiertos y gate en verde en `main`, comprobado el 2026-11-06) |
 | Verificación | Tavily (búsqueda, 2 créditos por afirmación, 1.000 gratis al mes) y Gemini (`gemini-3.5-flash-lite`, plan gratuito). Claves en Key Vault |
 | CI/CD | `.github/workflows/web.yml` (lint, Stylelint, `tsc`, tests de `lib/` y build), `api.yml` (`ruff` y `pytest`), `osv.yml` (OSV-Scanner semanal y con cada cambio de lockfile), `api-deploy.yml` (imagen a GHCR, después las migraciones y después el rollout) e `infra.yml` (Bicep), más Dependabot (npm, uv y Actions) |
-| Ramas | En remoto solo `main`. En local quedan `main` y `feat/web-improvements` (vacía). Se trabaja en una rama por cambio con PR. |
+| Ramas | En remoto, `main` y 11 ramas de los PR #102–#112, ya fusionadas y pendientes de borrar. En local quedan `main` y `feat/web-improvements` (vacía). Se trabaja en una rama por cambio con PR. |
 
 ## Historial de PR fusionados
 
@@ -70,9 +70,11 @@
 | #105 | `fix/video-download-cap` | Tope de descarga de video; se rechazan directos y videos sin duración |
 | #106 | `chore/web-standalone` | Imagen Docker de la web de 1,33 GB a 386 MB |
 | #107 | `test/web-client` | `apiFetch` con Vitest y MSW, y e2e del flujo principal con Playwright |
-| #109 | `docs/changed-verdict-plan` | Plan del veredicto `CHANGED` |
+| #108 | `docs/session-2026-11-07-close` | Registro de la tarde del 2026-11-07 y especificación de `CHANGED` |
+| #109 | `docs/changed-verdict-plan` | Plan del veredicto `CHANGED`, más la clave de Anthropic revocada y Railway caído |
 | #110 | `feat/changed-verdict-web` | La web pinta `CHANGED` y su línea de tiempo |
 | #111 | `feat/changed-verdict-api` | **La API emite `CHANGED`** |
+| #112 | `docs/changed-verdict-close` | Cierre del veredicto `CHANGED` |
 
 ## Para retomar (2026-11-07)
 
@@ -82,11 +84,11 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 1. ~~**Protección de `main`**~~ Hecha el 2026-11-07: ver «Cómo se trabaja».
 2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. ~~**Comprobar que Railway desapareció**~~ El dueño confirmó el 2026-11-07 que cayó.
-4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
+4. **`co-mixto-1`:** sigue en `SUPPORTED` aunque ya existe `CHANGED` (#111). Le falta contexto en los fragmentos de la búsqueda, no un veredicto. Ver «Veredicto "Cambió con el tiempo"».
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
    - la app usa el usuario administrador de Postgres;
-   - si Redis se reinicia, se pierde la cola (B-03);
+   - ~~si Redis se reinicia, se pierde la cola (B-03)~~: desde el #103, el caso pasa a `failed` a los 20 minutos;
    - `docker-compose.yml` sigue con Postgres 16;
    - los scripts pasan secretos como argumento de `az` en local.
 
@@ -119,6 +121,27 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 - **Decisión del dueño (2026-11-07):** `co-mixto-2`, con una parte cierta y otra falsa, se muestra igual que «cambió con el tiempo». Hay un solo veredicto nuevo, `CHANGED`.
 - **Riesgo anotado en la especificación:** la etiqueta dirá «Cambió con el tiempo» sobre un dato que no cambió.
 - **Despliegue:** primero el PR de la web y después el de la API, o el reporte fallaría al recibir un veredicto desconocido.
+
+## Sesión del 2026-11-07 (noche): veredicto `CHANGED`
+
+- **Flujo:** especificación y plan aprobados por el dueño. El plan se ejecutó sin subagentes, a petición suya, así que la revisión final la hizo el autor y es más débil que una independiente.
+- **Orden de despliegue cumplido:** la portada nueva estaba en Vercel antes de fusionar la API, y `api-deploy` del #111 terminó bien, con `/api/health` en `ok`.
+- **Error del autor:** un recorte de script dejó mal cerrado el JSX de `claim-card.tsx`, y el comando siguió hasta publicar la rama sin detenerse en el error. CI lo detectó en el PR y se corrigió antes de fusionar. Desde entonces, cada publicación va detrás de `set -e` y de todas las comprobaciones.
+- **Prueba del plan corregida:** la de reputación pasaba antes de implementar, porque dos fuentes iguales empatan y nadie puntúa. Se cambió a pesos desiguales.
+- **Aún sin observar en producción:** no se creó ningún caso de prueba, así que no se ha visto un `CHANGED` real.
+- **Ramas pendientes de borrar:** siguen en remoto las 11 ramas de los PR #102–#112, todas fusionadas. El modo automático no permitió borrarlas, así que queda para el dueño.
+
+### Cuota gastada el 2026-11-07, tarde y noche
+
+| Uso | Créditos de Tavily |
+|---|---|
+| Evaluación de la tarde | 16 |
+| E2E real en local | 2 |
+| Dos evaluaciones de `CHANGED` | 32 |
+| Búsqueda de diagnóstico de `co-mixto-1` | 2 |
+| **Total** | **52** de los 1.000 mensuales |
+
+Gemini se usó en las mismas llamadas, dentro del plan gratuito y sin errores de cuota.
 
 ## Sesión del 2026-11-07 (tarde): evaluación, robustez y pruebas de la web
 
