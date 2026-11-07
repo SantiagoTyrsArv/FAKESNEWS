@@ -56,9 +56,9 @@
 
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
-0. **Comprobar la verificación en producción con un envío real** tras el PR de Tavily y Gemini, y **retirar Anthropic una semana después** (tarea 10 del plan `superpowers/plans/2026-11-07-tavily-gemini.md`). El plan gratuito de Gemini exige un proyecto sin facturación.
+0. **Retirar Anthropic el 2026-11-14,** si producción sigue estable (tarea 10 del plan `superpowers/plans/2026-11-07-tavily-gemini.md`): quitar el SDK y los ajustes, y borrar `anthropic-api-key` con la confirmación del dueño.
 1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
-2. **Decidir el modelo de producción:** corre `claude-sonnet-5`, mientras que toda la evaluación se hizo con `claude-sonnet-5-5`. Los 5 aciertos de 6 no dicen cómo se comporta el modelo de producción. O se cambia en `infra/main.bicepparam`, o se repite la evaluación con el modelo de producción. Ver la sesión del 2026-11-07, «Veredictos perdidos».
+2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
@@ -93,6 +93,8 @@ Los créditos de Anthropic se agotaron, y el dueño no quiere gastar más. Dise�
 - **Cautela:** 5 de esos casos están contaminados, así que solo 3 son limpios (2 de 3). `co-mixto-1` es inestable: salió bien en la fase 0 y mal en la evaluación final. También fallaba con Claude, y la causa de fondo es que no hay veredicto para lo que es cierto solo en parte.
 - **Prompt:** se aclaró que no mencionar algo no es contradecirlo, lo que resolvió la afirmación inventada.
 - **Límites de Gemini:** Google no publica los del plan gratuito. Si se agotan, las afirmaciones salen como «No se pudo verificar».
+- **Comprobado en producción:** un envío real del dueño hizo 2 búsquedas y 3 llamadas a Gemini, sin errores, en 5,2 s (`f74facf7`). Los secretos se llaman `gemini-api-key` y `tavily-api-key`.
+- **Despliegue:** `infra` falló la primera vez porque los secretos tenían otros nombres. Si cambia el mapa de secretos, hay que comprobar los nombres antes de fusionar.
 - **La evaluación ya usa el modelo de producción:** avisa si el del entorno es distinto. Es el problema que escondió el fallo del parser.
 
 ## Veredictos perdidos por el parser (2026-11-07)
