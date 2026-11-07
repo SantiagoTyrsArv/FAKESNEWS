@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 from httpx import AsyncClient
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -340,3 +341,116 @@ def test_default_limits() -> None:
     assert settings.max_submissions_per_day == 5
     assert settings.max_claims_per_submission == 4
     assert settings.verify_concurrency_limit == 2
+
+
+async def _prepare(client: AsyncClient, monkeypatch) -> None:
+    async def fake_enqueue(*_args) -> None:
+        return None
+
+    monkeypatch.setattr(submissions_service, "enqueue", fake_enqueue)
+    await _login_full_session(client)
+
+
+async def _age_all(db_session, minutes: int) -> None:
+    from sqlalchemy import update
+
+    await db_session.execute(
+        update(Submission).values(created_at=datetime.now(UTC) - timedelta(minutes=minutes))
+    )
+    await db_session.commit()
+
+
+async def test_failed_enqueue_fails_the_case_and_frees_the_slot(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    async def broken_enqueue(job_name: str, *args) -> None:
+        raise RedisConnectionError("redis is down")
+
+    monkeypatch.setattr(submissions_service, "enqueue", broken_enqueue)
+    await _login_full_session(app_client)
+
+    resp = await _post_text(app_client)
+
+    assert resp.status_code == 503
+    assert "Retry-After" in resp.headers
+    submission = (await db_session.execute(select(Submission))).scalar_one()
+    await db_session.refresh(submission)
+    assert submission.status == "failed"
+    assert submission.error == submissions_service.ENQUEUE_FAILURE
+
+
+async def test_stuck_case_stops_blocking_the_user(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    monkeypatch.setattr(submissions_service.settings, "max_active_submissions_per_user", 1)
+    await _prepare(app_client, monkeypatch)
+    assert (await _post_text(app_client)).status_code == 201
+    await _age_all(db_session, 21)
+
+    assert (await _post_text(app_client)).status_code == 201
+
+    listed = (await app_client.get("/submissions")).json()["submissions"]
+    assert sorted(s["status"] for s in listed) == ["failed", "queued"]
+
+
+async def test_stuck_case_shows_as_failed_on_its_page(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    await _prepare(app_client, monkeypatch)
+    case = (await _post_text(app_client)).json()
+    await _age_all(db_session, 21)
+
+    body = (await app_client.get(f"/submissions/{case['id']}")).json()
+
+    assert body["status"] == "failed"
+    assert body["error"] == submissions_service.STUCK_FAILURE
+
+
+async def test_case_within_the_time_limit_is_left_alone(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    await _prepare(app_client, monkeypatch)
+    case = (await _post_text(app_client)).json()
+    await _age_all(db_session, 19)
+
+    body = (await app_client.get(f"/submissions/{case['id']}")).json()
+
+    assert body["status"] == "queued"
+
+
+async def test_finished_case_is_not_marked_stuck(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    await _prepare(app_client, monkeypatch)
+    case = (await _post_text(app_client)).json()
+    await _mark_all(db_session, "done")
+    await _age_all(db_session, 60)
+
+    body = (await app_client.get(f"/submissions/{case['id']}")).json()
+
+    assert body["status"] == "done"
+    assert body["error"] is None
+
+
+async def test_stuck_case_of_another_user_is_left_alone(
+    app_client: AsyncClient, db_session, monkeypatch
+) -> None:
+    await _prepare(app_client, monkeypatch)
+    other = User(email="other@example.com", password_hash="x")
+    db_session.add(other)
+    await db_session.flush()
+    db_session.add(
+        Submission(
+            user_id=other.id,
+            input_type="text",
+            raw_input="otro",
+            status="verifying",
+            created_at=datetime.now(UTC) - timedelta(hours=2),
+        )
+    )
+    await db_session.commit()
+
+    await app_client.get("/submissions")
+
+    theirs = await db_session.scalar(select(Submission).where(Submission.user_id == other.id))
+    assert theirs.status == "verifying"
