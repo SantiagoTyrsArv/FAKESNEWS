@@ -109,6 +109,9 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_MODEL")
+    tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
 
     # Video ingest downloads media and runs Whisper on the worker's CPU; turn it
     # off where the worker lacks the memory or time for it.
