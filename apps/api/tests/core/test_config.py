@@ -8,18 +8,18 @@ def test_settings_load_with_defaults(monkeypatch) -> None:
     settings = Settings(_env_file=None)
 
     assert settings.environment == "development"
-    assert settings.anthropic_model == "claude-sonnet-5"
+    assert settings.gemini_model == "gemini-3.5-flash-lite"
     assert settings.access_token_expire_minutes == 15
     assert settings.mfa_pending_token_expire_minutes == 5
 
 
 def test_settings_override_from_env(monkeypatch) -> None:
-    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-opus-5")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-otro")
     monkeypatch.setenv("MAX_CLAIMS_PER_SUBMISSION", "3")
 
     settings = Settings(_env_file=None)
 
-    assert settings.anthropic_model == "claude-opus-5"
+    assert settings.gemini_model == "gemini-otro"
     assert settings.max_claims_per_submission == 3
 
 
