@@ -8,6 +8,7 @@ import { Curtain } from "@/components/landing/curtain";
 import { HeroMedia } from "@/components/landing/hero-media";
 import { Marquee } from "@/components/landing/marquee";
 import { SourcesSection } from "@/components/landing/sources-section";
+import { StepsAside } from "@/components/landing/steps-aside";
 import { useLandingMotion } from "@/components/landing/use-landing-motion";
 import { Button } from "@/components/ui/button";
 import { VERDICTS, VERDICT_ORDER, VerdictLabel } from "@/components/verdict";
@@ -212,6 +213,7 @@ export default function Home() {
                 Tarda entre uno y tres minutos. Puedes cerrar la página: el caso queda guardado en
                 tu historial.
               </p>
+              <StepsAside />
             </div>
             <ol className="grid gap-x-10 gap-y-12 sm:grid-cols-2">
               {STEPS.map((step, i) => (
