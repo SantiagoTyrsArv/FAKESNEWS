@@ -92,7 +92,14 @@ Dos envíos reales del dueño salieron «sin evidencia suficiente», uno de ello
 - **Reproducción:** una llamada igual a la de producción, de unos 0,13 USD, devolvió `SUPPORTED` con fuentes de El Tiempo, El Colombiano y Chequeado, y el parser antiguo falló.
 - **Por qué la evaluación no lo vio:** usa el `ANTHROPIC_MODEL` del `.env` (`claude-sonnet-5-5`), que no produce ese formato.
 - **Corrección (#83):** se unen todos los bloques de texto y se toma el último objeto JSON con `verdict`. Las evidencias se siguen validando contra los resultados reales de la búsqueda.
+- **Endurecimiento (#84):** una revisión de seguridad señaló que el #83 aceptaba un `verdict` en cualquier parte del texto, y una página podía inducir al modelo a citar uno falso. Ahora solo vale el veredicto que cierra el texto, después de la última búsqueda y sin otro que lo contradiga. Si no, la respuesta se rechaza. Lo definitivo sería usar salida estructurada.
 - **Gasto:** los dos envíos costaron unos 0,80 USD, porque los reintentos se cobran. Con el diagnóstico quedan unos **3,35 USD** si los créditos no cambiaron con la clave nueva.
+
+## Artículo que agotó los créditos (2026-11-07)
+
+Un artículo enviado a las 03:16 UTC, antes de desplegar el #83, hizo 8 llamadas de verificación con 581.520 tokens de entrada y 24 búsquedas, por unos **1,56 USD** según los logs. Cada llamada falló por el parser y se repitió, así que se pagó el doble para no obtener ningún veredicto. El dueño informa de que los créditos se agotaron; la estimación era que quedaran unos 1,80 USD, así que hay que comprobar el saldo en la consola de Anthropic.
+
+**Riesgo abierto:** un envío grande puede costar más de 1,50 USD aunque el parser funcione. Cada llamada usa hasta 120.000 tokens de entrada por los resultados de búsqueda. Medidas pendientes de decisión: 4 afirmaciones por envío en lugar de 8, 3 búsquedas en lugar de 5, y un límite de gasto en la consola.
 
 ## Evaluación de veredictos del 2026-11-07
 

@@ -154,9 +154,9 @@ def _extract_real_results(content: list) -> dict[str, str | None]:
     return real
 
 
-def _last_verdict_object(text: str) -> str | None:
-    """The last top-level JSON object with a verdict, wherever it sits in the text."""
-    found = None
+def _verdict_objects(text: str) -> list[tuple[int, dict]]:
+    """Every top-level JSON object with a verdict, as (end offset, object)."""
+    found = []
     start = text.find("{")
     while start != -1:
         next_search = start + 1
@@ -166,21 +166,46 @@ def _last_verdict_object(text: str) -> str | None:
             pass
         else:
             if isinstance(value, dict) and "verdict" in value:
-                found = text[start:end]
+                found.append((end, value))
                 next_search = end
         start = text.find("{", next_search)
     return found
 
 
+def _closing_verdict(text: str) -> dict | None:
+    """The verdict that closes the answer, or None if it can't be trusted.
+
+    Page content can get the model to quote a verdict, so one only counts as
+    the very end of the text (a closing fence aside), with no other verdict
+    disagreeing with it."""
+    body = text.rstrip().removesuffix("```").rstrip()
+    objects = _verdict_objects(body)
+    if not objects or objects[-1][0] != len(body):
+        return None
+    verdicts = {obj["verdict"] for _, obj in objects if isinstance(obj["verdict"], str)}
+    return objects[-1][1] if len(verdicts) == 1 else None
+
+
 def _extract_final_json_text(content: list) -> str | None:
     """The verdict JSON of the answer. The model may write prose or a code
-    fence around it, despite the prompt, and citations split the text into
-    several blocks, so no single block can be trusted to be the JSON."""
-    text_blocks = [block.text for block in content if getattr(block, "type", None) == "text"]
+    fence before it, despite the prompt, and citations split the text into
+    several blocks, so all the text after the last search is read together."""
+    last_search = max(
+        (
+            index
+            for index, block in enumerate(content)
+            if getattr(block, "type", None) == "web_search_tool_result"
+        ),
+        default=-1,
+    )
+    text_blocks = [
+        block.text for block in content[last_search + 1 :] if getattr(block, "type", None) == "text"
+    ]
     if not text_blocks:
         return None
     text = "".join(text_blocks)
-    return _last_verdict_object(text) or text.strip()
+    verdict = _closing_verdict(text)
+    return text.strip() if verdict is None else json.dumps(verdict)
 
 
 async def verify_claim(
