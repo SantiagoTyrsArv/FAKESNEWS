@@ -166,7 +166,7 @@ export function SubmitClient() {
           >
             {loading ? "Enviando…" : "Verificar"}
           </Button>
-          <p className="text-sm text-muted-foreground">Suele tardar entre uno y tres minutos.</p>
+          <p className="text-sm text-muted-foreground">Menos de un minuto para textos y artículos.</p>
         </div>
       </form>
     </AppShell>
