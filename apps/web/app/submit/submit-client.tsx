@@ -151,6 +151,11 @@ export function SubmitClient() {
           </div>
         </div>
 
+        <p data-pop className="text-sm leading-relaxed text-muted-foreground">
+          El contenido se procesa con Google y Tavily, y personas de Google pueden revisarlo. No
+          incluyas datos personales ni sensibles. FakesNews es para uso en Colombia.
+        </p>
+
         <div data-pop className="flex flex-wrap items-center gap-4 border-t pt-6">
           <Button
             type="submit"
