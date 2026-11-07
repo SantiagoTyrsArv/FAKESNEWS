@@ -56,6 +56,10 @@ Con los mismos 8 casos:
 
 Cada ejecución gasta 16 créditos de Tavily, 48 en total.
 
+## Resultado (2026-11-07)
+
+El criterio no se cumplió: `co-mixto-2` salió `CHANGED` en las dos ejecuciones y `co-mixto-1` siguió en `SUPPORTED`. El dueño decidió fusionar igual. Ningún caso empeoró, y el fallo de `co-mixto-1` es de contexto, no de veredicto: sus cifras son ciertas, y la calificación «Cuestionable» se debe a un contexto que los fragmentos no traen. El detalle está en `docs/ESTADO.md`.
+
 ## Riesgo conocido
 
 `co-mixto-2` no cambió con el tiempo: nunca fue cierto en la parte del porcentaje. Con esta decisión, el usuario leerá «Cambió con el tiempo» sobre un dato que no cambió. La explicación y las evidencias lo aclaran, pero la etiqueta no. Si esto molesta al probarlo, basta con cambiar la etiqueta por una más amplia, sin tocar el resto del diseño.

@@ -70,6 +70,9 @@
 | #105 | `fix/video-download-cap` | Tope de descarga de video; se rechazan directos y videos sin duración |
 | #106 | `chore/web-standalone` | Imagen Docker de la web de 1,33 GB a 386 MB |
 | #107 | `test/web-client` | `apiFetch` con Vitest y MSW, y e2e del flujo principal con Playwright |
+| #109 | `docs/changed-verdict-plan` | Plan del veredicto `CHANGED` |
+| #110 | `feat/changed-verdict-web` | La web pinta `CHANGED` y su línea de tiempo |
+| #111 | `feat/changed-verdict-api` | **La API emite `CHANGED`** |
 
 ## Para retomar (2026-11-07)
 
@@ -104,9 +107,14 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
 
-## Veredicto «Cambió con el tiempo» (plan pendiente de aprobar)
+## Veredicto «Cambió con el tiempo» (en producción desde el 2026-11-07)
 
-Especificación aprobada por el dueño el 2026-11-07: [2026-11-07-changed-verdict-design.md](superpowers/specs/2026-11-07-changed-verdict-design.md). Plan: [2026-11-07-changed-verdict.md](superpowers/plans/2026-11-07-changed-verdict.md). **Falta aprobar el plan. No hay código.**
+[Especificación](superpowers/specs/2026-11-07-changed-verdict-design.md) y [plan](superpowers/plans/2026-11-07-changed-verdict.md). La web (#110) se desplegó antes que la API (#111).
+
+- **El criterio de aceptación no se cumplió, y el dueño decidió fusionar igual.** En dos ejecuciones (`results/2026-11-07_140217.md` y `_142729.md`): 7 de 8, `co-mixto-2` en `CHANGED` las dos veces, ningún caso `true` o `false` en `CHANGED` y 1 error grave.
+- **`co-mixto-1` es otro problema:** sus cifras son ciertas (13,1 % en 2022, 5,1 % al cierre de 2025), y Colombiacheck lo califica «Cuestionable» por falta de contexto, porque el pico venía de la pandemia. Ese contexto no aparece en los fragmentos que recibe el modelo. Una regla extra para cifras que cambiaron no movió el resultado y se quitó.
+- **La evaluación cambió de escala:** un caso `mixed` solo acierta con `CHANGED`, así que los marcadores anteriores al #111 no se comparan directamente.
+- **No implementado:** la regla de exigir posturas distintas en `CHANGED`. Los datos no la justificaron.
 
 - **Decisión del dueño (2026-11-07):** `co-mixto-2`, con una parte cierta y otra falsa, se muestra igual que «cambió con el tiempo». Hay un solo veredicto nuevo, `CHANGED`.
 - **Riesgo anotado en la especificación:** la etiqueta dirá «Cambió con el tiempo» sobre un dato que no cambió.
@@ -280,7 +288,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07, confirmado por el dueño.
-1. **Veredicto `CHANGED`:** es la mejora de calidad más importante, porque `co-mixto-1` lleva 3 evaluaciones con error grave. Falta aprobar el plan, y después vienen dos PR. Además conviene ampliar la evaluación: de 8 casos, 6 están contaminados.
+1. **Calidad de los veredictos:** `CHANGED` ya está en producción (#111). Siguen dos problemas. `co-mixto-1` falla porque al modelo le falta contexto, no el veredicto. Y la evaluación es pequeña: 6 de sus 8 casos están contaminados. El siguiente paso es ampliarla con casos limpios antes de tocar más el prompt.
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. ~~**Robustez del backend**~~ Hecho en #102–#106. Queda un riesgo menor en video: un audio muy comprimido podría durar mucho más que sus metadatos, y cancelar el trabajo no detiene el hilo de Whisper. Se acepta por ahora porque solo se admiten hosts que recodifican lo que se sube. La solución sería transcribir en un subproceso que se pueda matar.
 4. ~~**Pruebas de la web**~~ Hecho en #107.
