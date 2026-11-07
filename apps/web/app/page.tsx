@@ -210,8 +210,8 @@ export default function Home() {
                 Cómo se arma un reporte
               </h2>
               <p className="max-w-[40ch] leading-relaxed text-muted-foreground">
-                Tarda entre uno y tres minutos. Puedes cerrar la página: el caso queda guardado en
-                tu historial.
+                Menos de un minuto para textos y artículos. Puedes cerrar la página: el caso queda
+                guardado en tu historial.
               </p>
               <StepsAside />
             </div>
