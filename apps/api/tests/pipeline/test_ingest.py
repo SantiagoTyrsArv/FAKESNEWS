@@ -174,7 +174,7 @@ async def test_ingest_video_asks_for_one_video_only(monkeypatch: pytest.MonkeyPa
     )
 
     assert [opts["noplaylist"] for opts in opts_seen] == [True, True]
-    assert opts_seen[1]["playlistend"] == 1
+    assert [opts["playlistend"] for opts in opts_seen] == [1, 1]
 
 
 async def test_ingest_video_success(monkeypatch: pytest.MonkeyPatch) -> None:

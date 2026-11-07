@@ -43,6 +43,7 @@ def audio_url(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
 
 
 def test_download_stops_at_the_cap(audio_url: str, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(ingest_module, "_check_video_is_bounded", lambda _info: None)
     monkeypatch.setattr(ingest_module.settings, "max_video_download_mb", 2)
 
     with pytest.raises(ingest_module.IngestError, match="2 MB"):
@@ -50,8 +51,18 @@ def test_download_stops_at_the_cap(audio_url: str, tmp_path, monkeypatch) -> Non
 
 
 def test_download_under_the_cap_finishes(audio_url: str, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(ingest_module, "_check_video_is_bounded", lambda _info: None)
     monkeypatch.setattr(ingest_module.settings, "max_video_download_mb", STREAM_MEGABYTES + 1)
 
     path = ingest_module._download_audio(audio_url, str(tmp_path))
 
     assert (tmp_path / path.rsplit("\\", 1)[-1].rsplit("/", 1)[-1]).exists()
+
+
+def test_download_checks_the_video_it_is_about_to_fetch(audio_url: str, tmp_path) -> None:
+    """The URL is resolved again to download, so the video could have changed
+    since the first check. This stream reports no duration."""
+    with pytest.raises(ingest_module.IngestError, match="cuánto dura"):
+        ingest_module._download_audio(audio_url, str(tmp_path))
+
+    assert list(tmp_path.iterdir()) == []

@@ -61,6 +61,13 @@ async def ingest_url(url: str) -> str:
 
 
 _LIVE_STATUSES = ("is_live", "is_upcoming", "post_live")
+_SINGLE_VIDEO_OPTS = {
+    "quiet": True,
+    "no_warnings": True,
+    "noplaylist": True,
+    "playlistend": 1,
+    "socket_timeout": 30,
+}
 
 
 def _extract_video_info(video_url: str) -> dict:
@@ -68,36 +75,9 @@ def _extract_video_info(video_url: str) -> dict:
 
     assert_allowed_video_host(video_url, set(settings.allowed_video_hosts))
     assert_public_http_url(video_url)
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True}
+    opts = {"skip_download": True, **_SINGLE_VIDEO_OPTS}
     with yt_dlp.YoutubeDL(opts) as ydl:
         return ydl.extract_info(video_url, download=False)
-
-
-def _stop_oversized_download(progress: dict) -> None:
-    """A hook and not yt-dlp's max_filesize, which needs a Content-Length and
-    so lets through streams that don't send one."""
-    cap_mb = settings.max_video_download_mb
-    if (progress.get("downloaded_bytes") or 0) > cap_mb * 1024 * 1024:
-        raise IngestError(f"El video pesa más de {cap_mb} MB, el máximo permitido.")
-
-
-def _download_audio(video_url: str, out_dir: str) -> str:
-    import yt_dlp
-
-    assert_allowed_video_host(video_url, set(settings.allowed_video_hosts))
-    assert_public_http_url(video_url)
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "format": "bestaudio/best",
-        "outtmpl": str(Path(out_dir) / "%(id)s.%(ext)s"),
-        "noplaylist": True,
-        "playlistend": 1,
-        "progress_hooks": [_stop_oversized_download],
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(video_url, download=True)
-        return ydl.prepare_filename(info)
 
 
 def _check_video_is_bounded(info: dict) -> None:
@@ -114,6 +94,38 @@ def _check_video_is_bounded(info: dict) -> None:
             f"El video dura {int(duration)}s, el máximo permitido es "
             f"{settings.max_video_duration_seconds}s."
         )
+
+
+def _reject_unbounded_video(info: dict, *, incomplete: bool) -> None:
+    """Downloading resolves the URL again, so this checks the video actually
+    about to be fetched. `incomplete` entries don't have their data yet."""
+    if not incomplete:
+        _check_video_is_bounded(info)
+
+
+def _stop_oversized_download(progress: dict) -> None:
+    """A hook and not yt-dlp's max_filesize, which needs a Content-Length and
+    so lets through streams that don't send one."""
+    cap_mb = settings.max_video_download_mb
+    if (progress.get("downloaded_bytes") or 0) > cap_mb * 1024 * 1024:
+        raise IngestError(f"El video pesa más de {cap_mb} MB, el máximo permitido.")
+
+
+def _download_audio(video_url: str, out_dir: str) -> str:
+    import yt_dlp
+
+    assert_allowed_video_host(video_url, set(settings.allowed_video_hosts))
+    assert_public_http_url(video_url)
+    opts = {
+        **_SINGLE_VIDEO_OPTS,
+        "format": "bestaudio/best",
+        "outtmpl": str(Path(out_dir) / "%(id)s.%(ext)s"),
+        "match_filter": _reject_unbounded_video,
+        "progress_hooks": [_stop_oversized_download],
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(video_url, download=True)
+        return ydl.prepare_filename(info)
 
 
 async def ingest_video(video_url: str, transcriber: Transcriber) -> str:
