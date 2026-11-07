@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.core.llm import LLMError, LLMQuotaError, generate_structured
 from app.core.logging import get_logger
 from app.core.search import SearchError, SearchQuotaError, SearchResult, search_trusted
+from app.modules.pipeline.snippet import best_snippet
 from app.modules.sources.service import normalize_domain
 
 logger = get_logger(__name__)
@@ -158,7 +159,7 @@ def _build_user_message(claim_text: str, results: dict[int, tuple[SearchResult, 
 
 
 def _evidence(
-    answer: _ModelVerdict, results: dict[int, tuple[SearchResult, str]]
+    answer: _ModelVerdict, results: dict[int, tuple[SearchResult, str]], claim_text: str
 ) -> list[EvidenceItem]:
     """The cited results, each once. Unknown numbers are dropped."""
     evidence: list[EvidenceItem] = []
@@ -173,7 +174,7 @@ def _evidence(
             EvidenceItem(
                 url=result.url,
                 domain=domain,
-                snippet=result.content,
+                snippet=best_snippet(result.content, claim_text),
                 published_at=published_at[:MAX_PUBLISHED_AT_CHARS] if published_at else None,
                 stance=cited.stance,
             )
@@ -213,7 +214,7 @@ async def verify_claim(
         logger.warning("verify_claim_llm_failed", error=str(exc))
         return _failed(FAILED_RATIONALE)
 
-    return _conclude(answer, _evidence(answer, results))
+    return _conclude(answer, _evidence(answer, results, claim_text))
 
 
 def _conclude(raw: _ModelVerdict, evidence: list[EvidenceItem]) -> VerifyResult:

@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { ScoreMeter } from "@/components/verdict";
 import type { ReportEvidence, Stance } from "@/lib/cases";
+import { formatPublishedDate } from "@/lib/format-date.mjs";
 import { evidenceUrl } from "@/lib/source-url.mjs";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,9 @@ export function EvidenceItem({ evidence }: Readonly<{ evidence: ReportEvidence }
             <span className="truncate">Leer en {source.domain}</span>
           </a>
         )}
-        {evidence.published_at && <span>Publicado: {evidence.published_at}</span>}
+        {evidence.published_at && (
+          <span>Publicado: {formatPublishedDate(evidence.published_at)}</span>
+        )}
       </div>
     </li>
   );

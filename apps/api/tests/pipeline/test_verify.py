@@ -93,6 +93,15 @@ async def test_evidence_comes_from_search_not_from_the_model(
     assert evidence.stance == "supports"
 
 
+async def test_evidence_shows_a_clean_quote_from_the_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    noisy = "Banner WhatsApp [...] La afirmación aparece confirmada en este texto de la fuente."
+    _Fakes(monkeypatch, [_result(content=noisy)], _answer("SUPPORTED", (1, "supports")))
+
+    snippet = (await _verify("La afirmación está confirmada")).evidence[0].snippet
+
+    assert snippet == "La afirmación aparece confirmada en este texto de la fuente."
+
+
 async def test_model_answer_cannot_carry_a_url() -> None:
     answer = _ModelVerdict.model_validate(
         {
