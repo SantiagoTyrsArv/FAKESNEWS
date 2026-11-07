@@ -651,12 +651,12 @@ Comprobado contra el código de `main` el 2026-10-24. El análisis de seguridad 
 | # | Acción | Estado |
 |---|---|---|
 | 9 | CI de la API, OSV-Scanner programado y Dependabot | 🟡 Parcial. Dependabot (npm, uv y Actions) está activo y sus lotes llegaron en los PR #24 y #32. **Pendiente:** el workflow de la API (`ruff` y `pytest`) y OSV programado. |
-| 10 | Bloqueos en refresh, códigos de recuperación y contador; `jti` de un solo uso | 🟡 Parcial. El `jti` de un solo uso para `mfa_pending` está en el PR #34 (H-04). **Pendiente:** los bloqueos de fila (B-02). |
-| 11 | Encolado con compensación, recolector de casos colgados y healthcheck del worker | ❌ Pendiente |
+| 10 | Bloqueos en refresh, códigos de recuperación y contador; `jti` de un solo uso | ✅ `jti` en el PR #34, bloqueos en el PR #102. |
+| 11 | Encolado con compensación, recolector de casos colgados y healthcheck del worker | ✅ PR #103. El recolector corre en la API, porque el worker escala a cero. El healthcheck solo existe en `docker-compose.yml`: Azure Container Apps no admite sondas exec. |
 | 12 | Descarga de URL propia con `httpx` y tope de tamaño | 🟡 La descarga propia ya revalida cada salto y corta a 5 MB (`url_safety.py`, PR #11, H-01). **Pendiente:** tope de tamaño en yt-dlp. |
-| 13 | `output: "standalone"` en la imagen web | ❌ Pendiente |
-| 14 | Índices compuestos y paginación de `/submissions` | ❌ Pendiente |
-| 15 | Tests de `apiFetch` (Vitest + MSW) y e2e con Playwright | ❌ Pendiente. La web solo tiene `node --test` para `lib/` (`test:motion`, `test:lib`). |
+| 13 | `output: "standalone"` en la imagen web | ✅ PR #106: de 1,33 GB a 386 MB. |
+| 14 | Índices compuestos y paginación de `/submissions` | ✅ PR #104. |
+| 15 | Tests de `apiFetch` (Vitest + MSW) y e2e con Playwright | ✅ PR #107. |
 
 ### Largo plazo
 

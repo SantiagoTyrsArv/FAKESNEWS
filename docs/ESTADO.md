@@ -64,6 +64,12 @@
 | #95 | `feat/steps-hero` | La sección «Paso a paso» muestra un resultado real y tres datos en escritorio |
 | #97 | `fix/processing-time-copy` | Tiempo real de proceso en la portada y `/submit` |
 | #98, #99 | `ci/protect-main`, `ci/changes-fail-closed` | Comprobaciones exigibles y `api-deploy` con pruebas previas |
+| #102 | `fix/auth-row-locks` | Bloqueos de fila en refresh, códigos de recuperación y fallos de inicio de sesión (B-02), y Postgres 18 en `api-check` |
+| #103 | `fix/stuck-cases` | Casos colgados, cuota con concurrencia y healthcheck del worker (B-03, O-04) |
+| #104 | `feat/submissions-pagination` | Paginación de `/submissions` e índices (B-04, B-05). Migración `d5f2b7c3e8a1` |
+| #105 | `fix/video-download-cap` | Tope de descarga de video; se rechazan directos y videos sin duración |
+| #106 | `chore/web-standalone` | Imagen Docker de la web de 1,33 GB a 386 MB |
+| #107 | `test/web-client` | `apiFetch` con Vitest y MSW, y e2e del flujo principal con Playwright |
 
 ## Para retomar (2026-11-07)
 
@@ -98,14 +104,25 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
 
-## Diseño del veredicto parcial (en curso)
+## Veredicto «Cambió con el tiempo» (especificación pendiente de aprobar)
 
-Conversación de diseño empezada el 2026-11-07, con la skill de brainstorming. **No hay especificación ni código todavía.**
+Especificación: [2026-11-07-changed-verdict-design.md](superpowers/specs/2026-11-07-changed-verdict-design.md). **Falta la aprobación del dueño. No hay plan ni código.**
 
-- **Lo que dijo el dueño:** ante una afirmación como «la inflación cayó del 13 % a cerca del 5 %», el usuario debe entender que hubo una actualización reciente, y poder ver un historial de lo anterior o ir a la noticia donde aparecía ese dato.
-- **Interpretación, pendiente de confirmar:** más que un «a medias» es un «fue cierto, pero cambió». Se mostraría como una línea de tiempo dentro de la afirmación, ordenada por fecha, con cada punto enlazado a su fuente. No haría falta guardar datos nuevos: las evidencias ya traen fecha y enlace.
-- **Pregunta abierta para el dueño:** `co-mixto-2` no está desactualizada, sino que tiene una parte cierta y otra falsa. ¿Se muestra igual que «cambió con el tiempo», o el usuario debe ver que son dos situaciones distintas?
-- **Después:** seguir la conversación, escribir la especificación en `superpowers/specs/`, aprobarla y hacer el plan. Afecta al esquema de `verify.py`, a la reputación, a `evals/verdicts/scoring.py`, al reporte de la web y a la columna `verdict`.
+- **Decisión del dueño (2026-11-07):** `co-mixto-2`, con una parte cierta y otra falsa, se muestra igual que «cambió con el tiempo». Hay un solo veredicto nuevo, `CHANGED`.
+- **Riesgo anotado en la especificación:** la etiqueta dirá «Cambió con el tiempo» sobre un dato que no cambió.
+- **Despliegue:** primero el PR de la web y después el de la API, o el reporte fallaría al recibir un veredicto desconocido.
+
+## Sesión del 2026-11-07 (tarde): evaluación, robustez y pruebas de la web
+
+- **Evaluación:** 7 de 8, 1 error grave (`co-mixto-1` en `SUPPORTED`) y 16 créditos de Tavily. Informe en `apps/api/evals/verdicts/results/2026-11-07_115534.md`. 6 de los 8 casos están contaminados, y los 2 limpios acertaron. La muestra sigue siendo pequeña.
+- **Las carreras de B-02 eran reales:** con Postgres, los dos gastos dobles y la pérdida de fallos se reproducían siempre. Las pruebas corren en `api-check` con `TEST_POSTGRES_URL`. Sin esa variable, se saltan.
+- **Efecto de B-02:** dos refresh simultáneos con el mismo token cuentan como reutilización y revocan la familia. Dos pestañas que refresquen a la vez cierran la sesión.
+- **Recolector en la API, no en el worker:** el worker escala a cero, así que un cron de arq no correría. Un caso sin terminar a los 20 minutos pasa a `failed` cuando el usuario crea, consulta o lista casos.
+- **Sin healthcheck en Azure:** Container Apps no admite sondas exec. El de `arq --check` solo aplica a `docker-compose.yml`.
+- **Video:** un video sin duración en sus metadatos ya no se analiza.
+- **Tope de vitest:** quedó en 5.0.5 porque 5.1.0 tenía 5 días.
+- **E2E real:** `E2E_REAL=1 pnpm test:e2e` contra API y worker locales pasó una vez, con el caso resuelto en 6,4 s. En CI la API se simula, así que el CI no detecta si la simulación deja de coincidir con la API.
+- **Windows:** en local, `uv run arq` y `uv run alembic` fallan con «trampoline». Se usan `python -m alembic` y `python -c "from arq.cli import cli; cli()"`.
 
 ## Resumen de la sesión del 2026-11-06 y 2026-11-07
 
@@ -263,15 +280,10 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07. Falta confirmar la purga después del 2026-11-09.
-1. **Veredicto para lo que es cierto solo en parte (diseño en curso, sin código):** es la mejora de calidad más importante, porque `co-mixto-1` cambia entre ejecuciones por esta carencia. Se está definiendo con el dueño, y el estado está en «Diseño del veredicto parcial». Además conviene ampliar la evaluación: de 8 casos, 5 están contaminados. Correrla es gratis, pero gasta unos 16 créditos de Tavily.
+1. **Veredicto `CHANGED`:** es la mejora de calidad más importante, porque `co-mixto-1` lleva 3 evaluaciones con error grave. Falta aprobar la especificación, y después vienen el plan y dos PR. Además conviene ampliar la evaluación: de 8 casos, 6 están contaminados.
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
-3. **Robustez del backend** (AUDITORIA.md §7):
-   - bloqueos de fila en refresh y en códigos de recuperación (B-02);
-   - recolector de casos colgados y healthcheck del worker (B-03, O-04);
-   - índices y paginación de `/submissions` (B-04, B-05);
-   - tope de tamaño en yt-dlp;
-   - `output: "standalone"` en la imagen web.
-4. **Pruebas de la web:** `apiFetch` con Vitest y MSW, y un e2e con Playwright del flujo principal. Un e2e completo ya no gasta dinero, solo cuota gratuita.
+3. ~~**Robustez del backend**~~ Hecho en #102–#106. Queda un riesgo menor en video: un audio muy comprimido podría durar mucho más que sus metadatos, y cancelar el trabajo no detiene el hilo de Whisper. Se acepta por ahora porque solo se admiten hosts que recodifican lo que se sube. La solución sería transcribir en un subproceso que se pueda matar.
+4. ~~**Pruebas de la web**~~ Hecho en #107.
 5. **Largo plazo:**
    - TypeScript 7 y ESLint 10;
    - observabilidad (alertas, métricas, backups probados);
@@ -287,6 +299,6 @@ Lo que se aprendió midiendo, para no repetirlo:
 - **Fusión:** con merge commit, cuando el CI está en verde y Sonar no tiene issues nuevos.
 - **Protección de `main`:** todo entra por PR, sin aprobación obligatoria porque hay un solo desarrollador. Son obligatorios `api-check`, `web-check` y SonarCloud, y la regla también aplica a los administradores. `api` y `web` corren en todos los PR y saltan su trabajo si no se toca su código; si no se puede leer la lista de archivos, corren. Si se renombra uno de esos jobs, hay que actualizar la protección o los PR quedarán bloqueados.
 - **Despliegue:** `api-deploy` corre las pruebas de la API antes de construir la imagen. Una prueba en rojo detiene el despliegue.
-- **Comprobaciones de la web** (`apps/web`): `pnpm lint`, `pnpm lint:css`, `pnpm exec tsc --noEmit`, `pnpm test:motion`, `pnpm test:lib` y `pnpm build`. Antes de usar APIs de Next 16, leer `node_modules/next/dist/docs/` (lo pide `apps/web/AGENTS.md`).
-- **Comprobaciones de la API** (`apps/api`): `uv run python -m pytest -q`, `uv run ruff check .` y `uv run ruff format --check .`. En Windows, `uv run pytest` falla con «trampoline»; hay que usar `python -m pytest`.
+- **Comprobaciones de la web** (`apps/web`): `pnpm lint`, `pnpm lint:css`, `pnpm exec tsc --noEmit`, `pnpm test:motion`, `pnpm test:lib`, `pnpm test:api`, `pnpm build` y `pnpm test:e2e` (después de `build`). Antes de usar APIs de Next 16, leer `node_modules/next/dist/docs/` (lo pide `apps/web/AGENTS.md`).
+- **Comprobaciones de la API** (`apps/api`): `uv run python -m pytest -q`, `uv run ruff check .` y `uv run ruff format --check .`. Para las pruebas de concurrencia, `TEST_POSTGRES_URL` debe apuntar a una base desechable: se borra. En Windows, `uv run pytest` falla con «trampoline»; hay que usar `python -m pytest`.
 - **Producción:** no se crean datos de prueba en producción (cuentas, casos). Los escaneos activos solo se hacen en local.
