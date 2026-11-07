@@ -105,8 +105,10 @@ async def test_extraction_leaves_room_for_adaptive_thinking(
 
 
 def test_extraction_schema_allows_four_claims() -> None:
+    claims = [ExtractedClaim(text="x")] * 5
+
     with pytest.raises(ValidationError):
-        ClaimsExtractionResult(claims=[ExtractedClaim(text="x")] * 5)
+        ClaimsExtractionResult(claims=claims)
 
 
 def test_prompt_asks_for_at_most_four_claims() -> None:
