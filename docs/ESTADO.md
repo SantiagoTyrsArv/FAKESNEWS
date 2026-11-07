@@ -62,13 +62,15 @@
 | #90 | `chore/remove-anthropic` | Se retira el SDK de Anthropic y sus ajustes |
 | #94 | `feat/cleaner-evidence` | Citas cortas y limpias (`snippet.py`, reglas fijas, sin modelo) y fechas en español |
 | #95 | `feat/steps-hero` | La sección «Paso a paso» muestra un resultado real y tres datos en escritorio |
+| #97 | `fix/processing-time-copy` | Tiempo real de proceso en la portada y `/submit` |
+| #98, #99 | `ci/protect-main`, `ci/changes-fail-closed` | Comprobaciones exigibles y `api-deploy` con pruebas previas |
 
 ## Para retomar (2026-11-07)
 
 Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo primero en la próxima sesión:
 
 0. **Anthropic está retirado:** el SDK salió en el #90 y el dueño borró el secreto `anthropic-api-key` el 2026-11-07 a las 05:12 UTC. Ninguna app ni job lo usa. Key Vault permite recuperarlo hasta el 2026-11-14, igual que `gemini-key` y `travily-key`, los nombres anteriores de los secretos nuevos. Queda revocar la clave en la consola de Anthropic.
-1. **Decidir la protección de `main`** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): sigue sin configurar. Conviene exigir `check` y SonarCloud, y hacer que `api-deploy` dependa de las pruebas, porque hoy corren en paralelo.
+1. ~~**Protección de `main`**~~ Hecha el 2026-11-07: ver «Cómo se trabaja».
 2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
@@ -253,7 +255,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07. Falta confirmar la purga después del 2026-11-09.
 1. **Veredicto para lo que es cierto solo en parte:** la evaluación completa da 7 de 8, pero `co-mixto-1` cambia entre ejecuciones por esta carencia. Es la mejora de calidad más importante. Además conviene ampliar la evaluación: de 8 casos, 5 están contaminados. Correrla es gratis, pero gasta unos 16 créditos de Tavily.
-2. **Proteger `main` y hacer que `api-deploy` dependa de las pruebas:** ahora corren en paralelo, así que una prueba en rojo no detiene un despliegue.
+2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. **Robustez del backend** (AUDITORIA.md §7):
    - bloqueos de fila en refresh y en códigos de recuperación (B-02);
    - recolector de casos colgados y healthcheck del worker (B-03, O-04);
@@ -274,6 +276,8 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 - **Flujo:** especificación en `docs/superpowers/specs/`, luego plan en `docs/superpowers/plans/`, luego implementación, con la aprobación del dueño en cada paso. Un PR por cambio, con commits pequeños.
 - **Fusión:** con merge commit, cuando el CI está en verde y Sonar no tiene issues nuevos.
+- **Protección de `main`:** todo entra por PR, sin aprobación obligatoria porque hay un solo desarrollador. Son obligatorios `api-check`, `web-check` y SonarCloud, y la regla también aplica a los administradores. `api` y `web` corren en todos los PR y saltan su trabajo si no se toca su código; si no se puede leer la lista de archivos, corren. Si se renombra uno de esos jobs, hay que actualizar la protección o los PR quedarán bloqueados.
+- **Despliegue:** `api-deploy` corre las pruebas de la API antes de construir la imagen. Una prueba en rojo detiene el despliegue.
 - **Comprobaciones de la web** (`apps/web`): `pnpm lint`, `pnpm lint:css`, `pnpm exec tsc --noEmit`, `pnpm test:motion`, `pnpm test:lib` y `pnpm build`. Antes de usar APIs de Next 16, leer `node_modules/next/dist/docs/` (lo pide `apps/web/AGENTS.md`).
 - **Comprobaciones de la API** (`apps/api`): `uv run python -m pytest -q`, `uv run ruff check .` y `uv run ruff format --check .`. En Windows, `uv run pytest` falla con «trampoline»; hay que usar `python -m pytest`.
 - **Producción:** no se crean datos de prueba en producción (cuentas, casos). Los escaneos activos solo se hacen en local.

@@ -180,8 +180,8 @@ OSV-Scanner 2.7.0 sobre `27acb17` (99 paquetes PyPI y 666 npm). Los 11 paquetes 
 |---|---|---|
 | Alertas de Dependabot | ✅ Activadas | Solo está abierta la de `deepmerge`, que GitHub clasifica como baja y OSV como media (5.3). |
 | Actualizaciones de seguridad de Dependabot | ✅ Activadas | Ninguno. |
-| CI de la API y OSV-Scanner | ✅ `api.yml` y `osv.yml` (PR #76) | `api-deploy` no depende de `api.yml`: en un push a `main` corren en paralelo, así que una prueba en rojo no detiene el despliegue. |
-| Protección de `main` | ⚠️ Sin configurar, lo decide el dueño | Se puede fusionar con el CI en rojo o hacer push directo. |
+| CI de la API y OSV-Scanner | ✅ `api.yml` y `osv.yml` (PR #76) | Ninguno: desde el #98, `api-deploy` corre las pruebas antes de construir la imagen. |
+| Protección de `main` | ✅ Activada el 2026-11-07 | Todo entra por PR, con `api-check`, `web-check` y SonarCloud obligatorios, también para administradores. No se exige aprobación porque hay un solo desarrollador. |
 | Escaneo de código | Sin análisis | No hay CodeQL ni subida de resultados. |
 | Escaneo de secretos y protección de push | Activados | Ninguno. La consulta de alertas abiertas no devolvió ninguna, pero el token actual podría no tener permiso para verlas. |
 
