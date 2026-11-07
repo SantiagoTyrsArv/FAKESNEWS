@@ -1,6 +1,6 @@
 # Veredicto «Cambió con el tiempo»: diseño
 
-**Fecha:** 2026-11-07. **Estado:** pendiente de aprobación del dueño. Sin código todavía.
+**Fecha:** 2026-11-07. **Estado:** aprobada por el dueño el 2026-11-07. Sin código todavía.
 
 ## Problema
 

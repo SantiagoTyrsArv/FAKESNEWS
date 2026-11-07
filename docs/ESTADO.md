@@ -75,10 +75,10 @@
 
 Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo primero en la próxima sesión:
 
-0. **Anthropic está retirado:** el SDK salió en el #90 y el dueño borró el secreto `anthropic-api-key` el 2026-11-07 a las 05:12 UTC. Ninguna app ni job lo usa. Key Vault permite recuperarlo hasta el 2026-11-14, igual que `gemini-key` y `travily-key`, los nombres anteriores de los secretos nuevos. Queda revocar la clave en la consola de Anthropic.
+0. **Anthropic está retirado:** el SDK salió en el #90 y el dueño borró el secreto `anthropic-api-key` el 2026-11-07 a las 05:12 UTC. Ninguna app ni job lo usa. Key Vault permite recuperarlo hasta el 2026-11-14, igual que `gemini-key` y `travily-key`, los nombres anteriores de los secretos nuevos. El dueño revocó la clave en la consola de Anthropic el 2026-11-07.
 1. ~~**Protección de `main`**~~ Hecha el 2026-11-07: ver «Cómo se trabaja».
 2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
-3. **Comprobar que Railway desapareció** después del 2026-11-09 02:25 UTC, cuando termina su purga (ver la sesión del 2026-11-07). Ya no hace falta `railway down` tras cada merge.
+3. ~~**Comprobar que Railway desapareció**~~ El dueño confirmó el 2026-11-07 que cayó.
 4. **Decidir sobre `co-mixto-1`:** la app dio `SUPPORTED` a una afirmación «Cuestionable», y no tiene un veredicto para lo que es cierto solo en parte. La evaluación de 6 casos ya está completa.
 5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
@@ -104,9 +104,9 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 - **Lote de Dependabot (#77):** integra los PR #64–#74. `eslint-config-next` y `@tailwindcss/postcss` subieron a la par de sus paquetes, y `lucide-react` llegó a 1.69.0, más nuevo que el 1.67.0 del PR.
 - **Cuidado con `pnpm add`:** si falla por un timeout de red, las comprobaciones posteriores pasan igual con la versión anterior. Hay que mirar el diff de `package.json`.
 
-## Veredicto «Cambió con el tiempo» (especificación pendiente de aprobar)
+## Veredicto «Cambió con el tiempo» (plan pendiente de aprobar)
 
-Especificación: [2026-11-07-changed-verdict-design.md](superpowers/specs/2026-11-07-changed-verdict-design.md). **Falta la aprobación del dueño. No hay plan ni código.**
+Especificación aprobada por el dueño el 2026-11-07: [2026-11-07-changed-verdict-design.md](superpowers/specs/2026-11-07-changed-verdict-design.md). Plan: [2026-11-07-changed-verdict.md](superpowers/plans/2026-11-07-changed-verdict.md). **Falta aprobar el plan. No hay código.**
 
 - **Decisión del dueño (2026-11-07):** `co-mixto-2`, con una parte cierta y otra falsa, se muestra igual que «cambió con el tiempo». Hay un solo veredicto nuevo, `CHANGED`.
 - **Riesgo anotado en la especificación:** la etiqueta dirá «Cambió con el tiempo» sobre un dato que no cambió.
@@ -279,8 +279,8 @@ Lo que se aprendió midiendo, para no repetirlo:
 
 ## Pendiente, por prioridad
 
-0. ~~**Retirar Railway**~~ Hecho el 2026-11-07. Falta confirmar la purga después del 2026-11-09.
-1. **Veredicto `CHANGED`:** es la mejora de calidad más importante, porque `co-mixto-1` lleva 3 evaluaciones con error grave. Falta aprobar la especificación, y después vienen el plan y dos PR. Además conviene ampliar la evaluación: de 8 casos, 6 están contaminados.
+0. ~~**Retirar Railway**~~ Hecho el 2026-11-07, confirmado por el dueño.
+1. **Veredicto `CHANGED`:** es la mejora de calidad más importante, porque `co-mixto-1` lleva 3 evaluaciones con error grave. Falta aprobar el plan, y después vienen dos PR. Además conviene ampliar la evaluación: de 8 casos, 6 están contaminados.
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. ~~**Robustez del backend**~~ Hecho en #102–#106. Queda un riesgo menor en video: un audio muy comprimido podría durar mucho más que sus metadatos, y cancelar el trabajo no detiene el hilo de Whisper. Se acepta por ahora porque solo se admiten hosts que recodifican lo que se sube. La solución sería transcribir en un subproceso que se pueda matar.
 4. ~~**Pruebas de la web**~~ Hecho en #107.
