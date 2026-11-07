@@ -53,8 +53,8 @@
 Producción funciona sobre Azure. Lo primero en la próxima sesión:
 
 1. **Decidir la configuración de GitHub** ([SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06)): alertas y actualizaciones de seguridad de Dependabot, y protección de `main`. Las tres están desactivadas.
-2. **Confirmar Dependabot `uv`** en su siguiente ejecución semanal, que debería llegar hacia el 2026-11-07. Es lo único del #63 que no se pudo comprobar. Si falla, mirar el log con `gh run list --workflow "Dependabot Updates"`.
-3. **Railway se vuelve a levantar con cada merge a `main`**, porque sigue enlazado a GitHub. Después de cada merge, comprueba con `railway status`. Si `FAKESNEWS` o `upbeat-wholeness` tienen un despliegue activo, ejecuta `railway down -s FAKESNEWS -y` y `railway down -s upbeat-wholeness -y`. El 2026-11-06, antes del #63, `FAKESNEWS` estaba en `Failed`, `upbeat-wholeness` en `Offline`, y **Postgres y Redis de Railway también en `Offline`**: ya no están encendidos como se esperaba, así que no hay que contar con ellos como respaldo sin comprobarlos antes. La solución definitiva es que el dueño desconecte el repo en Railway (Settings → Source → Disconnect, en cada servicio).
+2. **Integrar los 11 PR de Dependabot (#64–#74)**, abiertos el 2026-11-07. Empezar por `next` 16.4.5 (#71). `anthropic` 2.4.0 (#66) requiere más cuidado, porque el pipeline depende de él y la API no tiene CI. Seguir el procedimiento de siempre: juntarlos en una rama, regenerar los lockfiles, probar y fusionar.
+3. **Railway se vuelve a levantar con cada merge a `main`**, porque sigue enlazado a GitHub. Después de cada merge, comprueba con `railway status`. Si `FAKESNEWS` o `upbeat-wholeness` tienen un despliegue activo, ejecuta `railway down -s FAKESNEWS -y` y `railway down -s upbeat-wholeness -y`. Tras fusionar el #63 (2026-11-07), `FAKESNEWS` sigue en `Failed` sin despliegue activo, `upbeat-wholeness` en `Offline`, y **Postgres y Redis de Railway también en `Offline`**: ya no están encendidos como se esperaba, así que no hay que contar con ellos como respaldo sin comprobarlos antes. La solución definitiva es que el dueño desconecte el repo en Railway (Settings → Source → Disconnect, en cada servicio).
 4. **El 2026-11-11, borrar Railway** (tarea 10 de `superpowers/plans/2026-11-04-azure-migration.md`), con la confirmación del dueño. Después, borrar `railway.toml`, `apps/api/railway.worker.toml` y la clave SSH `fakesnews-railway`, tanto en Railway como en `~/.ssh`.
 5. **Limpiar ramas ya fusionadas o cerradas,** sobre todo en remoto: `claude/upbeat-bardeen-j3a12a`, `dependabot/uv/apps/api/yt-dlp-2026.10.21`, `docs/azure-runbook`, `docs/status-2026-11-04-close`, `feat/azure-infra`, `feat/azure-migration`, `feat/web-audit`, `fix/oidc-subject`, `fix/postgres-18` y `fix/sonar-main`. Antes de borrar `feat/3d-experiences`, que solo está en local, hay que preguntar al dueño.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
@@ -66,10 +66,11 @@ Producción funciona sobre Azure. Lo primero en la próxima sesión:
 ## Sesión del 2026-11-06: fallos de GitHub y OSV-Scanner
 
 - **CI en `main`:** sin fallos. Los últimos `web`, `api-deploy`, `infra` y SonarCloud están en verde. No había PR abiertos antes del #63. El fallo de `infra` del 2026-11-04 fue en `fix/oidc-subject`, y el #58 lo resolvió.
-- **Dependabot `uv` fallaba cada semana desde el 2026-10-24:** proponía `redis` 8.1.0, pero `arq` exige `redis<6`. Ahora ignora los saltos mayores de `redis`.
+- **Dependabot `uv` fallaba cada semana desde el 2026-10-24:** proponía `redis` 8.1.0, pero `arq` exige `redis<6`. Ahora ignora los saltos mayores de `redis`. Comprobado: la ejecución que lanzó el merge del #63 terminó bien y abrió PR de `uv`.
 - **OSV-Scanner:** 3 avisos nuevos. `dnspython` y `minimatch` se corrigieron. `deepmerge` no tiene versión corregida y queda aceptado hasta el 2027-02-06. Detalle en [SEGURIDAD.md §9](SEGURIDAD.md#9-revisión-de-dependencias-y-github-del-2026-11-06).
 - **SonarCloud:** los 2 issues de Bicep ya no están abiertos en `main`, así que ese pendiente queda cerrado.
 - **Verificación:** API con 216 pruebas bien y 1 omitida, `ruff` limpio; web con lint, Stylelint, `tsc`, pruebas y build limpio bien.
+- **Despliegue del #63:** `api-deploy` y `web` terminaron bien, y la web y `/api/health` a través de Vercel responden 200. No se pudo leer el estado de la Container App con `az`, porque la sesión pide renovar la MFA (`az login`).
 
 ## Sesión del 2026-11-04: migración de Railway a Azure
 
