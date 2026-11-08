@@ -162,3 +162,17 @@ async def test_run_cases_not_blind_passes_all_domains() -> None:
     )
     assert seen == [domains, domains]
     assert run.blind is False
+
+
+async def test_run_cases_flags_evidence_from_another_factchecker_as_contaminated() -> None:
+    async def verify(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
+        evidence = [
+            EvidenceItem(
+                url="https://maldita.es/x", domain="maldita.es", snippet="...", stance="contradicts"
+            )
+        ]
+        return VerifyResult(verdict="CONTRADICTED", rationale="", evidence=evidence)
+
+    case = _case("c1", "false").model_copy(update={"factchecker": "newtral.es"})
+    run = await run_cases([case], allowed_domains=["maldita.es"], max_credits=40, verify=verify)
+    assert run.results[0].contaminated is True

@@ -28,7 +28,8 @@ uv run python -m evals.verdicts.run --blind                                # sin
 ## Contaminación y modo ciego
 
 Un caso está **contaminado** cuando el veredicto se apoyó en el propio chequeo que sirve de
-respuesta: el modelo lo copió en lugar de verificar. En modo normal pasa a menudo, porque
+respuesta, o en cualquier otro verificador de la lista: el modelo copió una calificación publicada
+en lugar de verificar. En modo normal pasa a menudo, porque
 Colombiacheck, La Silla Vacía y otros verificadores están entre las fuentes de confianza; es lo
 que ven los usuarios. El modo ciego (`--blind`) los excluye de la búsqueda (`blind.py`), así que
 mide si el modelo verifica con medios y organismos. Ningún caso debería salir contaminado en él.
