@@ -1,6 +1,6 @@
 # Evaluación de veredictos
 
-Pasa 8 afirmaciones, 6 de ellas ya calificadas por un fact-checker, por el `verify_claim` real
+Pasa 20 afirmaciones (6 falsas, 6 verdaderas, 5 mixtas y 3 inventadas) por el `verify_claim` real
 y compara el veredicto de la app con la calificación publicada. Diseño:
 `docs/superpowers/specs/2026-11-03-verdict-eval-design.md`.
 
@@ -35,6 +35,11 @@ mide si el modelo verifica con medios y organismos. Ningún caso debería salir 
 
 ## Casos
 
-`cases.json`. Los casos enlazan a su verificación o noticia publicada, salvo `co-inventado-1`,
-que es una afirmación inventada a propósito y debe dar `INSUFFICIENT`. `kind` es `false`, `true`, `mixed` (engañoso, cuestionable…: debe dar `CHANGED`) o `invented`; las equivalencias
+`cases.json`. Los casos enlazan a su verificación o noticia publicada, salvo los inventados
+(`*-inventado-*`), afirmaciones plausibles que nadie publicó y que deben dar `INSUFFICIENT`. `kind` es
+`false`, `true`, `mixed` (engañoso, cuestionable…: debe dar `CHANGED`) o `invented`; las equivalencias
 con los veredictos de la app están en `scoring.py`.
+
+Los 12 casos añadidos el 2026-11-08 llevan `coverage_url`: una noticia de una fuente de confianza que
+no es un verificador (EFE, El Tiempo, la OMS) con los datos para decidir, que demuestra que el caso tiene
+respuesta en modo ciego. No se usa al puntuar. Los casos se eligen antes de correrlos y no se quitan por fallar.
