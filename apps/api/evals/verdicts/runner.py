@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.modules.pipeline.verify import VerifyResult, verify_claim
 from app.modules.sources.service import normalize_domain
+from evals.verdicts.blind import FACTCHECKER_DOMAINS, blind_domains
 from evals.verdicts.cases import Case, Kind, Verdict
 from evals.verdicts.cost import BudgetGuard, UsageMeter, metering
 from evals.verdicts.scoring import Grade, grade, is_contaminated
@@ -37,10 +38,20 @@ class RunResult(BaseModel):
     results: list[CaseResult]
     skipped_case_ids: list[str]
     spent_credits: int
+    blind: bool = False
 
 
 def load_allowed_domains(path: Path) -> list[str]:
     return [entry["domain"] for entry in json.loads(path.read_text(encoding="utf-8"))]
+
+
+def _leans_on_a_factcheck(evidence: list[dict], factchecker: str) -> bool:
+    """The case's own fact-check, or any other fact-checker on the trusted
+    list: either way the verdict copied a published rating."""
+    domains = [e["domain"] for e in evidence]
+    return is_contaminated(domains, factchecker) or any(
+        is_contaminated(domains, f) for f in FACTCHECKER_DOMAINS
+    )
 
 
 async def run_cases(
@@ -49,9 +60,11 @@ async def run_cases(
     allowed_domains: list[str],
     max_credits: int,
     verify: Verify = verify_claim,
+    blind: bool = False,
 ) -> RunResult:
     """Verify each case's claim, one at a time so the budget can stop the
-    run between cases."""
+    run between cases. With `blind`, each case searches without the
+    fact-checkers, so no verdict can copy a published rating."""
     started_at = datetime.now(UTC)
     meter = UsageMeter()
     guard = BudgetGuard(max_credits)
@@ -69,7 +82,10 @@ async def run_cases(
             got: Verdict | None = None
             rationale, evidence, error = "", [], None
             try:
-                result = await verify(case.claim, allowed_domains=allowed_domains)
+                domains = (
+                    blind_domains(allowed_domains, case.factchecker) if blind else allowed_domains
+                )
+                result = await verify(case.claim, allowed_domains=domains)
                 got, rationale = result.verdict, result.rationale
                 if result.verification_failed:
                     error = "la verificación falló"
@@ -88,7 +104,7 @@ async def run_cases(
                     grade="error" if error is not None else grade(case.kind, got),
                     rationale=rationale,
                     evidence=evidence,
-                    contaminated=is_contaminated([e["domain"] for e in evidence], case.factchecker),
+                    contaminated=_leans_on_a_factcheck(evidence, case.factchecker),
                     search_domains=list(
                         dict.fromkeys(
                             normalize_domain(u) for u in meter.search_result_urls[urls_before:]
@@ -107,4 +123,5 @@ async def run_cases(
         results=results,
         skipped_case_ids=skipped,
         spent_credits=meter.tavily_credits,
+        blind=blind,
     )

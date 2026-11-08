@@ -19,6 +19,9 @@ class Case(BaseModel):
     rating: str  # the fact-checker's own wording, e.g. "Falso" or "Engañoso"
     kind: Kind
     claim: str  # as the fact-checker phrased it
+    # A trusted outlet, not a fact-checker, with the data to decide: proof the
+    # case can be answered in blind mode. Not used when grading.
+    coverage_url: str | None = None
 
 
 def load_cases(path: Path) -> list[Case]:

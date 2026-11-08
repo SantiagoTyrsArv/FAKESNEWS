@@ -124,3 +124,55 @@ async def test_run_reports_the_model_in_use() -> None:
         verify=_fake_verify("CONTRADICTED"),
     )
     assert run.model == get_settings().gemini_model
+
+
+def _recording_verify(seen: list[list[str]]):
+    async def verify(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
+        seen.append(list(allowed_domains))
+        return VerifyResult(verdict="INSUFFICIENT", rationale="", evidence=[])
+
+    return verify
+
+
+def _bbc_case(case_id: str) -> Case:
+    return _case(case_id, "true").model_copy(update={"factchecker": "bbc.com"})
+
+
+async def test_run_cases_blind_passes_reduced_domains_per_case() -> None:
+    seen: list[list[str]] = []
+    run = await run_cases(
+        [_case("c1", "false"), _bbc_case("c2")],
+        allowed_domains=["colombiacheck.com", "bbc.com", "eltiempo.com"],
+        max_credits=40,
+        verify=_recording_verify(seen),
+        blind=True,
+    )
+    assert seen == [["bbc.com", "eltiempo.com"], ["eltiempo.com"]]
+    assert run.blind is True
+
+
+async def test_run_cases_not_blind_passes_all_domains() -> None:
+    domains = ["colombiacheck.com", "bbc.com", "eltiempo.com"]
+    seen: list[list[str]] = []
+    run = await run_cases(
+        [_case("c1", "false"), _bbc_case("c2")],
+        allowed_domains=domains,
+        max_credits=40,
+        verify=_recording_verify(seen),
+    )
+    assert seen == [domains, domains]
+    assert run.blind is False
+
+
+async def test_run_cases_flags_evidence_from_another_factchecker_as_contaminated() -> None:
+    async def verify(claim_text: str, *, allowed_domains: list[str]) -> VerifyResult:
+        evidence = [
+            EvidenceItem(
+                url="https://maldita.es/x", domain="maldita.es", snippet="...", stance="contradicts"
+            )
+        ]
+        return VerifyResult(verdict="CONTRADICTED", rationale="", evidence=evidence)
+
+    case = _case("c1", "false").model_copy(update={"factchecker": "newtral.es"})
+    run = await run_cases([case], allowed_domains=["maldita.es"], max_credits=40, verify=verify)
+    assert run.results[0].contaminated is True

@@ -68,7 +68,7 @@ def test_dry_run_prints_cases_and_estimate_without_calling_api(
 def test_run_writes_json_and_report(cases_file, monkeypatch, tmp_path) -> None:
     _with_key(monkeypatch, "sk-test")
 
-    async def fake_run_cases(cases, *, allowed_domains, max_credits):
+    async def fake_run_cases(cases, *, allowed_domains, max_credits, blind=False):
         assert "colombiacheck.com" in allowed_domains
         return RunResult(
             started_at=datetime(2026, 11, 3, tzinfo=UTC),
@@ -99,7 +99,7 @@ def test_run_warns_when_model_differs_from_production(cases_file, monkeypatch, c
     _with_key(monkeypatch, "k")
     monkeypatch.setattr(run_module.get_settings(), "gemini_model", "otro-modelo")
 
-    async def fake_run_cases(cases, *, allowed_domains, max_credits):
+    async def fake_run_cases(cases, *, allowed_domains, max_credits, blind=False):
         return RunResult(
             started_at=datetime(2026, 11, 3, tzinfo=UTC),
             model="otro-modelo",
@@ -114,3 +114,56 @@ def test_run_warns_when_model_differs_from_production(cases_file, monkeypatch, c
 
     assert run_module.main([]) == 0
     assert "no es el modelo de producción" in capsys.readouterr().err
+
+
+def _capturing_run_cases(monkeypatch: pytest.MonkeyPatch) -> dict:
+    captured: dict = {}
+
+    async def fake_run_cases(cases, *, allowed_domains, max_credits, blind=False):
+        captured["blind"] = blind
+        return RunResult(
+            started_at=datetime(2026, 11, 8, tzinfo=UTC),
+            model="gemini-test",
+            max_credits=max_credits,
+            results=[],
+            skipped_case_ids=[],
+            spent_credits=0,
+            blind=blind,
+        )
+
+    monkeypatch.setattr(runner, "run_cases", fake_run_cases)
+    return captured
+
+
+def test_blind_flag_reaches_runner_and_names_the_report(cases_file, monkeypatch, tmp_path) -> None:
+    _with_key(monkeypatch, "k")
+    captured = _capturing_run_cases(monkeypatch)
+    assert run_module.main(["--blind"]) == 0
+    assert captured["blind"] is True
+    stems = [p.stem for p in (tmp_path / "results").iterdir()]
+    assert len(stems) == 2
+    assert all(stem.endswith("_blind") for stem in stems)
+
+
+def test_without_blind_runner_gets_false_and_no_suffix(cases_file, monkeypatch, tmp_path) -> None:
+    _with_key(monkeypatch, "k")
+    captured = _capturing_run_cases(monkeypatch)
+    assert run_module.main([]) == 0
+    assert captured["blind"] is False
+    assert not any(p.stem.endswith("_blind") for p in (tmp_path / "results").iterdir())
+
+
+def test_default_max_credits_is_60() -> None:
+    assert run_module.DEFAULT_MAX_CREDITS == 60
+
+
+def test_dry_run_says_blind_mode(cases_file, monkeypatch, capsys) -> None:
+    _forbid_api(monkeypatch)
+    assert run_module.main(["--dry-run", "--blind"]) == 0
+    assert "Modo: ciego (sin verificadores)" in capsys.readouterr().out
+
+
+def test_dry_run_says_normal_mode(cases_file, monkeypatch, capsys) -> None:
+    _forbid_api(monkeypatch)
+    assert run_module.main(["--dry-run"]) == 0
+    assert "Modo: normal" in capsys.readouterr().out
