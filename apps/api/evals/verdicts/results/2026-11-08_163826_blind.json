@@ -1,0 +1,773 @@
+{
+  "started_at": "2026-11-08T21:36:50.589639Z",
+  "model": "gemini-3.5-flash-lite",
+  "max_credits": 60,
+  "results": [
+    {
+      "case_id": "co-falso-1",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "INSUFFICIENT",
+      "grade": "fail",
+      "rationale": "Los resultados proporcionados contienen información sobre operativos y capturas durante el gobierno de Abelardo de la Espriella (como alias 'Boni', 'Yolima', 'Piccolino' o 'Mailo'), pero no mencionan en absoluto la captura de un alias 'Malayo', por lo que no es posible confirmar ni desmentir la afirmación con las fuentes disponibles.",
+      "evidence": [],
+      "contaminated": false,
+      "search_domains": [
+        "m.elcolombiano.com",
+        "elcolombiano.com",
+        "elpais.com",
+        "eltiempo.com",
+        "citytv.eltiempo.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-falso-2",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "Los resultados muestran que Abelardo de la Espriella inicialmente propuso no despachar desde la Casa de Nariño para convertirla en un museo y usar el Palacio de San Carlos, y posteriormente decidió usar la Casa de Nariño por razones de logística y seguridad, pero en ningún momento se menciona que haya propuesto el teletrabajo para evitar atentados.",
+      "evidence": [
+        {
+          "url": "https://efe.com/mundo/2026-07-27/casa-narino-de-la-espriella-museo",
+          "domain": "efe.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.eltiempo.com/politica/abelardo-de-la-espriella/abelardo-de-la-espriella-anuncio-que-convertira-la-casa-de-narino-en-un-museo-publico-y-trasladara-su-despacho-al-palacio-de-san-carlos-en-bogota-3574046",
+          "domain": "eltiempo.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.eltiempo.com/politica/gobierno/las-razones-por-las-que-el-presidente-abelardo-de-la-espriella-si-despacharia-desde-la-casa-de-narino-luego-de-descartarla-3581103",
+          "domain": "eltiempo.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.elespectador.com/politica/de-la-espriella-si-usaria-la-casa-de-narino-como-sede-presidencial-y-no-san-carlos-se-alista-logistica-noticias-hoy",
+          "domain": "elespectador.com",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "efe.com",
+        "eltiempo.com",
+        "elespectador.com",
+        "elcolombiano.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero",
+      "got": "CHANGED",
+      "grade": "fail",
+      "rationale": "Las fuentes señalan que el número de personas que salieron de la pobreza durante el gobierno de Gustavo Petro varía según los años evaluados y la medición específica (por ejemplo, los datos del DANE indican que en el primer año salieron 1,6 millones y posteriormente se han dado cifras adicionales de reducción, situándose el total acumulado o los reportes anuales en distintas magnitudes que matizan la afirmación inicial de más de 2,5 millones en un solo bloque homogéneo, aunque la tendencia general muestra una caída de la pobreza).",
+      "evidence": [
+        {
+          "url": "https://www.eltiempo.com/politica/gobierno/presidente-gustavo-petro-hace-alocucion-presidencial-este-31-de-diciembre-3413927",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elcolombiano.com/negocios/pobreza-monetaria-cae-2024-colombia-no-fue-gracias-a-petro-AB28297546",
+          "domain": "elcolombiano.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/economia/sectores/fact-checking-de-los-indicadores-economicos-que-resalto-el-presidente-gustavo-petro-durante-la-instalacion-del-nuevo-congreso-3572527",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elcolombiano.com/negocios/pobreza-monetaria-colombia-petro-empleo-subsidios-DJ39651534",
+          "domain": "elcolombiano.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america/2025-01-01/petro-defiende-los-logros-de-su-gobierno-con-datos-macroeconomicos.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/2026-06-12/la-pobreza-en-colombia-cae-a-28-el-nivel-mas-bajo-en-su-historia.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "eltiempo.com",
+        "elcolombiano.com",
+        "elpais.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-verdadero-2",
+      "kind": "true",
+      "rating": "Verdadero",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que durante el gobierno de Gustavo Petro se han alcanzado cifras récord en la llegada de visitantes no residentes, superando los 6,5 millones de turistas (por ejemplo, con cerca de 6,7 millones en 2024 y un crecimiento sostenido durante su mandato).",
+      "evidence": [
+        {
+          "url": "https://elpais.com/america-colombia/2025-01-21/colombia-rompe-su-record-de-turismo-con-casi-siete-millones-de-visitantes-en-2024.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/politica/gobierno/el-turismo-es-ahora-mas-estrategico-que-el-carbon-y-el-petroleo-gustavo-petro-en-anato-2025-3430755",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/elecciones-presidenciales/2026-05-28/colombia-llega-a-las-urnas-con-los-mejores-indicadores-sociales-del-siglo-y-un-deficit-solo-superado-en-pandemia.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elpais.com",
+        "eltiempo.com",
+        "elcolombiano.com",
+        "elespectador.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-mixto-1",
+      "kind": "mixed",
+      "rating": "Cuestionable",
+      "got": "SUPPORTED",
+      "grade": "severe",
+      "rationale": "Los resultados confirman que durante el gobierno de Gustavo Petro la inflación anual en Colombia se ha situado en torno al 5% (registrando un 5,1% al cierre de 2025 y cifras cercanas en los meses siguientes), habiendo alcanzado picos muy superiores cercanos al 12% o 13% en periodos anteriores.",
+      "evidence": [
+        {
+          "url": "https://elpais.com/america-colombia/2026-01-08/colombia-cierra-2025-con-una-inflacion-del-51-un-ano-perdido-en-el-control-del-encarecimiento.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elcolombiano.com/negocios/salario-minimo-encarece-costos-construccion-vivienda-colombia-MK34587319",
+          "domain": "elcolombiano.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.reuters.com/world/americas/colombia-bank-board-looks-set-raise-rate-ministers-attendance-question-2026-04-30",
+          "domain": "reuters.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.reuters.com/markets/emerging/colombias-central-bank-cuts-2023-inflation-forecast-9-2023-08-03",
+          "domain": "reuters.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elpais.com",
+        "elcolombiano.com",
+        "reuters.com",
+        "banrep.gov.co",
+        "apnews.com",
+        "english.elpais.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-mixto-2",
+      "kind": "mixed",
+      "rating": "Cuestionable",
+      "got": "SUPPORTED",
+      "grade": "severe",
+      "rationale": "Los resultados confirman que durante el gobierno de Gustavo Petro se registraron los niveles más bajos de desempleo (y por ende las tasas de ocupación más altas y registros récord de personas ocupadas y mínimos históricos en la serie del DANE desde 2001) para diversos periodos analizados, como julio de 2026 y mayo de 2026.",
+      "evidence": [
+        {
+          "url": "https://elpais.com/america-colombia/2026-08-31/la-tasa-de-desempleo-en-colombia-marca-81-en-julio.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/economia/sectores/fact-checking-de-los-indicadores-economicos-que-resalto-el-presidente-gustavo-petro-durante-la-instalacion-del-nuevo-congreso-3572527",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/2026-06-30/gustavo-petro-deja-a-abelardo-de-la-espriella-un-mercado-laboral-en-plena-mejora.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elpais.com",
+        "eltiempo.com",
+        "elcolombiano.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "py-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero (noticia publicada)",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que el Banco Central de Paraguay intervino y cerró Ueno Bank debido a problemas de solvencia, lo que dejó a millones de clientes sin acceso a sus fondos y desató una grave crisis política, social y económica en el país, incluyendo la caída y destitución del presidente Santiago Peña.",
+      "evidence": [
+        {
+          "url": "https://www.eltiempo.com/mundo/latinoamerica/intervencion-de-ueno-bank-en-paraguay-que-pasara-con-los-ahorros-y-por-que-el-presidente-santiago-pena-podria-enfrentar-un-juicio-politico-3598351",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.reuters.com/business/finance/what-is-ueno-bank-how-did-it-trigger-paraguays-political-crisis-2026-11-05",
+          "domain": "reuters.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://apnews.com/article/paraguay-santiago-pena-bank-failure-ueno-impeachment-trial-resign-crisis-e84f5ada84e8c747329ec82fabb46e4d",
+          "domain": "apnews.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://apnews.com/article/ueno-bank-collapse-paraguay-banking-crisis-santiago-pena-impeachment-eccea1c9a64808b5cd7e6e1d5542084f",
+          "domain": "apnews.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.reuters.com/world/americas/paraguay-president-pea-resigns-under-mounting-pressure-bank-collapse-2026-11-05",
+          "domain": "reuters.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "eltiempo.com",
+        "bbc.co.uk",
+        "reuters.com",
+        "apnews.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-inventado-1",
+      "kind": "invented",
+      "rating": "Inventada para esta evaluación",
+      "got": "INSUFFICIENT",
+      "grade": "ok",
+      "rationale": "Los resultados muestran que Abelardo de la Espriella se ha reunido y alineado con la administración de Donald Trump y ha tratado temas de seguridad y cooperación bilateral, pero no contienen información sobre ningún plan o reunión para bombardear Gaza.",
+      "evidence": [
+        {
+          "url": "https://english.elpais.com/international/2026-09-07/from-the-shield-of-the-americas-to-the-golan-heights-de-la-espriella-keeps-his-promise-to-align-with-trump-and-netanyahu.html",
+          "domain": "elpais.com",
+          "stance": "neutral"
+        },
+        {
+          "url": "https://english.elpais.com/international/2026-09-09/de-la-espriella-and-rubio-relaunch-colombiaus-ties-with-security-and-investment-agenda.html",
+          "domain": "elpais.com",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "english.elpais.com",
+        "eltiempo.com",
+        "apnews.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "es-falso-1",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "Los resultados de búsqueda confirman que la afirmación de que Estados Unidos le negó la visa a Lamine Yamal es una desinformación y un bulo difundido en redes sociales, ya que el futbolista se encuentra en territorio estadounidense concentrado y jugando el Mundial con la selección española.",
+      "evidence": [
+        {
+          "url": "https://verifica.efe.com/desinformacion-mundial-futbol-2026",
+          "domain": "efe.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://verifica.efe.com/eeuu-retira-visa-lamine-yamal-falso",
+          "domain": "efe.com",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "verifica.efe.com",
+        "elpais.com",
+        "elcolombiano.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "ec-falso-1",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "INSUFFICIENT",
+      "grade": "fail",
+      "rationale": "Los resultados proporcionados contienen información sobre diversos eventos en Ecuador en 2026 (seguridad, política y deportes), pero no aportan datos ni menciones sobre el estado actual de su economía ni sobre si se encuentra en quiebra.",
+      "evidence": [],
+      "contaminated": false,
+      "search_domains": [
+        "reuters.com",
+        "apnews.com",
+        "bbc.com",
+        "data.who.int",
+        "hlpf.un.org"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "ec-falso-2",
+      "kind": "false",
+      "rating": "Falso",
+      "got": "CHANGED",
+      "grade": "fail",
+      "rationale": "Las fuentes confirman que hubo protestas masivas y un paro nacional contra el gobierno de Daniel Noboa, pero ocurrieron en octubre de 2025 y no en octubre de 2026.",
+      "evidence": [
+        {
+          "url": "https://www.reuters.com/video/watch/idRW293412102025RP1",
+          "domain": "reuters.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.bbc.com/mundo/articles/cn76367yd82o",
+          "domain": "bbc.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://apnews.com/article/ecuador-protests-noboa-fuel-indigenous-07848c366809b50c7b76fc425d3c38dd",
+          "domain": "apnews.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://apnews.com/article/daniel-noboa-quito-ecuador-indigenous-1a897be431ca52db8352315d8c8f75f1",
+          "domain": "apnews.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "reuters.com",
+        "bbc.com",
+        "apnews.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "int-falso-1",
+      "kind": "false",
+      "rating": "Verificado: no existe conexión entre las vacunas y el autismo",
+      "got": "CONTRADICTED",
+      "grade": "ok",
+      "rationale": "Las fuentes consultadas, incluidos la OMS, los CDC y diversos estudios científicos, desmienten de forma concluyente la afirmación, confirmando que las vacunas no causan autismo y que los estudios originales que apuntaban a dicho vínculo fueron desacreditados por contener errores o fraude.",
+      "evidence": [
+        {
+          "url": "https://www.who.int/es/news/item/24-09-2025-who-statement-on-autism-related-issues",
+          "domain": "who.int",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://news.un.org/es/story/2025/12/1540897",
+          "domain": "un.org",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.nytimes.com/es/2024/12/25/espanol/ciencia-y-tecnologia/causas-autismo.html",
+          "domain": "nytimes.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.who.int/es/news/item/11-12-2025-who-expert-group-s-new-analysis-reaffirms-there-is-no-link-between-vaccines-and-autism",
+          "domain": "who.int",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.who.int/es/news-room/questions-and-answers/item/vaccines-and-immunization-vaccine-safety",
+          "domain": "who.int",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.reuters.com/article/internacional-salud-vacunas-seguridad-idLTASIE7A7D5T20110825",
+          "domain": "reuters.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.bbc.com/mundo/noticias-40776371",
+          "domain": "bbc.com",
+          "stance": "contradicts"
+        },
+        {
+          "url": "https://www.cdc.gov/vaccines-children/es/about/acerca-de-las-vacunas-para-sus-hijos.html",
+          "domain": "cdc.gov",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "who.int",
+        "news.un.org",
+        "nytimes.com",
+        "reuters.com",
+        "bbc.com",
+        "cdc.gov"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "mx-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero (noticia publicada)",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que un terremoto de magnitud 7,4 (también citado ligeramente como 7,3 en algunas fuentes) sacudió el sur de México, frente a la costa de Chiapas, el 17 de julio de 2026.",
+      "evidence": [
+        {
+          "url": "https://factual.afp.com/doc.afp.com.C2HN79N",
+          "domain": "afp.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elespectador.com/mundo/america/un-terremoto-de-magnitud-74-sacudio-el-sur-de-mexico-y-se-sintio-en-varios-estados",
+          "domain": "elespectador.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://efe.com/mundo/2026-07-17/terremoto-sur-mexico-frontera-guatemala",
+          "domain": "efe.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://factual.afp.com/doc.afp.com.C2TP2T3",
+          "domain": "afp.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elespectador.com/mundo/america/lo-que-se-sabe-del-terremoto-de-73-frente-a-mexico-que-sacudio-guatemala-y-el-salvador",
+          "domain": "elespectador.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/mundo/mexico/reportan-fuerte-temblor-de-magnitud-7-4-en-mexico-durante-la-manana-de-este-viernes-17-de-julio-epicentro-y-profundidad-3571946",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/mundo/mexico/reportan-un-segundo-temblor-en-mexico-tras-terremoto-de-7-4-esto-es-lo-que-se-sabe-de-los-fuertes-sismos-de-este-17-de-julio-3571959",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://factual.afp.com/doc.afp.com.C2HK764",
+          "domain": "afp.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "factual.afp.com",
+        "elespectador.com",
+        "efe.com",
+        "eltiempo.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-verdadero-3",
+      "kind": "true",
+      "rating": "Verdadero (noticia publicada)",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados confirman que Abelardo de la Espriella ganó la segunda vuelta de las elecciones presidenciales de Colombia celebrada el 21 de junio de 2026, imponiéndose a Iván Cepeda tras el preconteo y el escrutinio oficial.",
+      "evidence": [
+        {
+          "url": "https://www.bbc.com/mundo/live/c6219kqq9r7t",
+          "domain": "bbc.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/elecciones-presidenciales/2026-06-26/el-aguante-en-el-caribe-la-fuerza-en-la-region-andina-y-la-resistencia-en-bogota-las-claves-regionales-del-triunfo-de-de-la-espriella.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/politica/elecciones-colombia-2026/abelardo-de-la-espriella-presidente-electo-de-colombia-tras-el-preconteo-se-impone-por-247-000-votos-3566015",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/elecciones-presidenciales/2026-06-24/ivan-cepeda-concede-la-derrota-en-la-segunda-vuelta-abelardo-de-la-espriella-es-el-nuevo-presidente.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/elecciones-presidenciales/2026-06-24/el-consejo-nacional-electoral-termina-el-escrutinio-y-confirma-la-victoria-de-abelardo-de-la-espriella.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/elecciones-presidenciales/2026-06-22/abelardo-de-la-espriella-celebra-su-triunfo-y-modera-el-tono-hacia-los-votantes-de-cepeda-sus-derechos-seran-respetados.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://apnews.com/article/colombia-inauguration-de-la-espriella-president-cali-bogota-petro-6a062df06d20e440ba0e4f7ee7587af6",
+          "domain": "apnews.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "bbc.com",
+        "elpais.com",
+        "eltiempo.com",
+        "apnews.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "il-verdadero-1",
+      "kind": "true",
+      "rating": "Verdadero (noticia publicada)",
+      "got": "SUPPORTED",
+      "grade": "ok",
+      "rationale": "Los resultados de las fuentes de confianza confirman unánimemente que el partido Likud, liderado por Benjamín Netanyahu, fue el partido más votado en las elecciones de Israel de octubre de 2026, obteniendo 27 escaños.",
+      "evidence": [
+        {
+          "url": "https://elpais.com/internacional/2026-10-28/resultados-y-reacciones-de-las-elecciones-en-israel-en-directo.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://efe.com/mundo/2026-11-08/herzog-encarga-gadi-eisenkot-formacion-gobierno-israel",
+          "domain": "efe.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/mundo/medio-oriente/herzog-encarga-a-eisenkot-la-formacion-del-proximo-gobierno-de-israel-3599399",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.eltiempo.com/mundo/medio-oriente/benjamin-netanyahu-gana-elecciones-en-israel-pero-no-logra-mayoria-absoluta-acusaciones-de-fraude-e-injerencia-extranjera-sacuden-comicios-3597266",
+          "domain": "eltiempo.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elpais.com",
+        "efe.com",
+        "eltiempo.com",
+        "bbc.com",
+        "apnews.com",
+        "reuters.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "es-mixto-1",
+      "kind": "mixed",
+      "rating": "Engañoso",
+      "got": "SUPPORTED",
+      "grade": "severe",
+      "rationale": "Los resultados de múltiples fuentes (FMI, Financial Times, informes macroeconómicos y de la Comisión Europea) confirman reiteradamente que España es la gran economía avanzada o de la zona euro que más crece en comparación con sus socios.",
+      "evidence": [
+        {
+          "url": "https://elpais.com/economia/2025-10-14/el-fmi-situa-a-espana-como-la-gran-economia-avanzada-que-mas-crece-por-segundo-ano-consecutivo.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/economia/2025-09-28/espana-se-ha-convertido-en-la-economia-mas-destacada-de-europa-segun-financial-times.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.bbc.com/mundo/articles/cg45d25xpl1o",
+          "domain": "bbc.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/economia/2025-08-10/asi-logro-espana-convertirse-en-la-economia-avanzada-de-mas-rapido-crecimiento.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/economia/2025-02-09/la-economia-espanola-sorprende-al-mundo-de-oveja-negra-a-motor-europeo.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/economia/2026-04-14/espana-encadenara-cinco-anos-como-lider-del-crecimiento-en-europa-pese-a-la-guerra-de-iran-segun-el-fmi.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elpais.com",
+        "bbc.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "es-mixto-2",
+      "kind": "mixed",
+      "rating": "Engañoso",
+      "got": "INSUFFICIENT",
+      "grade": "fail",
+      "rationale": "Los resultados mencionan que casi 9,5 millones de residentes en España han nacido fuera de sus fronteras y que en los últimos años han llegado más de dos millones de personas, pero las fuentes no aportan datos completos ni específicos para verificar si exactamente ocho millones de extranjeros han entrado en España desde la llegada de Pedro Sánchez en 2018.",
+      "evidence": [
+        {
+          "url": "https://www.bbc.com/mundo/articles/cj613zrjdl7o",
+          "domain": "bbc.com",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "ec.europa.eu",
+        "bbc.com",
+        "elpais.com",
+        "reuters.com",
+        "english.elpais.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "co-mixto-3",
+      "kind": "mixed",
+      "rating": "Cuestionable",
+      "got": "CHANGED",
+      "grade": "ok",
+      "rationale": "Las fuentes señalan que la inflación en el gobierno de Petro superó el 13% en su punto máximo, heredada y disparada en parte durante su mandato antes de iniciar un proceso descendente, y en algunos periodos recientes ha vuelto a mostrar repuntes, por lo que la afirmación de que fue menor y descendente de forma continua no es completamente exacta.",
+      "evidence": [
+        {
+          "url": "https://elpais.com/america-colombia/2025-07-23/la-economia-con-petro-va-bien-pero-los-analistas-resienten-la-falta-de-un-rumbo-claro-frente-a-la-deuda.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://elpais.com/america-colombia/2025-08-07/los-tres-anos-de-petro-en-graficos.html",
+          "domain": "elpais.com",
+          "stance": "supports"
+        },
+        {
+          "url": "https://www.elespectador.com/opinion/columnistas/salomon-kalmanovitz/el-legado-de-petro",
+          "domain": "elespectador.com",
+          "stance": "contradicts"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "elcolombiano.com",
+        "m.elcolombiano.com",
+        "elpais.com",
+        "bbc.com",
+        "elespectador.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "py-inventado-1",
+      "kind": "invented",
+      "rating": "Inventada para esta evaluación",
+      "got": "INSUFFICIENT",
+      "grade": "ok",
+      "rationale": "Los resultados de búsqueda disponibles informan sobre la crisis política en Paraguay y la situación del presidente Santiago Peña en octubre y noviembre de 2026, pero no contienen ninguna información sobre un posible anuncio del Gobierno para adoptar el dólar estadounidense como moneda oficial.",
+      "evidence": [
+        {
+          "url": "https://www.bbc.com/mundo/articles/cpwvw87vdqyo",
+          "domain": "bbc.com",
+          "stance": "neutral"
+        },
+        {
+          "url": "https://www.bbc.com/mundo/articles/crwyddpl789do",
+          "domain": "bbc.com",
+          "stance": "neutral"
+        },
+        {
+          "url": "https://www.bbc.com/mundo/articles/c70e00y7q75o",
+          "domain": "bbc.com",
+          "stance": "neutral"
+        }
+      ],
+      "contaminated": false,
+      "search_domains": [
+        "bbc.com"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    },
+    {
+      "case_id": "uy-inventado-1",
+      "kind": "invented",
+      "rating": "Inventada para esta evaluación",
+      "got": "INSUFFICIENT",
+      "grade": "ok",
+      "rationale": "Los resultados de búsqueda no contienen información sobre la aprobación de ninguna ley en septiembre de 2026 relacionada con el derecho al voto a partir de los 16 años en Uruguay.",
+      "evidence": [],
+      "contaminated": false,
+      "search_domains": [
+        "bbc.com",
+        "nytimes.com",
+        "apnews.com",
+        "english.elpais.com",
+        "data.who.int"
+      ],
+      "credits": 2,
+      "gemini_calls": 1,
+      "error": null
+    }
+  ],
+  "skipped_case_ids": [],
+  "spent_credits": 40,
+  "blind": true
+}
