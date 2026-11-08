@@ -40,7 +40,7 @@ def _result(case_id: str, kind: str, got: str | None, grade: str, *, contaminate
     )
 
 
-def _run(results, skipped=()):
+def _run(results, skipped=(), *, blind=False):
     return RunResult(
         started_at=datetime(2026, 11, 3, tzinfo=UTC),
         model="gemini-test",
@@ -48,6 +48,7 @@ def _run(results, skipped=()):
         results=results,
         skipped_case_ids=list(skipped),
         spent_credits=sum(r.credits for r in results),
+        blind=blind,
     )
 
 
@@ -87,3 +88,27 @@ def test_report_lists_skipped_cases() -> None:
     run = _run([_result("c1", "false", "CONTRADICTED", "ok")], skipped=["c2"])
     md = render_report(run, cases)
     assert "c2" in md.split("tope")[-1]
+
+
+def test_report_states_mode() -> None:
+    cases = {"c1": _case("c1", "false")}
+    results = [_result("c1", "false", "CONTRADICTED", "ok")]
+    assert "- Modo: ciego (sin verificadores)" in render_report(_run(results, blind=True), cases)
+    assert "- Modo: normal" in render_report(_run(results), cases)
+
+
+def test_report_scores_by_kind() -> None:
+    cases = {"c1": _case("c1", "false"), "c2": _case("c2", "false"), "c3": _case("c3", "true")}
+    run = _run(
+        [
+            _result("c1", "false", "CONTRADICTED", "ok"),
+            _result("c2", "false", "INSUFFICIENT", "fail"),
+            _result("c3", "true", "SUPPORTED", "ok"),
+        ]
+    )
+    summary = render_report(run, cases).split("## Detalle por caso")[0]
+    assert "## Aciertos por tipo" in summary
+    assert "| `false` | 1 de 2 |" in summary
+    assert "| `true` | 1 de 1 |" in summary
+    assert "`mixed`" not in summary
+    assert summary.index("| `false` |") < summary.index("| `true` |")

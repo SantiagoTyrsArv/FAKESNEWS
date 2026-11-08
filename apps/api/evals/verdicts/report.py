@@ -3,6 +3,8 @@ from evals.verdicts.runner import CaseResult, RunResult
 from evals.verdicts.scoring import EXPECTED
 
 _GRADE_LABEL = {"ok": "✓", "fail": "✗", "severe": "✗ grave", "error": "error"}
+MODE_LABEL = {False: "normal", True: "ciego (sin verificadores)"}
+_KIND_ORDER = ("false", "true", "mixed", "invented")
 
 
 def _score(results: list[CaseResult]) -> str:
@@ -17,6 +19,7 @@ def render_report(run: RunResult, cases: dict[str, Case]) -> str:
         f"- Fecha: {run.started_at:%Y-%m-%d %H:%M} UTC",
         f"- Modelo: `{run.model}`",
         f"- Búsqueda: Tavily, {run.spent_credits} de {run.max_credits} créditos",
+        f"- Modo: {MODE_LABEL[run.blind]}",
         "",
         "| Caso | Calificación | Esperado | Obtenido | Resultado | Contaminado |",
         "|---|---|---|---|---|---|",
@@ -42,6 +45,12 @@ def render_report(run: RunResult, cases: dict[str, Case]) -> str:
     ]
     if run.skipped_case_ids:
         lines.append(f"- Sin correr por el tope de créditos: {', '.join(run.skipped_case_ids)}")
+
+    lines += ["", "## Aciertos por tipo", "", "| Tipo | Aciertos |", "|---|---|"]
+    for kind in _KIND_ORDER:
+        of_kind = [r for r in run.results if r.kind == kind]
+        if of_kind:
+            lines.append(f"| `{kind}` | {_score(of_kind)} |")
 
     lines += ["", "## Detalle por caso"]
     for r in run.results:
