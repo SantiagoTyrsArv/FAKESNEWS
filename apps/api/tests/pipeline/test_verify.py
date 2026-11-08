@@ -5,7 +5,7 @@ import pytest
 from app.core.llm import LLMError, LLMQuotaError
 from app.core.search import SearchError, SearchQuotaError, SearchResult
 from app.modules.pipeline import verify as verify_module
-from app.modules.pipeline.verify import EvidenceItem, _ModelVerdict
+from app.modules.pipeline.verify import EvidenceItem, _ClaimPart, _ModelVerdict
 
 TRUSTED = ["colombiacheck.com", "afp.com"]
 
@@ -29,6 +29,13 @@ def _answer(verdict: str = "SUPPORTED", *evidence: tuple[int, str]) -> _ModelVer
             "evidence": [{"result_id": i, "stance": s} for i, s in evidence],
         }
     )
+
+
+def _answer_with_parts(
+    verdict: str, parts: list[tuple[str, str]], *evidence: tuple[int, str]
+) -> _ModelVerdict:
+    answer = _answer(verdict, *evidence)
+    return answer.model_copy(update={"parts": [_ClaimPart(text=t, status=st) for t, st in parts]})
 
 
 class _Fakes:
@@ -347,3 +354,66 @@ async def test_a_long_date_cannot_break_saving_the_case(monkeypatch: pytest.Monk
 def test_evidence_item_rejects_non_http_url() -> None:
     with pytest.raises(ValueError, match="http"):
         EvidenceItem(url="javascript:alert(1)", domain="a.com", snippet="x", stance="supports")
+
+
+TWO_RESULTS = [_result(1), _result(2, url="https://afp.com/b")]
+
+
+async def test_supported_with_every_part_confirmed_stays_supported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parts = [("crece 2,7 %", "confirmed"), ("en el segundo trimestre", "confirmed")]
+    _Fakes(monkeypatch, TWO_RESULTS, _answer_with_parts("SUPPORTED", parts, (1, "supports")))
+
+    result = await _verify()
+
+    assert result.verdict == "SUPPORTED"
+    assert result.rationale == "Explicación del modelo."
+
+
+@pytest.mark.parametrize("status", ["unconfirmed", "contradicted"])
+async def test_supported_with_a_part_not_confirmed_becomes_changed(
+    monkeypatch: pytest.MonkeyPatch, status: str
+) -> None:
+    parts = [("es la que más crece", "confirmed"), ("de toda la zona euro", status)]
+    answer = _answer_with_parts("SUPPORTED", parts, (1, "supports"), (2, "supports"))
+    _Fakes(monkeypatch, TWO_RESULTS, answer)
+
+    result = await _verify()
+
+    assert result.verdict == "CHANGED"
+    assert "«de toda la zona euro»" in result.rationale
+    assert result.rationale.startswith(verify_module.PARTIAL_CLAIM_NOTE.split("{")[0])
+    assert len(result.evidence) == 2
+
+
+async def test_supported_with_a_part_not_confirmed_and_one_citation_is_insufficient(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # CHANGED still needs two citations: the downgrade never leaves it SUPPORTED.
+    parts = [("la cifra", "confirmed"), ("de la historia", "unconfirmed")]
+    _Fakes(monkeypatch, [_result()], _answer_with_parts("SUPPORTED", parts, (1, "supports")))
+
+    assert (await _verify()).verdict == "INSUFFICIENT"
+
+
+async def test_prompt_asks_to_check_each_part_and_its_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fakes = _Fakes(monkeypatch, [_result()], _answer("SUPPORTED", (1, "supports")))
+
+    await _verify()
+
+    system = fakes.prompts[0]["system"]
+    assert "parts" in system
+    assert "alcance exacto" in system
+
+
+async def test_prompt_tolerates_small_differences_between_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fakes = _Fakes(monkeypatch, [_result()], _answer("SUPPORTED", (1, "supports")))
+
+    await _verify()
+
+    assert "redondeo" in fakes.prompts[0]["system"]
