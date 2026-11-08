@@ -1,6 +1,6 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-11-07**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-11-08**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
@@ -75,6 +75,33 @@
 | #110 | `feat/changed-verdict-web` | La web pinta `CHANGED` y su línea de tiempo |
 | #111 | `feat/changed-verdict-api` | **La API emite `CHANGED`** |
 | #112 | `docs/changed-verdict-close` | Cierre del veredicto `CHANGED` |
+| #117 | `docs/verdict-eval-expansion-spec` | Diseño y plan para ampliar la evaluación de veredictos |
+| #118 | `feat/verdict-eval-expansion` | Evaluación con modo ciego (`--blind`) y 20 casos |
+
+## Evaluación con modo ciego (2026-11-08)
+
+[Especificación](superpowers/specs/2026-11-08-verdict-eval-expansion-design.md) y [plan](superpowers/plans/2026-11-08-verdict-eval-expansion.md). PR #117 y #118.
+
+- **Qué cambió:** `--blind` quita de la búsqueda los 6 verificadores de la lista y el dominio del caso, así que nada puede copiar un chequeo publicado. Hay 12 casos nuevos (20 en total: 6 falsos, 6 verdaderos, 5 mixtos y 3 inventados), cada uno con un `coverage_url` de un medio de confianza que no es verificador. «Contaminado» cuenta ahora cualquier verificador de la lista.
+- **Resultados** (`results/2026-11-08_163649.md` y `_163826_blind.md`):
+
+| | Normal | Ciego |
+|---|---|---|
+| Aciertos | 14 de 20 | **12 de 20** |
+| Sin contaminados | 3 de 8 | 12 de 20 |
+| Errores graves | 1 | 3 |
+| `false` / `true` / `mixed` / `invented` | 4/6, 6/6, 2/5, 2/3 | 3/6, 5/6, **1/5**, 3/3 |
+
+- **Lo que dicen:**
+  - La cifra fiable es la del modo ciego: **12 de 20**. Los 7 de 8 anteriores venían sobre todo de copiar chequeos.
+  - **Lo débil son los mixtos (1 de 5).** El modelo da `SUPPORTED` a afirmaciones engañosas cuando las fuentes confirman la parte cierta: `es-mixto-1` («España, la economía de la zona euro que más crece») y `co-mixto-1` y `co-mixto-2` en ciego, los 3 errores graves. Solo acierta `co-mixto-3`, el dato que cambió con el tiempo.
+  - Los verdaderos van bien (5 de 6 en ciego) y los inventados también (3 de 3).
+  - Los falsos sin verificador (3 de 6) fallan sobre todo por la **búsqueda**, no por el modelo: `ec-falso-1` y `co-falso-1` dan `INSUFFICIENT` porque los fragmentos no hablan del tema.
+  - Hay un caso discutible: en `ec-falso-2` el modelo dice que las protestas masivas fueron en octubre de 2025, no de 2026, y da `CHANGED`.
+  - En modo normal, `co-inventado-1` pasó a `CONTRADICTED`: hay noticias reales de reuniones entre De la Espriella y Trump.
+- **Tavily no devuelve nada de EFE:** `efe.com` está en la lista y se envía en cada búsqueda, pero no apareció en ninguna de las 40. Sí aparecen Reuters, AP y la BBC. Casi toda la cobertura de los casos nuevos está en EFE, así que en la práctica no está disponible. Falta comprobar si EFE bloquea a Tavily (cuesta créditos).
+- **Cuota:** 80 créditos de Tavily y 40 llamadas a Gemini, sin errores. Gasto conocido del mes: 132 de 1.000.
+- **Cómo se buscaron los casos sin Tavily:** la búsqueda web del asistente no llega a EFE, El País, Reuters, la BBC ni AP. La API de WordPress de EFE (`efe.com/wp-json/wp/v2/posts?search=…`) sí responde, y Google News también, aunque limita las peticiones.
 
 ## Para retomar (2026-11-07)
 
@@ -312,7 +339,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07, confirmado por el dueño.
-1. **Calidad de los veredictos:** `CHANGED` ya está en producción (#111). Siguen dos problemas. `co-mixto-1` falla porque al modelo le falta contexto, no el veredicto. Y la evaluación es pequeña: 6 de sus 8 casos están contaminados. El siguiente paso es ampliarla con casos limpios antes de tocar más el prompt.
+1. **Calidad de los veredictos:** la evaluación ya tiene 20 casos y un modo ciego (#118), que da **12 de 20**. El punto débil son las afirmaciones engañosas (1 de 5 mixtos): el modelo da `SUPPORTED` cuando las fuentes confirman la parte cierta. Siguientes pasos, cada uno medido con `--blind`: ajustar el prompt para los mixtos, y averiguar por qué Tavily no devuelve EFE.
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. ~~**Robustez del backend**~~ Hecho en #102–#106. Queda un riesgo menor en video: un audio muy comprimido podría durar mucho más que sus metadatos, y cancelar el trabajo no detiene el hilo de Whisper. Se acepta por ahora porque solo se admiten hosts que recodifican lo que se sube. La solución sería transcribir en un subproceso que se pueda matar.
 4. ~~**Pruebas de la web**~~ Hecho en #107.
