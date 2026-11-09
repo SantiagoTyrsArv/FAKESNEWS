@@ -1,6 +1,6 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-11-08**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-11-09**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
@@ -77,6 +77,26 @@
 | #112 | `docs/changed-verdict-close` | Cierre del veredicto `CHANGED` |
 | #117 | `docs/verdict-eval-expansion-spec` | Diseño y plan para ampliar la evaluación de veredictos |
 | #118 | `feat/verdict-eval-expansion` | Evaluación con modo ciego (`--blind`) y 20 casos |
+| #119 | `docs/verdict-eval-blind-results` | Resultados de la evaluación con modo ciego (12 de 20) |
+| #120 | `feat/verify-claim-parts` | El modelo comprueba cada parte de la afirmación antes de dar `SUPPORTED` (ciego: 14 de 20) |
+
+## Comprobar cada parte de la afirmación (2026-11-09)
+
+PR #120. El modelo separa la afirmación en partes (`parts`: datos, cifras, superlativos y alcances) y marca cada una como `confirmed`, `unconfirmed` o `contradicted`. Si da `SUPPORTED` con alguna parte sin confirmar, `_conclude` lo baja a `CHANGED` (o a `INSUFFICIENT` con una sola cita). Una diferencia de redondeo entre fuentes no cuenta.
+
+- **Medición en ciego** (`results/2026-11-09_122316_blind.md`), frente a la base del 2026-11-08 (`_163826_blind.md`):
+
+| | Base | #120 |
+|---|---|---|
+| Aciertos | 12 de 20 | **14 de 20** |
+| Errores graves | 3 | 2 |
+| `false` / `true` / `mixed` / `invented` | 3/6, 5/6, 1/5, 3/3 | 3/6, **6/6**, **2/5**, 3/3 |
+
+- **Arregla** `es-mixto-1` y `co-mixto-2` (de `SUPPORTED` a `CHANGED`, eran errores graves) y `co-verdadero-1` (de `CHANGED` a `SUPPORTED`).
+- **Empeora** `co-mixto-3` (de `CHANGED` a `INSUFFICIENT`) y `co-falso-1`, error grave nuevo: salió `SUPPORTED` con una sola fuente de El Tiempo, y el modelo afirmó que la captura fue «bajo el gobierno de De la Espriella», algo que el artículo no dice. La salvaguarda no lo ve porque el modelo marca esa parte como confirmada. Un `SUPPORTED` con una sola cita es el caso más frágil.
+- **Sigue fallando** `co-mixto-1` (`SUPPORTED`): las fuentes confirman que la inflación bajó y el modelo marca todo como confirmado.
+- Una ejecución anterior el 2026-11-08 (`_164616_blind.md`, sin la regla de redondeo) dio 11 de 20 con 2 errores 429 de Gemini.
+- **Cuota:** 40 créditos de Tavily y 20 llamadas a Gemini, sin errores. Gasto conocido del mes: 212 de 1.000.
 
 ## Evaluación con modo ciego (2026-11-08)
 
@@ -339,7 +359,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07, confirmado por el dueño.
-1. **Calidad de los veredictos:** la evaluación ya tiene 20 casos y un modo ciego (#118), que da **12 de 20**. El punto débil son las afirmaciones engañosas (1 de 5 mixtos): el modelo da `SUPPORTED` cuando las fuentes confirman la parte cierta. Siguientes pasos, cada uno medido con `--blind`: ajustar el prompt para los mixtos, y averiguar por qué Tavily no devuelve EFE.
+1. **Calidad de los veredictos:** en ciego, **14 de 20** desde el #120 (mixtos 2 de 5). Siguientes pasos, cada uno medido con `--blind`: averiguar por qué Tavily no devuelve EFE, `co-mixto-1`, y valorar exigir dos citas para `SUPPORTED` (ver `co-falso-1`).
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. ~~**Robustez del backend**~~ Hecho en #102–#106. Queda un riesgo menor en video: un audio muy comprimido podría durar mucho más que sus metadatos, y cancelar el trabajo no detiene el hilo de Whisper. Se acepta por ahora porque solo se admiten hosts que recodifican lo que se sube. La solución sería transcribir en un subproceso que se pueda matar.
 4. ~~**Pruebas de la web**~~ Hecho en #107.
