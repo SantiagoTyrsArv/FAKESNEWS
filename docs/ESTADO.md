@@ -78,9 +78,18 @@
 | #117 | `docs/verdict-eval-expansion-spec` | Diseño y plan para ampliar la evaluación de veredictos |
 | #118 | `feat/verdict-eval-expansion` | Evaluación con modo ciego (`--blind`) y 20 casos |
 | #119 | `docs/verdict-eval-blind-results` | Resultados de la evaluación con modo ciego (12 de 20) |
+| #124 | `feat/observability` | Alerta de errores por correo, sondeo de disponibilidad y prueba de restauración de backups |
 | #121 | `chore/pending-2026-11-09` | Diagnóstico de EFE en Tavily y detalles menores de la web, la API y la infraestructura |
 | #122 | `feat/postgres-app-role` | La API y el worker se conectan con un rol de Postgres sin DDL |
 | #120 | `feat/verify-claim-parts` | El modelo comprueba cada parte de la afirmación antes de dar `SUPPORTED` (ciego: 14 de 20) |
+
+## Observabilidad (2026-11-09)
+
+[Especificación](superpowers/specs/2026-11-09-observability-design.md), [plan](superpowers/plans/2026-11-09-observability.md) y runbook en [AZURE.md](AZURE.md#observabilidad).
+
+- **Alerta `alert-fakesnews-errors`:** cada hora manda un correo si la API o el worker registran un error (cuota agotada, pipeline fallido, error no controlado, fallo al encolar) o casos atascados. No salta con las trazas de Redis al apagarse. Cuesta 0,50 USD al mes.
+- **Sondeo `uptime.yml`:** cada 6 horas comprueba la web y `/api/health/ready` desde GitHub Actions. No más a menudo, porque cada sondeo despierta la API.
+- **Backups probados:** `infra/scripts/restore-test.sh` restauró a un punto en el tiempo en 9 minutos, con las 9 tablas iguales. Próxima prueba: **2027-02**.
 
 ## Azure el 2026-11-09
 
@@ -388,7 +397,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 4. ~~**Pruebas de la web**~~ Hecho en #107.
 5. **Largo plazo:**
    - TypeScript 7 y ESLint 10;
-   - observabilidad (alertas, métricas, backups probados);
+   - ~~observabilidad (alertas, métricas, backups probados)~~: hecho en el #124; repetir `restore-test.sh` en 2027-02;
    - Server Components para la portada y `/sources`.
 6. ~~**Detalles menores**~~ Hechos el 2026-11-09 (ver «Detalles cerrados el 2026-11-09»).
 7. ~~**Pendiente en Azure**~~ Hecho el 2026-11-09 (ver «Azure el 2026-11-09»).
