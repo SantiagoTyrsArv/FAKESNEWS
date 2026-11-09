@@ -14,6 +14,7 @@ from app.core.rate_limit import get_redis
 from app.modules.auth.routers import router as auth_router
 from app.modules.reports.routers import router as reports_router
 from app.modules.sources.routers import router as sources_router
+from app.modules.submissions.live import router as live_router
 from app.modules.submissions.routers import router as submissions_router
 
 settings = get_settings()
@@ -66,6 +67,7 @@ app.include_router(auth_router)
 app.include_router(submissions_router)
 app.include_router(sources_router)
 app.include_router(reports_router)
+app.include_router(live_router)
 
 
 @app.get("/health")
