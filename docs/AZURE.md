@@ -102,7 +102,13 @@ Están en Key Vault, nunca en el repo ni en GitHub: `database-url`, `keda-pg-con
 `tavily-api-key`, `api-proxy-secret` y `pg-admin-password`.
 
 Para rotar uno:
-1. `az keyvault secret set --vault-name kv-fakesnews-4q4yxz5r -n <nombre> --value "<nuevo>"`.
+1. Guarda el valor nuevo en un archivo temporal y súbelo desde ahí, no con `--value`, que lo deja
+   en el historial del shell y en la lista de procesos mientras corre:
+   ```
+   read -rs NUEVO && printf %s "$NUEVO" > /tmp/secreto && unset NUEVO
+   az keyvault secret set --vault-name kv-fakesnews-4q4yxz5r -n <nombre> --file /tmp/secreto --encoding utf-8 -o none
+   rm /tmp/secreto
+   ```
 2. Reinicia la revisión de las apps que lo usan:
    `az containerapp revision restart -g rg-fakesnews-prod -n <app> --revision <revisión>`.
    Las referencias a Key Vault también se refrescan solas, cada 30 minutos aproximadamente.
