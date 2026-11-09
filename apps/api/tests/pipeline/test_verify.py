@@ -136,7 +136,10 @@ async def test_no_trusted_domains_skips_search(monkeypatch: pytest.MonkeyPatch) 
 
     result = await verify_module.verify_claim("afirmación", allowed_domains=[])
 
+    # A misconfiguration, not a finding about the claim: it must not read as
+    # "no evidence" to the user.
     assert result.verdict == "INSUFFICIENT"
+    assert result.verification_failed is True
     assert fakes.searches == []
 
 

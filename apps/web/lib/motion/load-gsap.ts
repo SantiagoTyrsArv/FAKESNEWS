@@ -19,6 +19,10 @@ export function loadGsap(): Promise<GsapBundle> {
     import("gsap"),
     import("gsap/ScrollTrigger"),
     import("gsap/SplitText"),
+    // SplitText measures lines with the font on screen. Split before the web
+    // font arrives and the lines break where the fallback font broke them.
+    // next/font preloads them, so this rarely waits.
+    document.fonts?.ready,
   ]).then(([core, scrollTriggerModule, splitTextModule]) => {
     const { gsap } = core;
     const { ScrollTrigger } = scrollTriggerModule;

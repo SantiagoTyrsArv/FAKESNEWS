@@ -95,6 +95,9 @@ export function MotionProvider({ children }: Readonly<{ children: ReactNode }>) 
           gsap.ticker.lagSmoothing(500, 33); // GSAP's default
         };
       },
+      // A chunk that fails to load (offline, a deploy swapped it) leaves the
+      // browser's own scrolling, which is fine; it just must not go unhandled.
+      () => {},
     );
     return () => {
       cancelled = true;

@@ -185,6 +185,18 @@
 }
 
 /*
+ * SplitText's line masks (`overflow: clip`) end at the line box, which in the
+ * tight display titles cuts off descenders. Extra room below, given back with a
+ * negative margin, keeps the layout as it was. Pairs with LINE_HIDDEN_Y.
+ */
+@layer components {
+  .split-line-mask {
+    padding-bottom: 0.2em;
+    margin-bottom: -0.2em;
+  }
+}
+
+/*
  * The fact-checker's highlighter: a skewed marker swipe behind the text,
  * colored by verdict. Wraps across lines like a real pen stroke.
  */

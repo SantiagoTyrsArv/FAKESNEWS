@@ -28,3 +28,9 @@ export function intensityFor(pathname) {
 export function scaled(value, intensity) {
   return value * intensity;
 }
+
+// Titles that rise line by line from a mask. The mask gets `${SPLIT_LINE}-mask`
+// (globals.css), which lets descenders hang below the line box without being
+// clipped; the start offset clears that extra room so the line stays hidden.
+export const SPLIT_LINE = "split-line";
+export const LINE_HIDDEN_Y = 125;

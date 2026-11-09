@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { useMotion } from "@/components/motion/motion-provider";
 import { type HeaderVariant, SiteHeader } from "@/components/site-header";
 import { loadGsap } from "@/lib/motion/load-gsap";
-import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
+import { DURATION, EASE, LINE_HIDDEN_Y, SPLIT_LINE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
 import { cn } from "@/lib/utils";
 
 const LINE_ROTATE = 4;
@@ -55,10 +55,10 @@ export function PageHeading({
     let cleanup: (() => void) | undefined;
     void loadGsap().then(({ gsap, SplitText }) => {
       if (cancelled || !h1.isConnected) return;
-      const split = SplitText.create(h1, { type: "lines", mask: "lines" });
+      const split = SplitText.create(h1, { type: "lines", mask: "lines", linesClass: SPLIT_LINE });
       const tween = gsap.fromTo(
         split.lines,
-        { yPercent: 110, rotation: scaled(LINE_ROTATE, intensity) },
+        { yPercent: LINE_HIDDEN_Y, rotation: scaled(LINE_ROTATE, intensity) },
         {
           yPercent: 0,
           rotation: 0,
