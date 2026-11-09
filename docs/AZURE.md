@@ -90,15 +90,22 @@ MSYS_NO_PATHCONV=1 infra/scripts/psql-job.sh "select count(*) from users"
   a él.
   1. Ejecuta
      `az postgres flexible-server restore -g rg-fakesnews-prod --name psql-fakesnews-restored --source-server psql-fakesnews --restore-time "<ISO 8601 UTC>"`.
-  2. Actualiza los secretos `database-url` y `keda-pg-connection` con el FQDN nuevo.
+  2. Actualiza los secretos `database-url`, `database-url-app` y `keda-pg-connection` con el FQDN nuevo.
+     El rol `fakesnews_app` viaja con el backup.
   3. Reinicia la API y el worker.
 - **Comparar dos bases:** `infra/scripts/row-counts.sql` devuelve el número de filas de cada tabla
   y la revisión de alembic.
 
 ## Secretos
 
-Están en Key Vault, nunca en el repo ni en GitHub: `database-url`, `keda-pg-connection`,
-`redis-url`, `redis-password`, `jwt-secret-key`, `totp-secret-encryption-key`, `gemini-api-key`,
+**Postgres tiene dos logins.** La API y el worker usan `database-url-app`, con el rol
+`fakesnews_app`: puede leer y escribir filas, pero no crear ni cambiar tablas. El job de
+migraciones, KEDA y `psql-job.sh` usan el administrador (`fakesnews_admin`, en `database-url` y
+`keda-pg-connection`). Los privilegios por defecto dan a `fakesnews_app` acceso a las tablas que
+creen las migraciones futuras, siempre que las cree `fakesnews_admin`.
+
+Están en Key Vault, nunca en el repo ni en GitHub: `database-url`, `database-url-app`,
+`keda-pg-connection`, `redis-url`, `redis-password`, `jwt-secret-key`, `totp-secret-encryption-key`, `gemini-api-key`,
 `tavily-api-key`, `api-proxy-secret` y `pg-admin-password`.
 
 Para rotar uno:
