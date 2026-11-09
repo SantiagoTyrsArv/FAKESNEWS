@@ -91,6 +91,10 @@ class FakeRedis:
         self._counters[key] = self._counters.get(key, 0) + 1
         return self._counters[key]
 
+    async def decr(self, key: str) -> int:
+        self._counters[key] = self._counters.get(key, 0) - 1
+        return self._counters[key]
+
     async def expire(self, key: str, seconds: int) -> None:
         self._ttls[key] = seconds
 

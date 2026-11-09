@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     # Longest a case progress WebSocket stays open: a bit over the pipeline's
     # job timeout, like the report page's STALE_AFTER_MS.
     ws_max_seconds: int = Field(default=960, alias="WS_MAX_SECONDS")
+    # Open progress sockets per account (each holds a Redis connection).
+    ws_max_sockets_per_user: int = Field(default=5, alias="WS_MAX_SOCKETS_PER_USER")
     # Tickets for the case progress WebSocket (one per report page load).
     rate_limit_ws_ticket_per_minute: int = Field(
         default=30, alias="RATE_LIMIT_WS_TICKET_PER_MINUTE"

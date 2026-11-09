@@ -180,3 +180,16 @@ def test_a_message_from_the_client_does_not_end_the_stream(client: TestClient, c
         ws.send_text("hola")
         _publish(client, case, "scoring")
         assert ws.receive_json() == {"status": "scoring", "error": None}
+
+
+def test_caps_open_sockets_per_user(client: TestClient, case: str, monkeypatch) -> None:
+    # Each socket holds a Redis pub/sub connection for up to WS_MAX_SECONDS:
+    # one account must not be able to pile them up.
+    monkeypatch.setattr(live.settings, "ws_max_sockets_per_user", 1)
+    with _connect(client, case, _ticket(client, case)) as first:
+        first.receive_json()
+        with pytest.raises(WebSocketDisconnect), _connect(client, case, _ticket(client, case)):
+            pass
+
+    with _connect(client, case, _ticket(client, case)) as again:
+        assert again.receive_json()["status"] == "queued"

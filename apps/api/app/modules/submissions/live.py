@@ -70,10 +70,21 @@ async def submission_progress(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await websocket.accept()
+    # Each socket holds a Redis pub/sub connection for up to WS_MAX_SECONDS,
+    # so one account may only keep a few open. The TTL frees the counter if a
+    # process dies before its finally block runs.
+    open_key = f"ws-open:user:{user_id}"
+    open_now = await redis_client.incr(open_key)
+    await redis_client.expire(open_key, settings.ws_max_seconds + 60)
+    if open_now > settings.ws_max_sockets_per_user:
+        await redis_client.decr(open_key)
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     pubsub = redis_client.pubsub()
     receiver: asyncio.Task | None = None
     try:
+        await websocket.accept()
         # Subscribe first, then read: a change landing in between is then
         # queued on the channel instead of lost.
         await pubsub.subscribe(channel_name(submission_id))
@@ -121,3 +132,5 @@ async def submission_progress(
                 await receiver
         with contextlib.suppress(Exception):
             await pubsub.aclose()
+        with contextlib.suppress(Exception):
+            await redis_client.decr(open_key)
