@@ -77,6 +77,15 @@ module monitoring 'modules/monitoring.bicep' = {
   params: { location: location }
 }
 
+module alerts 'modules/alerts.bicep' = {
+  name: 'alerts'
+  params: {
+    location: location
+    workspaceName: monitoring.outputs.workspaceName
+    contactEmail: budgetContactEmail
+  }
+}
+
 module storage 'modules/storage.bicep' = {
   name: 'storage'
   params: { location: location }
