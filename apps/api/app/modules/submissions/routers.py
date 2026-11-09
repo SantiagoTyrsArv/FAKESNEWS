@@ -7,13 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.deps import get_current_user, require_csrf
-from app.core.rate_limit import get_redis_dependency
+from app.core.rate_limit import RateLimitExceeded, check_rate_limit, get_redis_dependency
 from app.modules.auth.models import User
-from app.modules.submissions import service
+from app.modules.submissions import service, ws_tickets
 from app.modules.submissions.schemas import (
     CreateSubmissionRequest,
     SubmissionListResponse,
     SubmissionResponse,
+    WsTicketResponse,
 )
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -99,3 +100,36 @@ async def get_submission(
     except service.SubmissionNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Caso no encontrado.") from exc
     return _to_response(submission)
+
+
+# Requirement: WebSockets. Issued through the /api proxy, so the httpOnly
+# session cookie authenticates it; the browser then presents the ticket to
+# the WebSocket in live.py, which the cookie cannot reach (see ws_tickets.py).
+@router.post("/{submission_id}/ws-ticket", response_model=WsTicketResponse)
+async def create_ws_ticket(
+    submission_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
+    user: Annotated[User, Depends(get_current_user)],
+    _csrf: Annotated[None, Depends(require_csrf)],
+):
+    try:
+        await check_rate_limit(
+            f"ws-ticket:user:{user.id}",
+            service.settings.rate_limit_ws_ticket_per_minute,
+            client=redis_client,
+        )
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Demasiadas solicitudes. Espera un momento.",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
+    try:
+        await service.get_submission(db, submission_id=submission_id, user_id=user.id)
+    except service.SubmissionNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Caso no encontrado.") from exc
+    ticket = await ws_tickets.issue_ticket(
+        redis_client, user_id=user.id, submission_id=submission_id
+    )
+    return WsTicketResponse(ticket=ticket, expires_in=ws_tickets.TICKET_TTL_SECONDS)

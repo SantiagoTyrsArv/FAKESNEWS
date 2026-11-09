@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     lockout_minutes: int = Field(default=15, alias="LOCKOUT_MINUTES")
     rate_limit_login_per_minute: int = Field(default=10, alias="RATE_LIMIT_LOGIN_PER_MINUTE")
     rate_limit_verify_per_minute: int = Field(default=10, alias="RATE_LIMIT_VERIFY_PER_MINUTE")
+    # Tickets for the case progress WebSocket (one per report page load).
+    rate_limit_ws_ticket_per_minute: int = Field(
+        default=30, alias="RATE_LIMIT_WS_TICKET_PER_MINUTE"
+    )
 
     # Every submission costs LLM calls and web searches, and anyone can
     # register, so each account gets a budget: a burst limit, a daily cap and
