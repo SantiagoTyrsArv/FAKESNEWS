@@ -12,6 +12,7 @@ from app.core.logging import get_logger
 from app.core.queue import enqueue
 from app.core.rate_limit import RateLimitExceeded, check_rate_limit
 from app.modules.pipeline.models import Claim
+from app.modules.submissions.events import publish_status
 from app.modules.submissions.models import Submission
 
 settings = get_settings()
@@ -60,6 +61,9 @@ async def _fail_stuck_cases(db: AsyncSession, user_id: uuid.UUID) -> None:
     """Close the user's cases nothing will ever finish: the job or the queue
     was lost. It runs on the API, not on a schedule in the worker, because the
     worker scales to zero once no recent case is pending."""
+    # Not published to the case's WebSocket channel (a bulk UPDATE has no ids
+    # to hand): the socket has its own lifetime (WS_MAX_SECONDS) and the report
+    # page stops waiting after STALE_AFTER_MS.
     limit = timedelta(seconds=settings.pipeline_job_timeout_seconds) + _STUCK_MARGIN
     result = await db.execute(
         update(Submission)
@@ -195,6 +199,7 @@ async def create_submission(
         submission.status = "failed"
         submission.error = ENQUEUE_FAILURE
         await db.commit()
+        await publish_status(submission.id, "failed", ENQUEUE_FAILURE)
         raise SubmissionEnqueueError() from exc
 
     return submission

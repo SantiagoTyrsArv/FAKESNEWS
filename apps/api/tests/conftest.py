@@ -1,3 +1,4 @@
+import asyncio
 import os
 from collections.abc import AsyncGenerator
 
@@ -22,16 +23,69 @@ requires_integration = pytest.mark.skipif(
 )
 
 
+class FakePubSub:
+    """In-memory stand-in for redis-py's async PubSub: subscribe/unsubscribe,
+    get_message (with timeout) and aclose. Each subscriber gets its own queue,
+    created on subscribe, so it must be used from the loop that publishes."""
+
+    def __init__(self, redis: "FakeRedis") -> None:
+        self._redis = redis
+        self._queue: asyncio.Queue[dict] = asyncio.Queue()
+        self.channels: set[str] = set()
+
+    async def subscribe(self, *channels: str) -> None:
+        for channel in channels:
+            self.channels.add(channel)
+            self._redis._subscribers.setdefault(channel, []).append(self._queue)
+            self._queue.put_nowait({"type": "subscribe", "channel": channel, "data": 1})
+
+    async def unsubscribe(self, *channels: str) -> None:
+        for channel in channels or tuple(self.channels):
+            self.channels.discard(channel)
+            queues = self._redis._subscribers.get(channel, [])
+            if self._queue in queues:
+                queues.remove(self._queue)
+
+    async def get_message(
+        self, ignore_subscribe_messages: bool = False, timeout: float = 0.0
+    ) -> dict | None:
+        while True:
+            try:
+                message = await asyncio.wait_for(self._queue.get(), timeout=max(timeout, 0.001))
+            except TimeoutError:
+                return None
+            if ignore_subscribe_messages and message["type"] != "message":
+                continue
+            return message
+
+    async def aclose(self) -> None:
+        await self.unsubscribe()
+
+
 class FakeRedis:
     """Minimal in-memory stand-in for the subset of redis-py's async API the
-    app actually uses: incr/expire/ttl (rate limiting), set (single-use
-    tokens), ping/aclose.
+    app actually uses: incr/expire/ttl (rate limiting), set/getdel (single-use
+    tokens), publish/pubsub (case progress events), ping/aclose.
     """
 
     def __init__(self) -> None:
         self._counters: dict[str, int] = {}
         self._ttls: dict[str, int] = {}
         self._values: dict[str, str] = {}
+        self._subscribers: dict[str, list[asyncio.Queue[dict]]] = {}
+
+    async def publish(self, channel: str, message: str) -> int:
+        queues = self._subscribers.get(channel, [])
+        for queue in queues:
+            queue.put_nowait({"type": "message", "channel": channel, "data": message})
+        return len(queues)
+
+    def pubsub(self) -> FakePubSub:
+        return FakePubSub(self)
+
+    async def getdel(self, key: str) -> str | None:
+        self._ttls.pop(key, None)
+        return self._values.pop(key, None)
 
     async def incr(self, key: str) -> int:
         self._counters[key] = self._counters.get(key, 0) + 1
@@ -63,6 +117,17 @@ class FakeRedis:
 @pytest_asyncio.fixture
 async def fake_redis() -> FakeRedis:
     return FakeRedis()
+
+
+@pytest.fixture(autouse=True)
+def _events_use_fake_redis(fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Status changes publish to Redis (case progress over WebSocket). No test
+    should reach a real server for that: route them to the test's FakeRedis."""
+    try:
+        from app.modules.submissions import events
+    except ImportError:
+        return
+    monkeypatch.setattr(events, "get_redis", lambda: fake_redis)
 
 
 @pytest_asyncio.fixture

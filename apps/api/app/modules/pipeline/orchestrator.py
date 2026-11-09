@@ -13,6 +13,7 @@ from app.modules.pipeline.models import Claim, Evidence
 from app.modules.pipeline.transcribe import FasterWhisperTranscriber
 from app.modules.sources import reputation as reputation_module
 from app.modules.sources import service as sources_service
+from app.modules.submissions.events import publish_status
 from app.modules.submissions.models import Submission
 
 settings = get_settings()
@@ -45,6 +46,7 @@ async def _set_status(
     if error is not None:
         submission.error = error
     await db.commit()
+    await publish_status(submission.id, new_status, submission.error)
 
 
 async def _verify_one(
@@ -99,6 +101,7 @@ async def _mark_failed(submission_id: str, error: str) -> None:
             submission.status = "failed"
             submission.error = error
             await db.commit()
+            await publish_status(submission.id, "failed", error)
 
 
 async def run_pipeline(_ctx: dict, submission_id: str) -> None:
