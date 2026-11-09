@@ -67,6 +67,10 @@ resource appsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
   name: 'id-fakesnews-apps'
 }
 
+resource alertsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: 'id-fakesnews-alerts'
+}
+
 module network 'modules/network.bicep' = {
   name: 'network'
   params: { location: location }
@@ -83,6 +87,7 @@ module alerts 'modules/alerts.bicep' = {
     location: location
     workspaceName: monitoring.outputs.workspaceName
     contactEmail: budgetContactEmail
+    identityId: alertsIdentity.id
   }
 }
 

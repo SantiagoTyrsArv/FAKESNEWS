@@ -150,6 +150,8 @@ Diseño: [especificación](superpowers/specs/2026-11-09-observability-design.md)
     08:00 UTC.
   - **`unhandled_error`:** la traza está en el campo `exception`.
 - **Coste:** 0,50 USD al mes.
+- **Identidad:** la consulta corre con `id-fakesnews-alerts`, que solo tiene «Log Analytics Reader»
+  sobre el grupo de recursos. Se crea en `bootstrap.bicep`.
 - **Silenciarla:**
   `az resource update -g rg-fakesnews-prod -n alert-fakesnews-errors --resource-type Microsoft.Insights/scheduledQueryRules --set properties.enabled=false`,
   y `properties.enabled=true` para volver a activarla. El siguiente despliegue de `infra.yml` la vuelve a

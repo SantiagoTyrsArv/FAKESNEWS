@@ -4,6 +4,8 @@
 param location string
 param workspaceName string
 param contactEmail string
+@description('id-fakesnews-alerts (bootstrap.bicep): runs the query, with Log Analytics Reader.')
+param identityId string
 
 // Only JSON lines with an event: the plain-text tracebacks a worker prints
 // while shutting down (Redis already gone) are noise, not errors.
@@ -33,12 +35,13 @@ resource emailGroup 'Microsoft.Insights/actionGroups@2023-01-01' = {
 }
 
 // Hourly: the cheapest price tier (15 minutes or more), 0.50 USD a month.
-// No identity block: Azure Monitor runs the query with its own access to a
-// workspace in the same resource group. An identity would need a role
-// assignment, which the deploy identity (Contributor) cannot create.
 resource errorsAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'alert-fakesnews-errors'
   location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: { '${identityId}': {} }
+  }
   properties: {
     displayName: 'FakesNews: errores en la API o el worker'
     description: 'La API o el worker registraron un error o casos atascados. La consulta dice qué evento y cuántas veces. Qué hacer: docs/AZURE.md, sección Observabilidad.'
