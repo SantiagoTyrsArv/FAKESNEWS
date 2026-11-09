@@ -87,9 +87,25 @@
 
 ## Para retomar (2026-11-09, noche)
 
-- **El feed de Aikido no se puede leer desde el plugin:** la cuenta es gratuita («only available for paying customers»). Los hallazgos de la web (`app.aikido.dev/repositories/3705086`) se ven en el navegador. La extensión de Chrome seguía sin conectar al cerrar la sesión.
+- **Marcar en Aikido los falsos positivos de la web** («Ignore»), si el dueño está de acuerdo. Ver «Aikido en la web» más abajo.
 - **Decisión pendiente: protección de purga en Key Vault** (`CKV_AZURE_110`). Activarla impide borrar el almacén o sus secretos de forma definitiva antes de que pasen los 7 días de retención, pero **no se puede desactivar después**. Ver «IaC con Checkov» más abajo.
 - **Recurso compartido `pgdump` sin uso:** el volcado de Railway ya se borró. Solo lo usa `infra/scripts/restore-azure.sh` (la restauración desde Railway). Se puede quitar de `storage.bicep`, de `containerapps-env.bicep` y de `main.bicep`, junto con ese script.
+
+## Aikido en la web (2026-11-09, noche)
+
+El plugin no lee el feed porque la cuenta es gratuita, así que se revisó en `app.aikido.dev/repositories/3705086` con la extensión de Chrome. Tras un escaneo nuevo quedan **9 problemas**, y ninguno exige cambiar código:
+
+| Problema | Severidad | Veredicto |
+|---|---|---|
+| 2 secretos en `keyvault.bicep` | Alta | Falso positivo: son los ID públicos de los roles integrados de Azure |
+| 1 secreto en `apps/api/app/core/config.py` | Media | Valores de desarrollo: la URL de Postgres de docker-compose (`fakesnews:fakesnews@postgres`) y `dev-insecure-change-me`. En producción `refuse_insecure_production_secrets` rechaza ese JWT, y la URL real viene de Key Vault |
+| Inclusión de archivos en `scripts/css-audit.mjs` | Media | Falso positivo: lee una carpeta fija del build |
+| Key Vault accesible públicamente | Baja | A propósito (ver «IaC con Checkov») |
+| `actions/checkout` guarda credenciales | Baja | Corregido en el #126. El escaneo nuevo da 0 casos, así que Aikido lo cerrará |
+| «Generic API Key» en `test_auth_flow.py`, `test_submissions.py` y otro | Baja | Contraseñas de prueba |
+| Inclusión de archivos en `fbx2glb.py` | Baja | Script local de Blender de la skill `higgsfield-websites`: solo abre la ruta que se le pasa por la línea de comandos |
+| 1 secreto en `tests/core/test_config.py` | Baja | Valor de prueba (`"x" * 48`) |
+| «Generic API Key» en `tests/conftest.py` | Baja | Clave de prueba (`test-secret-key-at-least-32-bytes-long-for-hs256`) |
 
 ## Dependencias con Aikido (2026-11-09, noche)
 
