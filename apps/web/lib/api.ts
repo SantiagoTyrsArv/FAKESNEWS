@@ -1,5 +1,15 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// Requirement: WebSockets. Base of the API's WebSocket (e.g.
+// wss://ca-fakesnews-api....azurecontainerapps.io). The /api proxy can't carry
+// WebSockets, so the browser connects to the API directly. Unset: the report
+// page keeps polling.
+export const WS_BASE_URL: string | null = process.env.NEXT_PUBLIC_WS_URL || null;
+
+export function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -52,7 +62,7 @@ function refreshSession(): Promise<boolean> {
 }
 
 async function rawFetch(path: string, init: RequestInit): Promise<Response> {
-  return fetch(`${API_BASE_URL}${path}`, {
+  return fetch(apiUrl(path), {
     ...init,
     credentials: "include",
     headers: {

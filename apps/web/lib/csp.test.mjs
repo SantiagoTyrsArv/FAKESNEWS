@@ -43,3 +43,26 @@ test("buildCsp: a plain-http API (local production build) isn't upgraded to http
   assert.ok(!("upgrade-insecure-requests" in d));
   assert.deepEqual(d["connect-src"], ["'self'", "http://localhost:8000"]);
 });
+
+// Requirement: WebSockets. The report page connects to the API's WebSocket
+// directly (Vercel's /api proxy can't carry it), so connect-src allows it.
+test("buildCsp: a wss:// WebSocket URL is allowed by origin", () => {
+  const d = directives(
+    buildCsp({ dev: false, apiUrl: "/api", wsUrl: "wss://ca-x.azurecontainerapps.io/" }),
+  );
+  assert.deepEqual(d["connect-src"], ["'self'", "wss://ca-x.azurecontainerapps.io"]);
+});
+
+test("buildCsp: a local ws:// WebSocket URL is allowed", () => {
+  const d = directives(
+    buildCsp({ dev: true, apiUrl: "http://localhost:8000", wsUrl: "ws://localhost:8000" }),
+  );
+  assert.deepEqual(d["connect-src"], ["'self'", "http://localhost:8000", "ws://localhost:8000"]);
+});
+
+test("buildCsp: anything but ws:// or wss:// adds nothing", () => {
+  for (const wsUrl of ["javascript:alert(1)", "", "https://example.com", undefined]) {
+    const d = directives(buildCsp({ dev: false, apiUrl: "/api", wsUrl }));
+    assert.deepEqual(d["connect-src"], ["'self'"]);
+  }
+});

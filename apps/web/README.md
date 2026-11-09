@@ -26,4 +26,7 @@ pnpm dev          # http://localhost:3000, contra la API en NEXT_PUBLIC_API_URL
 - `proxy.ts` solo redirige a `/login` cuando falta la cookie de sesión y, si `API_PROXY_TARGET`
   está definido, hace de proxy de la API en `/api`. La autorización real la hace siempre la API.
 - `NEXT_PUBLIC_API_URL` se lee al compilar: cambiarla exige volver a hacer el build.
+- `NEXT_PUBLIC_WS_URL`, que también se lee al compilar, es la base del WebSocket de progreso de
+  `/reports/[id]`: `ws://localhost:8000` en local y `wss://<FQDN de la API>` en Vercel, porque el
+  proxy `/api` no deja pasar WebSockets. Si no está definida, la página sigue con el sondeo.
 - Las cabeceras de seguridad de las páginas se definen en `next.config.ts`.
