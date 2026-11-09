@@ -140,8 +140,19 @@ function startCursor(
     return "idle";
   };
 
+  const update = (next: typeof state) => {
+    if (next === "text") show(false);
+    else if (state === "text") {
+      state = "idle";
+      show(true);
+    }
+    apply(next);
+  };
+
+  let last: { x: number; y: number } | null = null;
   const onMove = (e: PointerEvent) => {
     if (e.pointerType && e.pointerType !== "mouse") return;
+    last = { x: e.clientX, y: e.clientY };
     dx(e.clientX);
     dy(e.clientY);
     rx(e.clientX);
@@ -153,12 +164,18 @@ function startCursor(
       gsap.set(dot, { x: e.clientX, y: e.clientY });
       show(true);
     }
-    if (next === "text") show(false);
-    else if (state === "text") {
-      state = "idle";
-      show(true);
-    }
-    apply(next);
+    update(next);
+  };
+
+  // Scrolling moves the page under a still pointer without a pointermove, so
+  // the ring would keep the state of whatever it was over before. Once a frame.
+  let frame = 0;
+  const onScroll = () => {
+    if (frame || !last || !visible) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      if (last) update(classify(document.elementFromPoint(last.x, last.y)));
+    });
   };
   const onLeave = () => show(false);
   const onEnter = () => {
@@ -166,12 +183,15 @@ function startCursor(
   };
 
   document.addEventListener("pointermove", onMove, { passive: true });
+  window.addEventListener("scroll", onScroll, { passive: true });
   document.documentElement.addEventListener("mouseleave", onLeave);
   document.documentElement.addEventListener("mouseenter", onEnter);
   window.addEventListener("blur", onLeave);
 
   return () => {
     document.removeEventListener("pointermove", onMove);
+    window.removeEventListener("scroll", onScroll);
+    cancelAnimationFrame(frame);
     document.documentElement.removeEventListener("mouseleave", onLeave);
     document.documentElement.removeEventListener("mouseenter", onEnter);
     window.removeEventListener("blur", onLeave);
