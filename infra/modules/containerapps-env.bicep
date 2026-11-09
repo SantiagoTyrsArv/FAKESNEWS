@@ -1,11 +1,10 @@
 // Consumption-only Container Apps environment inside the VNet, with the
-// Azure Files shares registered as environment storage.
+// whisper-cache Azure Files share registered as environment storage.
 param location string
 param acaSubnetId string
 param logWorkspaceName string
 param storageAccountName string
 param whisperShareName string
-param dumpShareName string
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: logWorkspaceName
@@ -42,19 +41,6 @@ resource whisperStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' 
       accountName: storageAccount.name
       accountKey: storageAccount.listKeys().keys[0].value
       shareName: whisperShareName
-      accessMode: 'ReadWrite'
-    }
-  }
-}
-
-resource dumpStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
-  parent: environment
-  name: 'pgdump'
-  properties: {
-    azureFile: {
-      accountName: storageAccount.name
-      accountKey: storageAccount.listKeys().keys[0].value
-      shareName: dumpShareName
       accessMode: 'ReadWrite'
     }
   }

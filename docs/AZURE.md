@@ -21,8 +21,8 @@ suscripción solo permite `brazilsouth`, `northcentralus`, `canadacentral`, `chi
 | Redis | `ca-fakesnews-redis` | `redis:7-alpine`, TCP interno 6379, sin disco (solo datos temporales) |
 | Migraciones | `caj-fakesnews-migrate` | Job manual: `alembic upgrade head` |
 | PostgreSQL | `psql-fakesnews` | Flexible Server 18, B1ms, 32 GB, acceso privado, backups de 7 días |
-| Secretos | `kv-fakesnews-4q4yxz5r` | RBAC. Las apps leen con `id-fakesnews-apps` |
-| Storage | `stfakesnews4q4yxz5r` | Shares `whisper-cache` (montado en `~/.cache` del worker) y `pgdump` |
+| Secretos | `kv-fakesnews-4q4yxz5r` | RBAC y protección de purga (irreversible). Las apps leen con `id-fakesnews-apps` |
+| Storage | `stfakesnews4q4yxz5r` | Share `whisper-cache`, montado en `~/.cache` del worker |
 | Logs | `log-fakesnews` | 30 días, tope de 0,15 GB al día |
 | Presupuesto | `budget-fakesnews-monthly` | 10 USD al mes, con aviso por correo al 80 % y al 100 % |
 | Identidad de despliegue | `id-fakesnews-deploy` | Contributor en el grupo de recursos. Su credencial federada solo vale para `main` |
@@ -257,10 +257,10 @@ ContainerAppSystemLogs_CL
 
 El corte se hizo el 2026-11-04, de 20:41 a 20:46 UTC (unos 5 min de caída). La base se volcó
 por `railway ssh`, sin abrir la base de Railway a internet, y se restauró con
-`infra/scripts/restore-azure.sh`. Los conteos y la revisión de alembic fueron idénticos en los
+`infra/scripts/restore-azure.sh` (borrado el 2026-11-09). Los conteos y la revisión de alembic fueron idénticos en los
 dos lados.
 
 Railway se eliminó el 2026-11-07, por decisión del dueño y 4 días antes de lo previsto, así que
 **ya no hay vuelta atrás a Railway**. Para recuperar datos están los backups de Postgres Flexible
-(7 días). El volcado de la migración, `railway.dump`, debería seguir en el recurso compartido
-`pgdump`, pero no se pudo comprobar el 2026-11-07 porque la cuenta de almacenamiento rechazó el acceso.
+(7 días). El volcado de la migración, `railway.dump`, se borró el 2026-11-09, y el
+recurso compartido `pgdump` que lo guardaba también.

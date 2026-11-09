@@ -87,9 +87,12 @@
 
 ## Para retomar (2026-11-09, noche)
 
-- **Marcar en Aikido los falsos positivos de la web** («Ignore»), si el dueño está de acuerdo. Ver «Aikido en la web» más abajo.
-- **Decisión pendiente: protección de purga en Key Vault** (`CKV_AZURE_110`). Activarla impide borrar el almacén o sus secretos de forma definitiva antes de que pasen los 7 días de retención, pero **no se puede desactivar después**. Ver «IaC con Checkov» más abajo.
-- **Recurso compartido `pgdump` sin uso:** el volcado de Railway ya se borró. Solo lo usa `infra/scripts/restore-azure.sh` (la restauración desde Railway). Se puede quitar de `storage.bicep`, de `containerapps-env.bicep` y de `main.bicep`, junto con ese script.
+Los pendientes de Aikido están cerrados: los falsos positivos se marcaron como «Ignore» en la web, Key Vault tiene protección de purga y el recurso compartido `pgdump` está borrado (ver «Key Vault y `pgdump`»). No queda nada abierto de esta sesión.
+
+## Key Vault y `pgdump` (2026-11-09, noche)
+
+- **Protección de purga en `kv-fakesnews-4q4yxz5r`** (`CKV_AZURE_110`, `_42`): está en `keyvault.bicep` y se aplicó desplegando `bootstrap.bicep` a mano. **Es irreversible.** Un secreto o el propio almacén borrados se pueden recuperar durante 7 días, y nadie puede purgarlos antes.
+- **`pgdump` borrado:** estaba vacío (0 bytes). Se quitó de `storage.bicep`, de `containerapps-env.bicep` y de `main.bicep`, junto con `infra/scripts/restore-azure.sh`. Como `main.bicep` se despliega en modo incremental, el recurso compartido y su registro en el entorno se borraron a mano con `az` después de desplegar.
 
 ## Aikido en la web (2026-11-09, noche)
 
@@ -102,6 +105,8 @@ El plugin no lee el feed porque la cuenta es gratuita, así que se revisó en `a
 | Inclusión de archivos en `scripts/css-audit.mjs` | Media | Falso positivo: lee una carpeta fija del build |
 | Key Vault accesible públicamente | Baja | A propósito (ver «IaC con Checkov») |
 | `actions/checkout` guarda credenciales | Baja | Corregido en el #126. El escaneo nuevo da 0 casos, así que Aikido lo cerrará |
+
+El dueño marcó como «Ignore» en Aikido los falsos positivos.
 | «Generic API Key» en `test_auth_flow.py`, `test_submissions.py` y otro | Baja | Contraseñas de prueba |
 | Inclusión de archivos en `fbx2glb.py` | Baja | Script local de Blender de la skill `higgsfield-websites`: solo abre la ruta que se le pasa por la línea de comandos |
 | 1 secreto en `tests/core/test_config.py` | Baja | Valor de prueba (`"x" * 48`) |
@@ -121,7 +126,7 @@ De 332 comprobaciones, fallan 16. Ninguna obliga a cambiar nada:
 - **`CKV_DOCKER_2` (sin `HEALTHCHECK`)** en los Dockerfiles de la API y la web: Container Apps no usa `HEALTHCHECK`, sino sus propias sondas (`probes` en `infra/modules/api.bicep`).
 - **`CKV_GHA_7`** en `uptime.yml`: el `base_url` del lanzamiento manual entra por `env` y no se interpola en el script, así que no hay inyección. Solo pueden lanzarlo quienes tienen permiso de escritura en el repositorio.
 - **Key Vault (`CKV_AZURE_189`, `_109`)**, acceso público y sin firewall: es a propósito y está documentado en `keyvault.bicep`. El acceso es solo por RBAC, y cerrarlo exigiría un endpoint privado (unos 7 USD al mes).
-- **Key Vault (`CKV_AZURE_110`, `_42`)**, sin protección de purga: el borrado temporal está activo (7 días). Activar la protección de purga es irreversible y queda como decisión pendiente (ver arriba).
+- **Key Vault (`CKV_AZURE_110`, `_42`)**, sin protección de purga: el borrado temporal está activo (7 días). Se activó la protección de purga (ver «Key Vault y `pgdump`»).
 - **Storage (`CKV_AZURE_35`)**, red abierta por defecto: Container Apps monta Azure Files por SMB sin VNet, así que denegar la red rompería el montaje.
 - **Storage (`CKV_AZURE_43`)**: el nombre (`stfakesnews` + 8 caracteres de `uniqueString`) cumple las reglas. Checkov no resuelve la expresión, así que es un falso positivo.
 - **Storage (`CKV_AZURE_206`)**, replicación LRS: basta para una caché de Whisper que se puede volver a generar.
