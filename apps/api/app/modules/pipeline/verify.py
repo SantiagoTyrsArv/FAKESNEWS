@@ -36,6 +36,17 @@ improbable.
 - Si la afirmación es cierta solo en parte, exagera, mezcla datos ciertos y falsos o su dato \
 ya no es el más reciente según las fechas de los resultados, responde CHANGED, nunca \
 SUPPORTED ni CONTRADICTED.
+- Antes de decidir, separa la afirmación en sus partes en `parts`: cada dato, cifra, \
+fecha y cada superlativo, récord o alcance ("el que más", "de la historia", "de toda la \
+zona euro", "tanto en número como en porcentaje"). Marca cada parte como confirmed si los \
+resultados la confirman con su alcance exacto, unconfirmed si no la mencionan o solo \
+confirman una versión más estrecha (por ejemplo, "entre las grandes economías" no \
+confirma "de toda la zona euro"), o contradicted si la desmienten.
+- Una diferencia pequeña entre fuentes (redondeo, una cifra preliminar corregida, 7,3 \
+frente a 7,4) no deja una parte sin confirmar. "Más de N" queda confirmado por cualquier \
+cifra mayor que N.
+- SUPPORTED exige que todas las partes estén confirmed. Si alguna no lo está pero otras \
+sí, responde CHANGED.
 - Cita como evidencia solo los números de resultado que sostienen tu conclusión, con la \
 postura de cada uno.
 - No es tu trabajo declarar si la afirmación es verdadera o falsa en términos absolutos, \
@@ -84,6 +95,11 @@ class _CitedResult(BaseModel):
     stance: Literal["supports", "contradicts", "neutral"]
 
 
+class _ClaimPart(BaseModel):
+    text: str
+    status: Literal["confirmed", "unconfirmed", "contradicted"]
+
+
 class _ModelVerdict(BaseModel):
     """What the model decides. It names results by number and never writes a
     URL or a quote: those come from the search, so it can't invent evidence."""
@@ -91,6 +107,9 @@ class _ModelVerdict(BaseModel):
     verdict: Verdict
     rationale: str
     evidence: list[_CitedResult] = Field(default_factory=list)
+    # Each piece of the claim with whether the results confirm it: SUPPORTED
+    # only stands when every piece, with its exact scope, is confirmed.
+    parts: list[_ClaimPart] = Field(default_factory=list)
 
 
 # A directional verdict must rest on at least one validated citation that
@@ -104,6 +123,9 @@ UNBACKED_VERDICT_NOTE = (
     "Las citas válidas encontradas no sostienen directamente el veredicto propuesto, "
     "así que se marca como evidencia insuficiente."
 )
+
+
+PARTIAL_CLAIM_NOTE = "Las fuentes no confirman una parte de la afirmación: «{part}»."
 
 
 def _insufficient(reason: str) -> VerifyResult:
@@ -226,10 +248,27 @@ async def verify_claim(
     return _conclude(answer, _evidence(answer, results, claim_text))
 
 
+def _downgrade_partial_support(raw: _ModelVerdict) -> _ModelVerdict:
+    """The model may call a claim SUPPORTED while marking one of its pieces as
+    not confirmed: a partly confirmed claim is CHANGED, never SUPPORTED."""
+    if raw.verdict != "SUPPORTED":
+        return raw
+    missing = next((p for p in raw.parts if p.status != "confirmed"), None)
+    if missing is None:
+        return raw
+    logger.info("verify_claim_partial_support", status=missing.status)
+    note = PARTIAL_CLAIM_NOTE.format(part=missing.text)
+    return raw.model_copy(
+        update={"verdict": "CHANGED", "rationale": f"{note} {raw.rationale}".strip()}
+    )
+
+
 def _conclude(raw: _ModelVerdict, evidence: list[EvidenceItem]) -> VerifyResult:
     """No valid evidence, or none backing the verdict, means INSUFFICIENT."""
     if not evidence:
         return _insufficient(raw.rationale or NO_RESULTS_RATIONALE)
+
+    raw = _downgrade_partial_support(raw)
 
     required_stance = _REQUIRED_STANCE.get(raw.verdict)
     unbacked = (
