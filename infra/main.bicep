@@ -123,7 +123,6 @@ module environment 'modules/containerapps-env.bicep' = {
     logWorkspaceName: monitoring.outputs.workspaceName
     storageAccountName: storage.outputs.storageAccountName
     whisperShareName: storage.outputs.whisperShareName
-    dumpShareName: storage.outputs.dumpShareName
   }
 }
 
