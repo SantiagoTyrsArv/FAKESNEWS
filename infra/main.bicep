@@ -26,9 +26,11 @@ param workerMinReplicas int = 0
 
 var image = 'ghcr.io/santiagotyrsarv/fakesnews-api:${imageTag}'
 
-// Secrets every app container gets, read by reference from Key Vault.
+// Secrets the api and the worker get, read by reference from Key Vault.
+// database-url-app connects as fakesnews_app, which can read and write rows
+// but not change the schema.
 var secretEnvMap = {
-  DATABASE_URL: 'database-url'
+  DATABASE_URL: 'database-url-app'
   REDIS_URL: 'redis-url'
   JWT_SECRET_KEY: 'jwt-secret-key'
   TOTP_SECRET_ENCRYPTION_KEY: 'totp-secret-encryption-key'
@@ -36,6 +38,8 @@ var secretEnvMap = {
   TAVILY_API_KEY: 'tavily-api-key'
   API_PROXY_SECRET: 'api-proxy-secret'
 }
+// Migrations create and alter tables, so they keep the admin login (database-url).
+var migrateSecretEnvMap = union(secretEnvMap, { DATABASE_URL: 'database-url' })
 // Known at compile time (unlike vault.properties.vaultUri), so it can feed loops.
 var keyVaultUri = 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/'
 var appSecrets = [
@@ -45,10 +49,19 @@ var appSecrets = [
     identity: appsIdentity.id
   }
 ]
+var migrateSecrets = [
+  for item in items(migrateSecretEnvMap): {
+    name: item.value
+    keyVaultUrl: '${keyVaultUri}secrets/${item.value}'
+    identity: appsIdentity.id
+  }
+]
 var secretEnv = [for item in items(secretEnvMap): { name: item.key, secretRef: item.value }]
+var migrateSecretEnv = [for item in items(migrateSecretEnvMap): { name: item.key, secretRef: item.value }]
 // Passed through untouched: a loop would make ARM evaluate values such as
 // CORS_ORIGINS='["..."]' as template expressions.
 var appEnv = concat(secretEnv, appSettings)
+var migrateEnv = concat(migrateSecretEnv, appSettings)
 
 resource appsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: 'id-fakesnews-apps'
@@ -117,8 +130,8 @@ module migrate 'modules/migrate-job.bicep' = {
     environmentId: environment.outputs.environmentId
     identityId: appsIdentity.id
     image: image
-    secrets: appSecrets
-    env: appEnv
+    secrets: migrateSecrets
+    env: migrateEnv
   }
 }
 
