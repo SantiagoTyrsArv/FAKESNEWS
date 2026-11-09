@@ -6,7 +6,7 @@ import { requestWsTicket, socketUrl, watchSubmission } from "@/lib/submission-so
 const API = "http://localhost:8000";
 const server = setupServer();
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
