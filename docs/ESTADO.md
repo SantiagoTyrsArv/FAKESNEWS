@@ -80,6 +80,20 @@
 | #119 | `docs/verdict-eval-blind-results` | Resultados de la evaluación con modo ciego (12 de 20) |
 | #120 | `feat/verify-claim-parts` | El modelo comprueba cada parte de la afirmación antes de dar `SUPPORTED` (ciego: 14 de 20) |
 
+## Por qué Tavily no devolvía EFE (2026-11-09)
+
+- **EFE no bloquea a Tavily.** Con `include_domains: ["efe.com"]` devuelve artículos de EFE (1 crédito en `basic`).
+- **Es el ranking:** con la lista completa, un solo medio se queda todos los resultados. Para «España es la economía de la zona euro que más crece», El País ocupó los 8; con 20 resultados, 9 eran de El País y ninguno de EFE.
+- **Lo que se probó y no se fusionó:** pedir 20 resultados (cuestan lo mismo, 2 créditos en `advanced`) y quedarse con 8, con un máximo de 2 por dominio de confianza. EFE apareció en 4 casos, pero el modo ciego bajó a **11 de 20**, con 4 errores graves y 0 de 5 mixtos (`results/2026-11-09_123150_blind.md`). Con más medios distintos que confirman la parte cierta, el modelo da `SUPPORTED` a más mixtos. El parche está descartado; si se retoma, hay que medirlo junto con un cambio que proteja los mixtos, y repetir la ejecución para separar el ruido.
+- **Cuota:** 44 créditos más de Tavily (40 de la evaluación y 4 de pruebas). Gasto conocido del mes: 256 de 1.000.
+
+## Detalles cerrados el 2026-11-09
+
+- **Sin fuentes de confianza,** `verify_claim` da un fallo técnico (`verification_failed`) y lo registra como error, en lugar de un `INSUFFICIENT` que parece un resultado.
+- **`docker-compose.yml`** usa Postgres 18, como producción, con un volumen nuevo (`postgres18_data`): el de la 16 no sirve y hay que volver a sembrar los datos locales.
+- **Runbook de secretos** (`AZURE.md`): el valor nuevo se sube con `--file`, no con `--value`.
+- **Web:** el `import("lenis")` tiene manejo de error; GSAP espera a `document.fonts.ready` antes de cortar títulos con SplitText; las máscaras de línea dejan sitio a los descendentes (`.split-line-mask`) y el desplazamiento inicial pasa del 110 % al 125 % para que la línea siga oculta; el cursor se reclasifica al hacer scroll. Comprobado en el navegador con el build de producción.
+
 ## Comprobar cada parte de la afirmación (2026-11-09)
 
 PR #120. El modelo separa la afirmación en partes (`parts`: datos, cifras, superlativos y alcances) y marca cada una como `confirmed`, `unconfirmed` o `contradicted`. Si da `SUPPORTED` con alguna parte sin confirmar, `_conclude` lo baja a `CHANGED` (o a `INSUFFICIENT` con una sola cita). Una diferencia de redondeo entre fuentes no cuenta.
@@ -136,8 +150,8 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
    - la app usa el usuario administrador de Postgres;
    - ~~si Redis se reinicia, se pierde la cola (B-03)~~: desde el #103, el caso pasa a `failed` a los 20 minutos;
-   - `docker-compose.yml` sigue con Postgres 16;
-   - los scripts pasan secretos como argumento de `az` en local.
+   - ~~`docker-compose.yml` sigue con Postgres 16~~: hecho el 2026-11-09;
+   - ~~los scripts pasan secretos como argumento de `az` en local~~: los scripts ya usan referencias a Key Vault; el runbook de rotación pasa a `--file` (2026-11-09).
 
 ## Sesión del 2026-11-06: fallos de GitHub y OSV-Scanner
 
@@ -359,7 +373,7 @@ Lo que se aprendió midiendo, para no repetirlo:
 ## Pendiente, por prioridad
 
 0. ~~**Retirar Railway**~~ Hecho el 2026-11-07, confirmado por el dueño.
-1. **Calidad de los veredictos:** en ciego, **14 de 20** desde el #120 (mixtos 2 de 5). Siguientes pasos, cada uno medido con `--blind`: averiguar por qué Tavily no devuelve EFE, `co-mixto-1`, y valorar exigir dos citas para `SUPPORTED` (ver `co-falso-1`).
+1. **Calidad de los veredictos:** en ciego, **14 de 20** desde el #120 (mixtos 2 de 5). Siguientes pasos, cada uno medido con `--blind`: `co-mixto-1`, valorar exigir dos citas para `SUPPORTED` (ver `co-falso-1`) y, después, la diversidad de dominios que deja ver EFE (ver «Por qué Tavily no devolvía EFE»). Con 20 casos, dos ejecuciones del mismo código pueden diferir; antes de decidir por 1 o 2 aciertos conviene repetir.
 2. ~~**Proteger `main`**~~ Hecho en el #98 y el #99.
 3. ~~**Robustez del backend**~~ Hecho en #102–#106. Queda un riesgo menor en video: un audio muy comprimido podría durar mucho más que sus metadatos, y cancelar el trabajo no detiene el hilo de Whisper. Se acepta por ahora porque solo se admiten hosts que recodifican lo que se sube. La solución sería transcribir en un subproceso que se pueda matar.
 4. ~~**Pruebas de la web**~~ Hecho en #107.
@@ -367,10 +381,9 @@ Lo que se aprendió midiendo, para no repetirlo:
    - TypeScript 7 y ESLint 10;
    - observabilidad (alertas, métricas, backups probados);
    - Server Components para la portada y `/sources`.
-6. **Detalles menores:**
-   - el `import("lenis")` no tiene `.catch`;
-   - sin fuentes de confianza configuradas, `verify_claim` devuelve `INSUFFICIENT` y no un fallo técnico;
-   - pendientes de animación anotados en sesiones anteriores: SplitText antes de que carguen las fuentes, máscaras que recortan los descendentes y el cursor, que no se reclasifica al hacer scroll.
+6. ~~**Detalles menores**~~ Hechos el 2026-11-09 (ver «Detalles cerrados el 2026-11-09»).
+7. **Pendiente en Azure** (la sesión de `az` pide renovar el MFA): revisar `llm_quota_exhausted` en los logs, comprobar `railway.dump` en `pgdump` y crear un rol de Postgres con permisos mínimos para la app.
+8. **Alerta de Dependabot n.º 1** (`deepmerge`, baja, solo desarrollo): está aceptada hasta el 2027-02-06 en `osv-scanner.toml`, pero sigue abierta en GitHub. Se puede descartar como «riesgo tolerable».
 
 ## Cómo se trabaja en este repositorio
 
