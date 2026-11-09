@@ -78,7 +78,16 @@
 | #117 | `docs/verdict-eval-expansion-spec` | Diseño y plan para ampliar la evaluación de veredictos |
 | #118 | `feat/verdict-eval-expansion` | Evaluación con modo ciego (`--blind`) y 20 casos |
 | #119 | `docs/verdict-eval-blind-results` | Resultados de la evaluación con modo ciego (12 de 20) |
+| #121 | `chore/pending-2026-11-09` | Diagnóstico de EFE en Tavily y detalles menores de la web, la API y la infraestructura |
+| #122 | `feat/postgres-app-role` | La API y el worker se conectan con un rol de Postgres sin DDL |
 | #120 | `feat/verify-claim-parts` | El modelo comprueba cada parte de la afirmación antes de dar `SUPPORTED` (ciego: 14 de 20) |
+
+## Azure el 2026-11-09
+
+- **Rol de Postgres con permisos mínimos (#122):** la API y el worker se conectan como `fakesnews_app` (`database-url-app`). Puede leer y escribir filas; no puede crear ni cambiar tablas, y en `alembic_version` solo puede leer. Las migraciones, KEDA y `psql-job.sh` siguen con `fakesnews_admin`. Se probó con un job temporal antes de desplegar; después, `/api/health/ready` y `/api/sources` dan 200 y no hay errores de permisos en los logs. Detalle en [AZURE.md](AZURE.md#secretos).
+- **Cuota de Gemini:** ningún `llm_quota_exhausted` en 14 días. Uso real bajo: 19 llamadas el 2026-11-07 y 7 el 2026-11-09.
+- **Trazas de Redis en el worker** (`Error 111 connecting to ca-fakesnews-redis`): salen solo cuando el worker recibe SIGTERM (KEDA lo escala a 0 o un despliegue lo reemplaza), con «0 failed, 0 ongoing». Es ruido de apagado; no se pierden trabajos.
+- **Borrados:** `railway.dump` del recurso compartido `pgdump` (los datos ya estaban restaurados y verificados) y el job `caj-fakesnews-restore`, que lo restauraba con `pg_restore --clean`.
 
 ## Por qué Tavily no devolvía EFE (2026-11-09)
 
@@ -146,9 +155,9 @@ Producción funciona sobre Azure y verifica gratis con Tavily y Gemini. Lo prime
 2. **Vigilar el límite diario del plan gratuito de Gemini,** que Google no publica. Si aparece `llm_quota_exhausted` en los logs, hay que ajustar los topes o pasar a un plan de pago.
 3. ~~**Comprobar que Railway desapareció**~~ El dueño confirmó el 2026-11-07 que cayó.
 4. **`co-mixto-1`:** sigue en `SUPPORTED` aunque ya existe `CHANGED` (#111). Le falta contexto en los fragmentos de la búsqueda, no un veredicto. Ver «Veredicto "Cambió con el tiempo"».
-5. **Comprobar `railway.dump`** en el recurso compartido `pgdump`: debería tener los datos de la migración, pero el 2026-11-07 la cuenta de almacenamiento rechazó el acceso. Si sigue ahí, decidir si se conserva.
+5. ~~**Comprobar `railway.dump`**~~ Borrado el 2026-11-09, junto con el job `caj-fakesnews-restore`.
 6. **Registro detallado de la migración:** `.superpowers/sdd/2026-11-04-azure-migration/progress.md`, sin versionar. Tiene cada decisión (`Ruling:`) y las mejoras menores aplazadas:
-   - la app usa el usuario administrador de Postgres;
+   - ~~la app usa el usuario administrador de Postgres~~: rol `fakesnews_app` desde el #122;
    - ~~si Redis se reinicia, se pierde la cola (B-03)~~: desde el #103, el caso pasa a `failed` a los 20 minutos;
    - ~~`docker-compose.yml` sigue con Postgres 16~~: hecho el 2026-11-09;
    - ~~los scripts pasan secretos como argumento de `az` en local~~: los scripts ya usan referencias a Key Vault; el runbook de rotación pasa a `--file` (2026-11-09).
@@ -382,7 +391,7 @@ Lo que se aprendió midiendo, para no repetirlo:
    - observabilidad (alertas, métricas, backups probados);
    - Server Components para la portada y `/sources`.
 6. ~~**Detalles menores**~~ Hechos el 2026-11-09 (ver «Detalles cerrados el 2026-11-09»).
-7. **Pendiente en Azure** (la sesión de `az` pide renovar el MFA): revisar `llm_quota_exhausted` en los logs, comprobar `railway.dump` en `pgdump` y crear un rol de Postgres con permisos mínimos para la app.
+7. ~~**Pendiente en Azure**~~ Hecho el 2026-11-09 (ver «Azure el 2026-11-09»).
 8. **Alerta de Dependabot n.º 1** (`deepmerge`, baja, solo desarrollo): está aceptada hasta el 2027-02-06 en `osv-scanner.toml`, pero sigue abierta en GitHub. Se puede descartar como «riesgo tolerable».
 
 ## Cómo se trabaja en este repositorio
