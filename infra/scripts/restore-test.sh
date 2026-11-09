@@ -129,7 +129,7 @@ for _ in $(seq 1 30); do
 done
 
 compare() {
-  local out=$1 ok=0 line name n m
+  local out=$1 ok=0 side name n m
   declare -A src dst
   while IFS='|' read -r side name n; do
     [[ $side == src ]] && src[$name]=$n

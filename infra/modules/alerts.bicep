@@ -5,6 +5,17 @@ param location string
 param workspaceName string
 param contactEmail string
 
+// Only JSON lines with an event: the plain-text tracebacks a worker prints
+// while shutting down (Redis already gone) are noise, not errors.
+var errorsQuery = '''
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s in ('ca-fakesnews-api', 'ca-fakesnews-worker')
+| extend j = parse_json(Log_s)
+| where isnotempty(tostring(j.event))
+| where tostring(j.level) == 'error' or tostring(j.event) == 'submissions_marked_stuck'
+| summarize n = count() by event = tostring(j.event)
+'''
+
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: workspaceName
 }
@@ -21,19 +32,11 @@ resource emailGroup 'Microsoft.Insights/actionGroups@2023-01-01' = {
   }
 }
 
-// Only JSON lines with an event: the plain-text tracebacks a worker prints
-// while shutting down (Redis already gone) are noise, not errors.
-var errorsQuery = '''
-ContainerAppConsoleLogs_CL
-| where ContainerAppName_s in ('ca-fakesnews-api', 'ca-fakesnews-worker')
-| extend j = parse_json(Log_s)
-| where isnotempty(tostring(j.event))
-| where tostring(j.level) == 'error' or tostring(j.event) == 'submissions_marked_stuck'
-| summarize n = count() by event = tostring(j.event)
-'''
-
 // Hourly: the cheapest price tier (15 minutes or more), 0.50 USD a month.
-resource errorsAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+// No identity block: Azure Monitor runs the query with its own access to a
+// workspace in the same resource group. An identity would need a role
+// assignment, which the deploy identity (Contributor) cannot create.
+resource errorsAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = { // NOSONAR
   name: 'alert-fakesnews-errors'
   location: location
   properties: {

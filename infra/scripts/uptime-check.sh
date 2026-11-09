@@ -18,14 +18,14 @@ check() {
   for attempt in 1 2; do
     body=$(mktemp)
     code=$(curl -sSL -o "$body" -w '%{http_code}' --max-time 90 "$url" 2>/dev/null) || code=000
-    if [ "$code" = 200 ] && { [ -z "$want" ] || grep -q "$want" "$body"; }; then
+    if [[ $code == 200 ]] && { [[ -z $want ]] || grep -q "$want" "$body"; }; then
       rm -f "$body"
       echo "OK   $url"
       return 0
     fi
     rm -f "$body"
     echo "FAIL $url (HTTP $code, intento $attempt)"
-    [ "$attempt" = 1 ] && sleep "$RETRY_WAIT"
+    [[ $attempt == 1 ]] && sleep "$RETRY_WAIT"
   done
   return 1
 }
