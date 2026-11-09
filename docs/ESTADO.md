@@ -78,10 +78,28 @@
 | #117 | `docs/verdict-eval-expansion-spec` | Diseño y plan para ampliar la evaluación de veredictos |
 | #118 | `feat/verdict-eval-expansion` | Evaluación con modo ciego (`--blind`) y 20 casos |
 | #119 | `docs/verdict-eval-blind-results` | Resultados de la evaluación con modo ciego (12 de 20) |
+| #126 | `fix/aikido-checkout-credentials` | `persist-credentials: false` en los checkout de `api-deploy`, `infra` y `web` (Aikido) |
+| #125 | `feat/alert-identity` | La alerta de logs consulta con su propia identidad de solo lectura (`id-fakesnews-alerts`) |
 | #124 | `feat/observability` | Alerta de errores por correo, sondeo de disponibilidad y prueba de restauración de backups |
 | #121 | `chore/pending-2026-11-09` | Diagnóstico de EFE en Tavily y detalles menores de la web, la API y la infraestructura |
 | #122 | `feat/postgres-app-role` | La API y el worker se conectan con un rol de Postgres sin DDL |
 | #120 | `feat/verify-claim-parts` | El modelo comprueba cada parte de la afirmación antes de dar `SUPPORTED` (ciego: 14 de 20) |
+
+## Para retomar (2026-11-09, noche)
+
+- **Escaneo de dependencias de Aikido pendiente:** el `aikido_oss_dependency_scan` (lockfiles de la API y la web) seguía corriendo al cerrar la sesión. Volver a lanzarlo y revisar sus hallazgos (comparar con OSV-Scanner, que está limpio salvo `deepmerge`, aceptado).
+- **El escáner IaC del plugin de Aikido no funciona en local:** falta Checkov (`checkov.exe ENOENT`), así que Bicep, Dockerfiles y workflows solo se revisaron con las reglas SAST. Instalarlo o revisar IaC desde la web de Aikido.
+- **El feed de Aikido no se puede leer desde el plugin:** la cuenta es gratuita («only available for paying customers»). Los hallazgos de la web (`app.aikido.dev/repositories/3705086`) se ven en el navegador; la extensión de Chrome no estaba conectada.
+
+## Revisión con Aikido (2026-11-09)
+
+Escaneo local del plugin (SAST y secretos) sobre 229 archivos versionados: 11 hallazgos.
+
+- **Corregidos (#126):** 3 `actions/checkout` sin `persist-credentials: false` (`api-deploy.yml`, `infra.yml` y `web.yml`). Ninguno hace `git push`. Reescaneados: limpios.
+- **Falsos positivos (sin cambios):**
+  - 5 «API keys» en las pruebas: son contraseñas de prueba (`test_auth_flow.py`, `test_security_events.py`, `test_reports.py`, `test_submissions.py` y `e2e/main-flow.spec.ts`);
+  - 2 en `keyvault.bicep`: son los ID públicos de los roles integrados de Azure (Key Vault Secrets User y Secrets Officer);
+  - 1 «path traversal» en `scripts/css-audit.mjs`: solo lee los `.css` de una carpeta fija del build, sin entrada externa.
 
 ## Observabilidad (2026-11-09)
 
@@ -89,6 +107,7 @@
 
 - **Alerta `alert-fakesnews-errors`:** cada hora manda un correo si la API o el worker registran un error (cuota agotada, pipeline fallido, error no controlado, fallo al encolar) o casos atascados. No salta con las trazas de Redis al apagarse. Cuesta 0,50 USD al mes.
 - **Sondeo `uptime.yml`:** cada 6 horas comprueba la web y `/api/health/ready` desde GitHub Actions. No más a menudo, porque cada sondeo despierta la API.
+- **Correo comprobado:** una regla temporal de prueba disparó dos veces (la segunda ya con `id-fakesnews-alerts`, #125) y el dueño confirmó que le llegaron los correos. Se borró. Hizo falta registrar el proveedor `Microsoft.Insights` en la suscripción.
 - **Backups probados:** `infra/scripts/restore-test.sh` restauró a un punto en el tiempo en 9 minutos, con las 9 tablas iguales. Próxima prueba: **2027-02**.
 
 ## Azure el 2026-11-09
