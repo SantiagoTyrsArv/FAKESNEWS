@@ -1,0 +1,32 @@
+name: uptime
+
+# Every 6 hours, checks that the site and the API answer, from outside. A red
+# run is the alert: GitHub e-mails failures of scheduled workflows. Not more
+# often: each check wakes the API (scale to zero) for ~5 minutes, and hourly
+# would use two thirds of Container Apps' free grant. Errors during real use
+# are covered by the alert-fakesnews-errors log alert. See docs/AZURE.md.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to check"
+        required: false
+        default: "https://fakesnews.vercel.app"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the site and the API
+        env:
+          BASE_URL: ${{ inputs.base_url || 'https://fakesnews.vercel.app' }}
+        run: infra/scripts/uptime-check.sh "$BASE_URL"
