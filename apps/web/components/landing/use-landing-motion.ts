@@ -5,7 +5,7 @@ import { useMotion } from "@/components/motion/motion-provider";
 import { isDocumentLoad } from "@/lib/motion/document";
 import { onceInSession } from "@/lib/motion/env.mjs";
 import { loadGsap, type GsapBundle } from "@/lib/motion/load-gsap";
-import { DURATION, EASE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
+import { DURATION, EASE, LINE_HIDDEN_Y, SPLIT_LINE, STAGGER, scaled } from "@/lib/motion/tokens.mjs";
 
 // Same query as the `[data-enter]` pre-hide and the curtain in globals.css (and
 // the inline script in app/layout.tsx): only where CSS hid the hero blocks does
@@ -123,10 +123,11 @@ function start(
       SplitText.create(h2, {
         type: "lines",
         mask: "lines",
+        linesClass: SPLIT_LINE,
         autoSplit: true,
         onSplit: (self) =>
           gsap.from(self.lines, {
-            yPercent: 110,
+            yPercent: LINE_HIDDEN_Y,
             rotation: scaled(LINE_ROTATE, intensity),
             transformOrigin: "0% 100%",
             duration: DURATION.enter,
@@ -234,10 +235,10 @@ function choreograph(
   // mask on already painted text and rise back.
   const title = root.querySelector<HTMLElement>("h1");
   if (title) {
-    const split = SplitText.create(title, { type: "lines", mask: "lines" });
+    const split = SplitText.create(title, { type: "lines", mask: "lines", linesClass: SPLIT_LINE });
     tl.fromTo(
       split.lines,
-      { yPercent: 110, rotation: s(LINE_ROTATE) },
+      { yPercent: LINE_HIDDEN_Y, rotation: s(LINE_ROTATE) },
       {
         yPercent: 0,
         rotation: 0,
