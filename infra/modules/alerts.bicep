@@ -36,7 +36,7 @@ resource emailGroup 'Microsoft.Insights/actionGroups@2023-01-01' = {
 // No identity block: Azure Monitor runs the query with its own access to a
 // workspace in the same resource group. An identity would need a role
 // assignment, which the deploy identity (Contributor) cannot create.
-resource errorsAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = { // NOSONAR
+resource errorsAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'alert-fakesnews-errors'
   location: location
   properties: {
