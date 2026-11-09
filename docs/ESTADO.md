@@ -87,9 +87,28 @@
 
 ## Para retomar (2026-11-09, noche)
 
-- **Escaneo de dependencias de Aikido pendiente:** el `aikido_oss_dependency_scan` (lockfiles de la API y la web) seguía corriendo al cerrar la sesión. Volver a lanzarlo y revisar sus hallazgos (comparar con OSV-Scanner, que está limpio salvo `deepmerge`, aceptado).
-- **El escáner IaC del plugin de Aikido no funciona en local:** falta Checkov (`checkov.exe ENOENT`), así que Bicep, Dockerfiles y workflows solo se revisaron con las reglas SAST. Instalarlo o revisar IaC desde la web de Aikido.
-- **El feed de Aikido no se puede leer desde el plugin:** la cuenta es gratuita («only available for paying customers»). Los hallazgos de la web (`app.aikido.dev/repositories/3705086`) se ven en el navegador; la extensión de Chrome no estaba conectada.
+- **El feed de Aikido no se puede leer desde el plugin:** la cuenta es gratuita («only available for paying customers»). Los hallazgos de la web (`app.aikido.dev/repositories/3705086`) se ven en el navegador. La extensión de Chrome seguía sin conectar al cerrar la sesión.
+- **Decisión pendiente: protección de purga en Key Vault** (`CKV_AZURE_110`). Activarla impide borrar el almacén o sus secretos de forma definitiva antes de que pasen los 7 días de retención, pero **no se puede desactivar después**. Ver «IaC con Checkov» más abajo.
+- **Recurso compartido `pgdump` sin uso:** el volcado de Railway ya se borró. Solo lo usa `infra/scripts/restore-azure.sh` (la restauración desde Railway). Se puede quitar de `storage.bicep`, de `containerapps-env.bicep` y de `main.bicep`, junto con ese script.
+
+## Dependencias con Aikido (2026-11-09, noche)
+
+El `aikido_oss_dependency_scan` sobre `apps/api/pyproject.toml`, `apps/api/uv.lock`, `apps/web/package.json` y `apps/web/pnpm-lock.yaml` da **0 hallazgos**. Para comprobar que el escáner lee bien los dos formatos, se probó con lockfiles de prueba vulnerables a propósito: `lodash` 4.17.15 en `pnpm-lock.yaml` dio 6 avisos y `jinja2` 2.10 en `uv.lock` dio 4. Aikido no marca `deepmerge`, aunque OSV y Dependabot sí. Sigue aceptado hasta el 2027-02-06.
+
+## IaC con Checkov (2026-11-09, noche)
+
+Checkov 3.4.3 está instalado con `uv tool install checkov`, pero el paquete no trae `checkov.exe`, solo scripts. Por eso **el plugin de Aikido sigue sin encontrarlo** en Windows. Se ejecutó directamente con `& (Join-Path (uv tool dir) 'checkov\Scripts\python.exe') -c "import sys; from checkov.main import Checkov; sys.exit(Checkov().run())" -d . --framework bicep,dockerfile,github_actions,secrets --compact`.
+
+De 332 comprobaciones, fallan 16. Ninguna obliga a cambiar nada:
+
+- **6 «secretos» (`CKV_SECRET_6`)** en `infra/main.bicep` y `infra/modules/redis.bicep`: son nombres de secretos de Key Vault (`jwt-secret-key`, `redis-password`…), no sus valores. Falsos positivos.
+- **`CKV_DOCKER_2` (sin `HEALTHCHECK`)** en los Dockerfiles de la API y la web: Container Apps no usa `HEALTHCHECK`, sino sus propias sondas (`probes` en `infra/modules/api.bicep`).
+- **`CKV_GHA_7`** en `uptime.yml`: el `base_url` del lanzamiento manual entra por `env` y no se interpola en el script, así que no hay inyección. Solo pueden lanzarlo quienes tienen permiso de escritura en el repositorio.
+- **Key Vault (`CKV_AZURE_189`, `_109`)**, acceso público y sin firewall: es a propósito y está documentado en `keyvault.bicep`. El acceso es solo por RBAC, y cerrarlo exigiría un endpoint privado (unos 7 USD al mes).
+- **Key Vault (`CKV_AZURE_110`, `_42`)**, sin protección de purga: el borrado temporal está activo (7 días). Activar la protección de purga es irreversible y queda como decisión pendiente (ver arriba).
+- **Storage (`CKV_AZURE_35`)**, red abierta por defecto: Container Apps monta Azure Files por SMB sin VNet, así que denegar la red rompería el montaje.
+- **Storage (`CKV_AZURE_43`)**: el nombre (`stfakesnews` + 8 caracteres de `uniqueString`) cumple las reglas. Checkov no resuelve la expresión, así que es un falso positivo.
+- **Storage (`CKV_AZURE_206`)**, replicación LRS: basta para una caché de Whisper que se puede volver a generar.
 
 ## Revisión con Aikido (2026-11-09)
 
