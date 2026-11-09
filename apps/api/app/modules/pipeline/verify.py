@@ -217,7 +217,8 @@ async def verify_claim(
     claim_text: str, *, allowed_domains: list[str], model: str | None = None
 ) -> VerifyResult:
     if not allowed_domains:
-        return _insufficient("No hay fuentes de confianza configuradas para verificar.")
+        logger.error("verify_claim_no_trusted_sources")
+        return _failed("No hay fuentes de confianza configuradas para verificar.")
 
     try:
         found = await search_trusted(claim_text, allowed_domains)
