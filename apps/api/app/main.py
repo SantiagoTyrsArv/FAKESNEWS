@@ -16,6 +16,7 @@ from app.modules.reports.routers import router as reports_router
 from app.modules.sources.routers import router as sources_router
 from app.modules.submissions.live import router as live_router
 from app.modules.submissions.routers import router as submissions_router
+from app.modules.vitals.routers import router as vitals_router
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -68,6 +69,7 @@ app.include_router(submissions_router)
 app.include_router(sources_router)
 app.include_router(reports_router)
 app.include_router(live_router)
+app.include_router(vitals_router)
 
 
 @app.get("/health")
