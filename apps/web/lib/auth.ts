@@ -1,4 +1,5 @@
 import { ApiError, apiFetch, csrfHeaders, readCsrfCookie } from "@/lib/api";
+import { announceLogout } from "@/lib/auth-channel";
 
 export interface RegisterResponse {
   id: string;
@@ -97,11 +98,17 @@ export function verifyTotp(
   });
 }
 
-export function logout() {
-  return apiFetch<void>("/auth/logout", {
-    method: "POST",
-    headers: csrfHeaders(),
-  });
+export async function logout() {
+  try {
+    return await apiFetch<void>("/auth/logout", {
+      method: "POST",
+      headers: csrfHeaders(),
+    });
+  } finally {
+    // Requirement: postMessage. Tell the other tabs even if the request
+    // failed: this tab goes to /login either way.
+    announceLogout();
+  }
 }
 
 export function me() {

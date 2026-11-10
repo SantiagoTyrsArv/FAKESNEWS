@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { newsreader, publicSans } from "@/app/fonts";
+import { LogoutSync } from "@/components/auth/logout-sync";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { WebVitals } from "@/components/web-vitals";
 import "./globals.css";
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <WebVitals />
+        <LogoutSync />
         <MotionProvider>{children}</MotionProvider>
       </body>
     </html>
