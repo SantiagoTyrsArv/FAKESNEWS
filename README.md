@@ -283,7 +283,7 @@ archivo `.env` real.
 
 ## Documentación
 
-El índice está en [docs/README.md](docs/README.md). Para retomar el trabajo, empieza por [docs/ESTADO.md](docs/ESTADO.md): estado actual, historial de PR y pendientes. La auditoría técnica está en [docs/AUDITORIA.md](docs/AUDITORIA.md) y el análisis de seguridad en [docs/SEGURIDAD.md](docs/SEGURIDAD.md).
+El índice está en [docs/README.md](docs/README.md). Para retomar el trabajo, empieza por [docs/ESTADO.md](docs/ESTADO.md): estado actual, historial de PR y pendientes. La auditoría técnica está en [docs/AUDITORIA.md](docs/AUDITORIA.md) y el análisis de seguridad en [docs/SEGURIDAD.md](docs/SEGURIDAD.md). Los patrones de renderizado de cada ruta (y dónde está cada requisito de la entrega de Programación Web) están en [docs/RENDERIZADO.md](docs/RENDERIZADO.md).
 
 ## Limitaciones conocidas
 

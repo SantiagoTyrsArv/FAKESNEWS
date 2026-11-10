@@ -89,6 +89,9 @@
 | #130 | `docs/web-delivery-spec` | Diseño y plan de la entrega de Programación Web |
 | #131 | `feat/ws-progress` | **Progreso del caso por WebSocket** (ticket de un solo uso, validación de `Origin`, vuelta al sondeo) |
 | #132 | `feat/web-vitals` | INP, LCP y CLS con `useReportWebVitals`, guardados en los logs mediante `POST /vitals` |
+| #133 | `docs/status-web-delivery` | Estado de la entrega de Programación Web |
+| #134 | `feat/logout-broadcast` | Cerrar la sesión en todas las pestañas con `BroadcastChannel` |
+| (PR D) | `feat/rendering-patterns` | ISR en `/sources`, SSR con streaming en `/reports/[id]` y [RENDERIZADO.md](RENDERIZADO.md) |
 
 ## Para retomar (2026-11-10): entrega de Programación Web
 
@@ -106,15 +109,15 @@ La entrega se evalúa de dos formas: con una **demo en vivo** en https://fakesne
   - `POST /vitals`: aplica el límite por IP antes de leer y acepta un cuerpo de 2 KB como máximo, leído en streaming.
   - `components/web-vitals.tsx`.
   - Consultas KQL en [AZURE.md](AZURE.md#consultas).
+- **PR C (#134), `BroadcastChannel`, tarea 9.** Está fusionado y comprobado en producción con dos pestañas en `/history`: al cerrar sesión en una, la otra va sola a `/login`.
+- **PR D, renderizado, tareas 10 a 12.** ISR en `/sources` (`revalidate = 60`, `lib/server-api.ts`), SSR con streaming en `/reports/[id]` (`report-loader.tsx` dentro de `<Suspense>`) y [RENDERIZADO.md](RENDERIZADO.md), que lo explica todo y enlaza los otros tres requisitos.
 - Dos hallazgos de la revisión de seguridad automática ya están corregidos, cada uno con su prueba: el tope de sockets por usuario y la lectura del cuerpo de `/vitals` con tope.
 
 **Pendiente, por orden:**
 1. **Tarea del dueño:** añadir en Vercel (producción y preview) `NEXT_PUBLIC_WS_URL=wss://ca-fakesnews-api.proudpebble-539cdba7.northcentralus.azurecontainerapps.io` y volver a desplegar la web. Hasta entonces, `/reports/[id]` sigue con el sondeo.
 2. **Comprobar en producción el PR A**, con una sesión real en el navegador: en DevTools, en Red y luego WS, debe verse `101 Switching Protocols` contra la API y los mensajes de cada fase, sin errores de CSP. Sin un ticket válido, el handshake da 403 (ya comprobado).
 3. **Comprobar en producción el PR B:** navegar y hacer clic, y después ver filas de `web_vital` con la consulta KQL. Revisar también el Lighthouse móvil con PageSpeed: la referencia es una mediana de 97 (±2).
-4. **PR C, tarea 9:** `BroadcastChannel("fakesnews-auth")` para cerrar la sesión en todas las pestañas (`lib/auth-channel.ts`, `components/auth/logout-sync.tsx` y `logout()` en `lib/auth.ts`).
-5. **PR D, tareas 10 a 12:** ISR en `/sources` (`revalidate = 60` y `lib/server-api.ts`), SSR con streaming en `/reports/[id]` (`report-loader.tsx` y `<Suspense>`; `ReportClient` ya acepta `initialSubmission` e `initialReport`) y `docs/RENDERIZADO.md`.
-6. **Revisión final de toda la rama** (la pide la skill executing-plans) y la comprobación final en producción de la tarea 12.
+4. **Revisión final de toda la rama** (la pide la skill executing-plans) y la comprobación final en producción de la tarea 12.
 
 **Decisiones tomadas por el camino** (están en el registro):
 - Ramas por PR en el checkout principal, sin worktree.
