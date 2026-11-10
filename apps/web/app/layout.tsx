@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { newsreader, publicSans } from "@/app/fonts";
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { WebVitals } from "@/components/web-vitals";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: motionClassScript }} />
       </head>
       <body className="flex min-h-full flex-col">
+        <WebVitals />
         <MotionProvider>{children}</MotionProvider>
       </body>
     </html>

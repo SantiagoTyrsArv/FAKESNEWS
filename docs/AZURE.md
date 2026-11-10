@@ -221,6 +221,28 @@ ContainerAppConsoleLogs_CL
 | summarize n = count(), ultimo = max(TimeGenerated) by event = tostring(j.event)
 ```
 
+Métricas web (INP, LCP, CLS, FCP y TTFB) que manda el navegador con `useReportWebVitals` a
+`POST /vitals`. Son eventos `info`, así que no disparan la alerta. Últimas mediciones:
+```kusto
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(1d)
+| where ContainerAppName_s == 'ca-fakesnews-api'
+| extend j = parse_json(Log_s)
+| where tostring(j.event) == 'web_vital'
+| project TimeGenerated, metrica = tostring(j.name), valor = todouble(j.value), nota = tostring(j.rating), ruta = tostring(j.route)
+| order by TimeGenerated desc
+```
+
+Percentil 75 por métrica y ruta, que es el que usa Google para las Core Web Vitals:
+```kusto
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(7d)
+| extend j = parse_json(Log_s)
+| where tostring(j.event) == 'web_vital'
+| summarize p75 = percentile(todouble(j.value), 75), n = count() by metrica = tostring(j.name), ruta = tostring(j.route)
+| order by metrica asc, ruta asc
+```
+
 Ciclo de vida de un caso (cambia el `submission_id`):
 ```kusto
 ContainerAppConsoleLogs_CL

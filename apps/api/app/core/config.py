@@ -96,6 +96,8 @@ class Settings(BaseSettings):
     ws_max_seconds: int = Field(default=960, alias="WS_MAX_SECONDS")
     # Open progress sockets per account (each holds a Redis connection).
     ws_max_sockets_per_user: int = Field(default=5, alias="WS_MAX_SOCKETS_PER_USER")
+    # Web vitals beacons per IP (a few per page view).
+    rate_limit_vitals_per_minute: int = Field(default=60, alias="RATE_LIMIT_VITALS_PER_MINUTE")
     # Tickets for the case progress WebSocket (one per report page load).
     rate_limit_ws_ticket_per_minute: int = Field(
         default=30, alias="RATE_LIMIT_WS_TICKET_PER_MINUTE"
