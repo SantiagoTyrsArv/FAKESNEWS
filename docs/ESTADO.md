@@ -1,6 +1,6 @@
 # Estado del proyecto — FakesNews
 
-Última actualización: **2026-11-09**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
+Última actualización: **2026-11-10**. Este documento sirve para retomar el trabajo en la próxima sesión: qué hay en `main`, qué se hizo en la última sesión y qué sigue pendiente, por orden de prioridad.
 
 ## Dónde está cada cosa
 
@@ -84,10 +84,49 @@
 | #121 | `chore/pending-2026-11-09` | Diagnóstico de EFE en Tavily y detalles menores de la web, la API y la infraestructura |
 | #122 | `feat/postgres-app-role` | La API y el worker se conectan con un rol de Postgres sin DDL |
 | #120 | `feat/verify-claim-parts` | El modelo comprueba cada parte de la afirmación antes de dar `SUPPORTED` (ciego: 14 de 20) |
+| #127, #128 | `docs/aikido-*` | Dependencias con Aikido, IaC con Checkov y revisión del feed de Aikido en la web |
+| #129 | `chore/keyvault-purge-pgdump` | Protección de purga en Key Vault y fuera el recurso compartido `pgdump` |
+| #130 | `docs/web-delivery-spec` | Diseño y plan de la entrega de Programación Web |
+| #131 | `feat/ws-progress` | **Progreso del caso por WebSocket** (ticket de un solo uso, validación de `Origin`, vuelta al sondeo) |
+| #132 | `feat/web-vitals` | INP, LCP y CLS con `useReportWebVitals`, guardados en los logs mediante `POST /vitals` |
 
-## Para retomar (2026-11-09, noche)
+## Para retomar (2026-11-10): entrega de Programación Web
 
-Los pendientes de Aikido están cerrados: los falsos positivos se marcaron como «Ignore» en la web, Key Vault tiene protección de purga y el recurso compartido `pgdump` está borrado (ver «Key Vault y `pgdump`»). No queda nada abierto de esta sesión.
+La entrega se evalúa de dos formas: con una **demo en vivo** en https://fakesnews.vercel.app y con **un agente que revisa el repositorio**. Hay que cumplir 4 requisitos. [Diseño](superpowers/specs/2026-11-09-web-delivery-design.md) (aprobado) y [plan](superpowers/plans/2026-11-09-web-delivery.md) (12 tareas en 4 PR, ejecutadas en modo directo con TDD). El registro de avance está en `.superpowers/sdd/2026-11-09-web-delivery/progress.md` (no versionado), y cada tarea terminada tiene allí una línea `Task N: complete`.
+
+**Hecho:**
+- **PR A (#131), WebSockets, tareas 1 a 6.** Está fusionado y la API está desplegada (`e4ec258`).
+  - `events.py`: publicación en Redis desde los 3 sitios del código que cambian el estado.
+  - `ws_tickets.py`: ticket de un solo uso que dura 30 s.
+  - `live.py`: valida `Origin`, ticket y propietario; se suscribe antes de leer; como mucho 5 sockets por usuario.
+  - `lib/submission-socket.ts`: el cliente, que vuelve al sondeo si algo falla.
+  - El CSP admite `NEXT_PUBLIC_WS_URL`.
+  - Se probó en local contra uvicorn y Redis reales: un `Origin` ajeno da 403, llegan los eventos en directo, se cierra con 1000 en `done` y un ticket reutilizado da 403.
+- **PR B (#132), métricas, tareas 7 y 8.** Está fusionado.
+  - `POST /vitals`: aplica el límite por IP antes de leer y acepta un cuerpo de 2 KB como máximo, leído en streaming.
+  - `components/web-vitals.tsx`.
+  - Consultas KQL en [AZURE.md](AZURE.md#consultas).
+- Dos hallazgos de la revisión de seguridad automática ya están corregidos, cada uno con su prueba: el tope de sockets por usuario y la lectura del cuerpo de `/vitals` con tope.
+
+**Pendiente, por orden:**
+1. **Tarea del dueño:** añadir en Vercel (producción y preview) `NEXT_PUBLIC_WS_URL=wss://ca-fakesnews-api.proudpebble-539cdba7.northcentralus.azurecontainerapps.io` y volver a desplegar la web. Hasta entonces, `/reports/[id]` sigue con el sondeo.
+2. **Comprobar en producción el PR A**, con una sesión real en el navegador: en DevTools, en Red y luego WS, debe verse `101 Switching Protocols` contra la API y los mensajes de cada fase, sin errores de CSP. Sin un ticket válido, el handshake da 403 (ya comprobado).
+3. **Comprobar en producción el PR B:** navegar y hacer clic, y después ver filas de `web_vital` con la consulta KQL. Revisar también el Lighthouse móvil con PageSpeed: la referencia es una mediana de 97 (±2).
+4. **PR C, tarea 9:** `BroadcastChannel("fakesnews-auth")` para cerrar la sesión en todas las pestañas (`lib/auth-channel.ts`, `components/auth/logout-sync.tsx` y `logout()` en `lib/auth.ts`).
+5. **PR D, tareas 10 a 12:** ISR en `/sources` (`revalidate = 60` y `lib/server-api.ts`), SSR con streaming en `/reports/[id]` (`report-loader.tsx` y `<Suspense>`; `ReportClient` ya acepta `initialSubmission` e `initialReport`) y `docs/RENDERIZADO.md`.
+6. **Revisión final de toda la rama** (la pide la skill executing-plans) y la comprobación final en producción de la tarea 12.
+
+**Decisiones tomadas por el camino** (están en el registro):
+- Ramas por PR en el checkout principal, sin worktree.
+- Las pruebas del CSP se ejecutan con `node --test`.
+- Un fixture automático manda la publicación de eventos al `FakeRedis` en las pruebas.
+- La prueba en local fue sin worker, publicando a mano con `redis-cli`, para no gastar cuota de Tavily ni de Gemini.
+- Lighthouse se mide en producción con PageSpeed.
+
+**Notas para retomar:**
+- El puerto 6379 lo ocupa el Redis de otro proyecto (`votaciones-c-redis-1`). Para levantar la pila en local hay que usar un override sin `ports` en `redis`.
+- Los scripts `task-start` y `task-done` de la skill no reconocen los encabezados «Tarea N», así que el registro se lleva a mano.
+- El modo automático bloquea los despliegues y las lecturas de producción (`psql-job.sh`, `az deployment`): esos comandos los ejecuta el dueño con `!`.
 
 ## Key Vault y `pgdump` (2026-11-09, noche)
 
