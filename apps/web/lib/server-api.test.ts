@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Report, Submission } from "@/lib/cases";
@@ -49,6 +49,19 @@ describe("serverFetch", () => {
     const error = await serverFetch("/sources").catch((err: unknown) => err);
     expect(error).toBeInstanceOf(ServerApiError);
     expect((error as ServerApiError).status).toBe(503);
+  });
+
+  it("gives up on an API that does not answer", async () => {
+    server.use(
+      http.get(`${API}/sources`, async () => {
+        await delay("infinite");
+        return HttpResponse.json({ sources: [] });
+      }),
+    );
+
+    const error = await serverFetch("/sources", { timeoutMs: 50 }).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ServerApiError);
+    expect((error as ServerApiError).status).toBe(0);
   });
 
   it("throws ServerApiError when the network fails", async () => {

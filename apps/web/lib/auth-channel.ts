@@ -10,23 +10,28 @@ interface LogoutMessage {
   type: "logout";
 }
 
-function supported(): boolean {
-  return typeof BroadcastChannel !== "undefined";
+// One channel object per tab, used both to post and to listen. A message
+// reaches every *other* BroadcastChannel object of the same name, so the tab
+// that logs out never hears its own message (it is already going to /login).
+let channel: BroadcastChannel | null = null;
+
+function tabChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === "undefined") return null;
+  channel ??= new BroadcastChannel(AUTH_CHANNEL);
+  return channel;
 }
 
 export function announceLogout(): void {
-  if (!supported()) return;
-  const channel = new BroadcastChannel(AUTH_CHANNEL);
-  channel.postMessage({ type: "logout" } satisfies LogoutMessage);
-  channel.close();
+  tabChannel()?.postMessage({ type: "logout" } satisfies LogoutMessage);
 }
 
 export function onLogoutElsewhere(callback: () => void): () => void {
-  if (!supported()) return () => {};
-  const channel = new BroadcastChannel(AUTH_CHANNEL);
-  channel.onmessage = (event: MessageEvent<unknown>) => {
+  const tab = tabChannel();
+  if (!tab) return () => {};
+  const listener = (event: MessageEvent<unknown>) => {
     const data = event.data as Partial<LogoutMessage> | null;
     if (data?.type === "logout") callback();
   };
-  return () => channel.close();
+  tab.addEventListener("message", listener);
+  return () => tab.removeEventListener("message", listener);
 }

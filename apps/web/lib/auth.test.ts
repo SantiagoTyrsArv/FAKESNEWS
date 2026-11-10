@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { onLogoutElsewhere } from "@/lib/auth-channel";
+import { AUTH_CHANNEL } from "@/lib/auth-channel";
 import { logout } from "@/lib/auth";
 
 const API = "http://localhost:8000";
@@ -15,9 +15,14 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
+// Another tab: a separate BroadcastChannel object on the same name.
 function listen() {
   const callback = vi.fn();
-  cleanups.push(onLogoutElsewhere(callback));
+  const otherTab = new BroadcastChannel(AUTH_CHANNEL);
+  otherTab.onmessage = (event) => {
+    if ((event.data as { type?: string } | null)?.type === "logout") callback();
+  };
+  cleanups.push(() => otherTab.close());
   return callback;
 }
 

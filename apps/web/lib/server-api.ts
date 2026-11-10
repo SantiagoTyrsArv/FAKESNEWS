@@ -32,14 +32,26 @@ export class ServerApiError extends Error {
   }
 }
 
-export type ServerFetchInit = RequestInit & { next?: { revalidate?: number } };
+// A page waits on this fetch: an API that hangs (or takes long to wake from
+// scale to zero) must not keep the <Suspense> fallback on screen until the
+// function times out. Giving up turns into the usual client-side fallback.
+const TIMEOUT_MS = 8000;
 
-// Throws ServerApiError on a non-OK answer or a network failure (status 0), so
-// callers decide in one place what a failure means for their page.
-export async function serverFetch<T>(path: string, init?: ServerFetchInit): Promise<T> {
+export type ServerFetchInit = RequestInit & {
+  next?: { revalidate?: number };
+  timeoutMs?: number;
+};
+
+// Throws ServerApiError on a non-OK answer, a network failure or a timeout
+// (status 0), so callers decide in one place what a failure means for their page.
+export async function serverFetch<T>(path: string, init: ServerFetchInit = {}): Promise<T> {
+  const { timeoutMs = TIMEOUT_MS, ...requestInit } = init;
   let response: Response;
   try {
-    response = await fetch(`${serverApiBase()}${path}`, init);
+    response = await fetch(`${serverApiBase()}${path}`, {
+      ...requestInit,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
   } catch (error) {
     throw new ServerApiError(`Network error on ${path}: ${String(error)}`, 0);
   }
