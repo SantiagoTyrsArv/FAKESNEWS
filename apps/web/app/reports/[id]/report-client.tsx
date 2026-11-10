@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -17,6 +17,7 @@ import {
   type Report,
   type Submission,
 } from "@/lib/cases";
+import { watchSubmission } from "@/lib/submission-socket";
 
 const POLL_INTERVAL_MS = 2000;
 // A bit over the worker's job timeout (PIPELINE_JOB_TIMEOUT_SECONDS, 15 min):
@@ -24,32 +25,34 @@ const POLL_INTERVAL_MS = 2000;
 // of spinning forever. Measured from created_at, so a reload doesn't reset it.
 const STALE_AFTER_MS = 16 * 60 * 1000;
 
-export function ReportClient({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
-  const { id } = use(params);
+function isStale(submission: Submission) {
+  return Date.now() - new Date(submission.created_at).getTime() > STALE_AFTER_MS;
+}
+
+// initialSubmission/initialReport come from the server render when it could
+// read the case (SSR, see page.tsx); otherwise the page loads it here (CSR).
+export function ReportClient({
+  id,
+  initialSubmission = null,
+  initialReport = null,
+}: Readonly<{ id: string; initialSubmission?: Submission | null; initialReport?: Report | null }>) {
   const router = useRouter();
-  const [submission, setSubmission] = useState<Submission | null>(null);
-  const [report, setReport] = useState<Report | null>(null);
+  const [submission, setSubmission] = useState<Submission | null>(initialSubmission);
+  const [report, setReport] = useState<Report | null>(initialReport);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  // Only the first render's server data seeds the effect; later props don't
+  // restart it.
+  const initial = useRef({ submission: initialSubmission, report: initialReport });
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopSocket: (() => void) | undefined;
 
-    // Done: load the report. Still running: poll again, unless it has been
-    // running for too long. Failed: nothing more to do.
-    async function onStatus(current: Submission) {
-      if (current.status === "done") {
-        const fullReport = await getReport(id);
-        if (!cancelled) setReport(fullReport);
-        return;
-      }
-      if (TERMINAL_STATUSES.includes(current.status)) return;
-      if (Date.now() - new Date(current.created_at).getTime() > STALE_AFTER_MS) {
-        setStale(true);
-        return;
-      }
-      timer = setTimeout(poll, POLL_INTERVAL_MS);
+    async function loadReport() {
+      const fullReport = await getReport(id);
+      if (!cancelled) setReport(fullReport);
     }
 
     function onError(err: unknown) {
@@ -63,22 +66,75 @@ export function ReportClient({ params }: Readonly<{ params: Promise<{ id: string
       }
     }
 
+    // Fallback: polling, as before the WebSocket. Done: load the report.
+    // Still running: poll again, unless it has been running for too long.
+    // Failed: nothing more to do.
+    async function onPolledStatus(current: Submission) {
+      if (current.status === "done") {
+        await loadReport();
+        return;
+      }
+      if (TERMINAL_STATUSES.includes(current.status)) return;
+      if (isStale(current)) {
+        setStale(true);
+        return;
+      }
+      timer = setTimeout(poll, POLL_INTERVAL_MS);
+    }
+
     async function poll() {
       try {
         const current = await getSubmission(id);
         if (cancelled) return;
         setSubmission(current);
-        await onStatus(current);
+        await onPolledStatus(current);
       } catch (err) {
         if (!cancelled) onError(err);
       }
     }
 
-    // poll handles its own errors, so the returned promise never rejects.
-    void poll();
+    // Requirement: WebSockets. Follow the case live; any trouble with the
+    // socket hands over to poll() (lib/submission-socket.ts).
+    function follow(current: Submission) {
+      if (current.status === "done") {
+        if (!initial.current.report) loadReport().catch((err) => !cancelled && onError(err));
+        return;
+      }
+      if (TERMINAL_STATUSES.includes(current.status)) return;
+      if (isStale(current)) {
+        setStale(true);
+        return;
+      }
+      stopSocket = watchSubmission(id, {
+        onStatus: (event) => {
+          if (cancelled) return;
+          setSubmission((prev) => prev && { ...prev, ...event });
+          setError(null);
+          if (event.status === "done") loadReport().catch((err) => !cancelled && onError(err));
+        },
+        onFallback: () => {
+          if (!cancelled) void poll();
+        },
+      });
+    }
+
+    async function start() {
+      try {
+        const current = initial.current.submission ?? (await getSubmission(id));
+        if (cancelled) return;
+        setSubmission(current);
+        follow(current);
+      } catch (err) {
+        if (!cancelled) onError(err);
+      }
+    }
+
+    // start handles its own errors, so the returned promise never rejects.
+    void start();
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      stopSocket?.();
     };
   }, [id, router]);
 

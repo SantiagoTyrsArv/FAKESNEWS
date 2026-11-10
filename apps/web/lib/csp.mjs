@@ -5,12 +5,17 @@
  * script in app/layout.tsx need. Everything else is closed: scripts, styles,
  * fonts and images only from this origin, network calls only to it and the
  * API, no plugins, no framing, no foreign <base> or form targets.
- * @param {{ dev: boolean, apiUrl: string }} options
+ *
+ * Requirement: WebSockets. The report page's progress socket goes straight to
+ * the API (Vercel's /api proxy can't carry a WebSocket), so its ws:// or
+ * wss:// origin (NEXT_PUBLIC_WS_URL) is allowed in connect-src too.
+ * @param {{ dev: boolean, apiUrl: string, wsUrl?: string }} options
  * @returns {string}
  */
-export function buildCsp({ dev, apiUrl }) {
+export function buildCsp({ dev, apiUrl, wsUrl }) {
   const connect = ["'self'"];
   if (/^https?:\/\//.test(apiUrl)) connect.push(new URL(apiUrl).origin);
+  if (wsUrl && /^wss?:\/\//.test(wsUrl)) connect.push(new URL(wsUrl).origin);
 
   const directives = [
     "default-src 'self'",

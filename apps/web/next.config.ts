@@ -11,6 +11,7 @@ const securityHeaders = [
     value: buildCsp({
       dev: process.env.NODE_ENV === "development",
       apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+      wsUrl: process.env.NEXT_PUBLIC_WS_URL ?? "",
     }),
   },
   { key: "X-Frame-Options", value: "DENY" },

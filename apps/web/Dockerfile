@@ -8,7 +8,9 @@ RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL} \
     NEXT_TELEMETRY_DISABLED=1 \
     NEXT_OUTPUT=standalone
 COPY --from=deps /app/node_modules ./node_modules

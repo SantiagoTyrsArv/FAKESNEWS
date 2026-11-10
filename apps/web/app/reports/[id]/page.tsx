@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description: "Qué respalda y qué contradice cada fuente de confianza, afirmación por afirmación.",
 };
 
-export default function ReportPage({ params }: PageProps<"/reports/[id]">) {
-  return <ReportClient params={params} />;
+export default async function ReportPage({ params }: PageProps<"/reports/[id]">) {
+  const { id } = await params;
+  return <ReportClient id={id} />;
 }
