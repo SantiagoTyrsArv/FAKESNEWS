@@ -30,6 +30,22 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["vitals"])
 
 MAX_BODY_BYTES = 2048
+_TOO_LARGE = "Cuerpo demasiado grande."
+
+
+async def _read_capped(request: Request) -> bytes:
+    """The body, refusing anything past MAX_BODY_BYTES without buffering it:
+    a declared Content-Length over the cap is refused up front, and a
+    streamed body is cut off as soon as it passes the cap."""
+    declared = request.headers.get("content-length")
+    if declared is not None and (not declared.isdigit() or int(declared) > MAX_BODY_BYTES):
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, _TOO_LARGE)
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_BODY_BYTES:
+            raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, _TOO_LARGE)
+    return bytes(body)
 
 
 @router.post("/vitals", status_code=status.HTTP_204_NO_CONTENT)
@@ -37,9 +53,7 @@ async def report_vital(
     request: Request,
     redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
 ) -> Response:
-    body = await request.body()
-    if len(body) > MAX_BODY_BYTES:
-        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Cuerpo demasiado grande.")
+    # Rate limit first: an IP over its budget gets no body read at all.
     try:
         await check_rate_limit(
             f"vitals:ip:{client_ip(request)}",
@@ -52,6 +66,7 @@ async def report_vital(
             "Demasiadas métricas. Espera un momento.",
             headers={"Retry-After": str(exc.retry_after_seconds)},
         ) from exc
+    body = await _read_capped(request)
     try:
         vital = VitalReport.model_validate_json(body)
     except ValidationError as exc:

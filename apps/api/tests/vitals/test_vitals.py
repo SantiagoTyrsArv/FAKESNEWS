@@ -84,3 +84,38 @@ async def test_vitals_are_rate_limited(app_client: AsyncClient, monkeypatch) -> 
     codes = [await _post(app_client, VALID) for _ in range(3)]
 
     assert codes == [204, 204, 429]
+
+
+async def test_rate_limit_applies_before_reading_the_body(
+    app_client: AsyncClient, monkeypatch
+) -> None:
+    # An anonymous endpoint must not read large bodies for an IP that is
+    # already over its budget.
+    monkeypatch.setattr(vitals_routers.settings, "rate_limit_vitals_per_minute", 2)
+    big = {**VALID, "id": "x" * 3000}
+
+    codes = [await _post(app_client, big) for _ in range(3)]
+
+    assert codes == [413, 413, 429]
+
+
+async def test_oversized_chunked_body_is_rejected(app_client: AsyncClient) -> None:
+    async def chunks():
+        for _ in range(64):
+            yield b"x" * 1024
+
+    resp = await app_client.post(
+        "/vitals", content=chunks(), headers={"content-type": "text/plain"}
+    )
+
+    assert resp.status_code == 413
+
+
+async def test_declared_content_length_over_the_cap_is_rejected(app_client: AsyncClient) -> None:
+    resp = await app_client.post(
+        "/vitals",
+        content=json.dumps(VALID),
+        headers={"content-type": "text/plain", "content-length": "999999"},
+    )
+
+    assert resp.status_code == 413
