@@ -11,7 +11,7 @@ import { ApiError, apiFetch, readCsrfCookie } from "@/lib/api";
 import { me } from "@/lib/auth";
 import { sourceUrl } from "@/lib/source-url.mjs";
 
-interface SourceSummary {
+export interface SourceSummary {
   domain: string;
   name: string;
   type: string;
@@ -25,8 +25,12 @@ const subscribeNever = () => () => {};
 
 // Public page (the API's /sources is unauthenticated): visitors get the public
 // header with sign-in links, signed-in users keep their session navigation.
-export function SourcesClient() {
-  const [sources, setSources] = useState<SourceSummary[] | null>(null);
+// `initialSources` comes from the ISR page; null means the build could not
+// reach the API, and then the list is fetched here (CSR) as before.
+export function SourcesClient({
+  initialSources,
+}: Readonly<{ initialSources: SourceSummary[] | null }>) {
+  const [sources, setSources] = useState<SourceSummary[] | null>(initialSources);
   const [error, setError] = useState<string | null>(null);
   // The readable CSRF cookie lives as long as the session, so it picks the
   // header right away instead of waiting on /auth/me. It's null only while
@@ -48,12 +52,13 @@ export function SourcesClient() {
   }, [hasSessionCookie]);
 
   useEffect(() => {
+    if (initialSources !== null) return;
     apiFetch<{ sources: SourceSummary[] }>("/sources")
       .then((res) => setSources([...res.sources].sort((a, b) => b.score - a.score)))
       .catch(() =>
         setError("No se pudo cargar el listado de fuentes. Recarga la página para reintentar."),
       );
-  }, []);
+  }, [initialSources]);
 
   return (
     <AppShell
