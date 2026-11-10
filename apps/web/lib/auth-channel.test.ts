@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AUTH_CHANNEL, announceLogout, onLogoutElsewhere } from "@/lib/auth-channel";
 
 // Node's BroadcastChannel delivers messages between instances of the same
-// process, which stands in for two tabs of the same origin.
+// process: a bare `new BroadcastChannel(AUTH_CHANNEL)` stands in for another
+// tab, while the module's own functions are this tab.
 const cleanups: Array<() => void> = [];
 
 function listen(callback: () => void) {
@@ -17,13 +18,15 @@ afterEach(() => {
 });
 
 describe("auth channel", () => {
-  it("announces logout to other listeners", async () => {
+  it("hears a logout from another tab", async () => {
     const callback = vi.fn();
     listen(callback);
 
-    announceLogout();
+    const otherTab = new BroadcastChannel(AUTH_CHANNEL);
+    otherTab.postMessage({ type: "logout" });
 
     await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(1));
+    otherTab.close();
   });
 
   it("ignores other messages", async () => {
@@ -49,10 +52,29 @@ describe("auth channel", () => {
     listen(witness);
 
     unsubscribe();
-    announceLogout();
+    const otherTab = new BroadcastChannel(AUTH_CHANNEL);
+    otherTab.postMessage({ type: "logout" });
 
     await vi.waitFor(() => expect(witness).toHaveBeenCalledTimes(1));
     expect(stopped).not.toHaveBeenCalled();
+    otherTab.close();
+  });
+
+  it("the tab that logs out does not hear its own message", async () => {
+    // In a browser, a message reaches every other BroadcastChannel object of
+    // the same name, including those in the sending tab. This tab's listener
+    // must not react: it is already on its way to /login.
+    const sameTab = vi.fn();
+    listen(sameTab);
+    const otherTab = new BroadcastChannel(AUTH_CHANNEL);
+    const received = vi.fn();
+    otherTab.onmessage = (event) => received(event.data);
+
+    announceLogout();
+
+    await vi.waitFor(() => expect(received).toHaveBeenCalledWith({ type: "logout" }));
+    expect(sameTab).not.toHaveBeenCalled();
+    otherTab.close();
   });
 
   it("is a no-op without BroadcastChannel", () => {
