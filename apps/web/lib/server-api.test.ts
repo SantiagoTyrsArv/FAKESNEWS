@@ -1,7 +1,8 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { ServerApiError, serverApiBase, serverFetch } from "@/lib/server-api";
+import type { Report, Submission } from "@/lib/cases";
+import { ServerApiError, loadInitialCase, serverApiBase, serverFetch } from "@/lib/server-api";
 
 const API = "http://localhost:8000";
 const server = setupServer();
@@ -54,5 +55,88 @@ describe("serverFetch", () => {
     server.use(http.get(`${API}/sources`, () => HttpResponse.error()));
 
     await expect(serverFetch("/sources")).rejects.toBeInstanceOf(ServerApiError);
+  });
+});
+
+describe("loadInitialCase", () => {
+  const ID = "1b4e28ba-2fa1-11d2-883f-0016d3cca427";
+
+  function submission(status: Submission["status"]): Submission {
+    return {
+      id: ID,
+      input_type: "text",
+      raw_input: "texto",
+      status,
+      error: null,
+      created_at: "2026-11-09T10:00:00Z",
+    };
+  }
+
+  it("returns null without a token and makes no request", async () => {
+    let requests = 0;
+    server.use(
+      http.all(`${API}/*`, () => {
+        requests += 1;
+        return HttpResponse.json(submission("verifying"));
+      }),
+    );
+
+    await expect(loadInitialCase(ID, undefined)).resolves.toBeNull();
+    expect(requests).toBe(0);
+  });
+
+  it("sends only the access_token cookie", async () => {
+    const seen: (string | null)[] = [];
+    server.use(
+      http.get(`${API}/submissions/${ID}`, ({ request }) => {
+        seen.push(request.headers.get("cookie"));
+        return HttpResponse.json(submission("verifying"));
+      }),
+    );
+
+    await loadInitialCase(ID, "abc");
+
+    expect(seen).toEqual(["access_token=abc"]);
+  });
+
+  it("returns the submission without a report while the case is in progress", async () => {
+    server.use(
+      http.get(`${API}/submissions/${ID}`, () => HttpResponse.json(submission("verifying"))),
+    );
+
+    await expect(loadInitialCase(ID, "abc")).resolves.toEqual({
+      submission: submission("verifying"),
+      report: null,
+    });
+  });
+
+  it("also fetches the report when the case is done", async () => {
+    const report = { submission: submission("done"), claims: [] } as unknown as Report;
+    let reportCookie: string | null = null;
+    server.use(
+      http.get(`${API}/submissions/${ID}`, () => HttpResponse.json(submission("done"))),
+      http.get(`${API}/reports/${ID}`, ({ request }) => {
+        reportCookie = request.headers.get("cookie");
+        return HttpResponse.json(report);
+      }),
+    );
+
+    await expect(loadInitialCase(ID, "abc")).resolves.toEqual({
+      submission: submission("done"),
+      report,
+    });
+    expect(reportCookie).toBe("access_token=abc");
+  });
+
+  it.each([401, 404, 503])("returns null when the API answers %i", async (status) => {
+    server.use(http.get(`${API}/submissions/${ID}`, () => new HttpResponse(null, { status })));
+
+    await expect(loadInitialCase(ID, "abc")).resolves.toBeNull();
+  });
+
+  it("returns null when the network fails", async () => {
+    server.use(http.get(`${API}/submissions/${ID}`, () => HttpResponse.error()));
+
+    await expect(loadInitialCase(ID, "abc")).resolves.toBeNull();
   });
 });

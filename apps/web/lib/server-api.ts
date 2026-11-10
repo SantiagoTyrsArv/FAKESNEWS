@@ -2,6 +2,8 @@
 // /sources, SSR with streaming on /reports/[id]). The Next server talks to the
 // API directly: it never goes through its own /api proxy.
 
+import type { Report, Submission } from "@/lib/cases";
+
 const LOCAL_API = "http://localhost:8000";
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -45,4 +47,30 @@ export async function serverFetch<T>(path: string, init?: ServerFetchInit): Prom
     throw new ServerApiError(`API answered ${response.status} on ${path}`, response.status);
   }
   return (await response.json()) as T;
+}
+
+// Requirement: rendering patterns — SSR. The first render of /reports/[id]
+// carries the case, read with the visitor's access_token cookie (only that
+// one: the API needs nothing else). Any failure (expired token, which the
+// server can't renew; 404; API down) returns null and the page falls back to
+// the client fetch, which renews the session in the browser.
+export async function loadInitialCase(
+  id: string,
+  accessToken: string | undefined,
+): Promise<{ submission: Submission; report: Report | null } | null> {
+  if (!accessToken) return null;
+  const init: ServerFetchInit = {
+    cache: "no-store",
+    headers: { cookie: `access_token=${accessToken}` },
+  };
+  const path = encodeURIComponent(id);
+  try {
+    const submission = await serverFetch<Submission>(`/submissions/${path}`, init);
+    const report =
+      submission.status === "done" ? await serverFetch<Report>(`/reports/${path}`, init) : null;
+    return { submission, report };
+  } catch (error) {
+    if (error instanceof ServerApiError) return null;
+    throw error;
+  }
 }
