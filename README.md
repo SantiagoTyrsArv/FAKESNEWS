@@ -1,264 +1,193 @@
 # FakesNews
 
-Plataforma de verificación asistida por IA de noticias sospechosas, con perfil histórico de
-confiabilidad de fuentes y autenticación de dos pasos (TOTP) opcional.
+Plataforma que verifica noticias sospechosas con ayuda de IA. Lleva un perfil histórico de la confiabilidad de cada fuente y tiene verificación en dos pasos (TOTP) opcional.
 
-**Principio de producto:** la plataforma nunca declara una noticia "verdadera" o "falsa". Entrega
-un reporte de credibilidad trazable: afirmaciones verificadas, fuentes concretas que las
-respaldan/contradicen, y el historial de confiabilidad de cada fuente. Toda conclusión tiene citas
-(URL + fragmento + fecha); sin citas, el veredicto es `INSUFFICIENT`.
+**Web en producción:** https://fakesnews.vercel.app
+
+**Principio de producto:** la plataforma nunca declara una noticia «verdadera» o «falsa». Entrega un reporte de credibilidad trazable: las afirmaciones del contenido, las fuentes concretas que las respaldan o las contradicen, y el historial de confiabilidad de cada fuente. Toda conclusión lleva citas (URL, fragmento y fecha). Sin citas válidas, el veredicto es `INSUFFICIENT`.
 
 ## Demo en 5 minutos
 
 ```bash
 cp .env.example .env          # genera JWT_SECRET_KEY y TOTP_SECRET_ENCRYPTION_KEY (ver el archivo)
-docker compose up --build -d  # web, api, worker, postgres, redis
-make seed                     # usuario demo con 2FA + casos de ejemplo ya procesados
+docker compose up --build -d  # web, api, worker, postgres y redis
+make seed                     # usuario demo con 2FA y casos de ejemplo ya procesados
 ```
 
-`make seed` imprime el email y la contraseña del usuario demo, su secreto TOTP (agrégalo a Google
-Authenticator/Authy, o genera el código con `pyotp.TOTP(secreto).now()`) y 10 códigos de
-recuperación. Sin `make` (p. ej. en Windows sin GNU Make):
-`docker compose exec api uv run python -m app.cli.seed_demo`. Luego:
+`make seed` imprime el email y la contraseña del usuario demo, su secreto TOTP y 10 códigos de recuperación. Añade el secreto a Google Authenticator o Authy, o genera el código con `pyotp.TOTP(secreto).now()`. Sin `make` (por ejemplo en Windows sin GNU Make), usa `docker compose exec api uv run python -m app.cli.seed_demo`.
 
-1. http://localhost:3000/login → email + contraseña → código TOTP → llegas a `/history`.
-2. Abre el caso *«Mensaje viral de WhatsApp…»*: reporte con una afirmación respaldada, una
-   contradicha y una con evidencia insuficiente, cada una con sus citas y la confiabilidad de cada
-   fuente.
-3. El caso de URL muestra deduplicación por sindicación (`bbc.com` y `bbc.co.uk` son una sola voz
-   independiente); el caso fallido muestra cómo se ve un error del pipeline.
-4. `/sources` (público) lista la confiabilidad de las 16 fuentes de confianza.
-5. `/submit` envía un caso real. **Requiere `ANTHROPIC_API_KEY` en `.env`**; sin ella el caso
-   recorre la cola y termina en `failed` en la extracción de afirmaciones, lo cual también se ve
-   en la interfaz.
+Después:
 
-Detalles del seed (`apps/api/app/cli/seed_demo.py`): es idempotente (el secreto TOTP se conserva
-entre ejecuciones; los códigos de recuperación se regeneran porque su texto plano nunca se guarda),
-se niega a correr con `ENVIRONMENT=production`, marca todo el contenido con `[DEMO]` y cada
-fragmento de evidencia como ilustrativo, y **no** actualiza la reputación de las fuentes — así los
-datos inventados de la demo no contaminan los scores reales.
+1. Entra en http://localhost:3000/login con el email, la contraseña y el código TOTP. Llegas a `/history`.
+2. Abre el caso «Mensaje viral de WhatsApp…». El reporte tiene una afirmación respaldada, una contradicha y una con evidencia insuficiente, cada una con sus citas y la confiabilidad de cada fuente.
+3. El caso de URL muestra la deduplicación por sindicación: `bbc.com` y `bbc.co.uk` cuentan como una sola voz independiente. El caso fallido muestra cómo se ve un error del pipeline.
+4. `/sources` es pública y lista la confiabilidad de las 25 fuentes de confianza.
+5. `/submit` envía un caso real. **Requiere `GEMINI_API_KEY` y `TAVILY_API_KEY` en `.env`.** Sin ellas, el caso recorre la cola y termina en `failed`, y eso también se ve en la interfaz.
+
+Sobre el seed (`apps/api/app/cli/seed_demo.py`):
+
+- Es idempotente. El secreto TOTP se conserva entre ejecuciones; los códigos de recuperación se regeneran, porque su texto plano nunca se guarda.
+- Se niega a correr con `ENVIRONMENT=production`, salvo con `--production` (ver [Despliegue](#despliegue)).
+- Marca todo el contenido con `[DEMO]` y cada fragmento de evidencia como ilustrativo.
+- No actualiza la reputación de las fuentes, así que los datos inventados de la demo no contaminan los scores reales.
 
 ## Arquitectura
 
 ```mermaid
 flowchart LR
     U[Navegador] -->|páginas| W[web<br/>Next.js 16]
-    U -->|fetch con cookies httpOnly + CSRF| A[api<br/>FastAPI]
+    U -->|/api: cookies httpOnly y CSRF| W
+    W -->|proxy con X-Proxy-Secret| A[api<br/>FastAPI]
+    U -.->|WebSocket con ticket de un solo uso| A
     A -->|SQLAlchemy async| P[(postgres)]
-    A -->|rate limit + encolar job| R[(redis)]
+    A -->|rate limit, tickets y cola| R[(redis)]
     R -->|run_pipeline| K[worker<br/>ARQ]
     K --> P
-    K -->|trafilatura / yt-dlp + faster-whisper| I[Contenido externo<br/>URL o video]
-    K -->|messages.parse + web_search<br/>allowed_domains = fuentes| C[Claude API]
+    K -->|publica cada estado| R
+    K -->|trafilatura, yt-dlp, faster-whisper| I[Contenido externo<br/>URL o video]
+    K -->|búsqueda en las fuentes de confianza| T[Tavily]
+    K -->|afirmaciones y veredictos| G[Gemini]
 ```
+
+En local, el navegador llama a la API directamente (`NEXT_PUBLIC_API_URL=http://localhost:8000`). En producción pasa por el proxy `/api` de la web (ver [La web hace de proxy de la API](#la-web-hace-de-proxy-de-la-api)).
 
 | Componente | Responsabilidad |
 | --- | --- |
-| `apps/web` | UI en Next.js 16 (App Router, componentes cliente). `proxy.ts` solo redirige a `/login` cuando falta la cookie; **la API es el único límite de autorización**. `lib/api.ts` renueva la sesión ante un `401`. |
-| `apps/api` — `auth` | Registro, login con verificación en dos pasos TOTP opcional (se activa en Ajustes), sesión con access + refresh rotativo, CSRF de doble envío, lockout y rate limiting. |
-| `apps/api` — `submissions` | Crea casos y los encola; estado consultable por polling. |
-| `apps/api` — `pipeline` | Worker: `ingest → transcribe → claims → verify → scoring`, con validación de cada cita contra los resultados reales de la búsqueda y la lista blanca de dominios. |
-| `apps/api` — `sources` | Fuentes de confianza y su reputación Beta-Bernoulli ([docs/reputation.md](docs/reputation.md)). |
-| `apps/api` — `reports` | Arma el reporte de solo lectura a partir de lo persistido (sin llamadas al LLM). |
-| `apps/api` — `cli` | `seed_demo` para la demo. |
+| `apps/web` | Interfaz en Next.js 16 (App Router). `proxy.ts` reenvía `/api` a la API y redirige a `/login` cuando falta la cookie. **La API es el único límite de autorización.** `lib/api.ts` renueva la sesión ante un `401`. |
+| `apps/api`: `auth` | Registro, inicio de sesión con verificación en dos pasos TOTP opcional, sesión con access token y refresh rotativo, CSRF de doble envío, bloqueo y rate limit. |
+| `apps/api`: `submissions` | Crea los casos y los encola. Expone el estado por HTTP y por WebSocket. |
+| `apps/api`: `pipeline` | El worker: `ingest → transcribe → claims → verify → scoring`. Valida cada cita contra los resultados reales de la búsqueda y la lista de dominios de confianza. |
+| `apps/api`: `sources` | Las fuentes de confianza y su reputación Beta-Bernoulli ([docs/reputation.md](docs/reputation.md)). |
+| `apps/api`: `reports` | Arma el reporte de solo lectura con lo que ya está guardado, sin llamar al modelo. |
+| `apps/api`: `vitals` | Recibe las métricas INP, LCP y CLS del navegador y las escribe en el log. |
+| `apps/api`: `cli` | `seed_demo` para la demo. |
+| `apps/api/evals/verdicts` | Evaluación de la calidad de los veredictos con 20 casos reales. |
 
-**Flujo de un caso:** `POST /submissions` → fila `queued` + job en Redis → el worker avanza el
-estado (`ingesting → transcribing → extracting → verifying → scoring → done|failed`) → la página
-`/reports/[id]` consulta `GET /submissions/{id}` cada 2 s y, al llegar a `done`, pide
-`GET /reports/{id}`.
+### Flujo de un caso
 
-**Modelo de confianza respecto al LLM:** el modelo propone veredictos y citas, pero ninguna cita
-llega al reporte sin pasar dos chequeos deterministas (URL presente en los resultados reales de
-`web_search` de esa misma respuesta, y dominio en la lista blanca). Sin citas válidas el veredicto
-se fuerza a `INSUFFICIENT`. El contenido del usuario viaja delimitado y marcado como no confiable.
+1. `POST /submissions` crea la fila en estado `queued` y encola el trabajo en Redis.
+2. El worker avanza el estado: `ingesting → transcribing → extracting → verifying → scoring → done` (o `failed`). En cada cambio publica el estado en el canal de Redis `submission:{id}`.
+3. `/reports/[id]` llega con SSR y streaming, con el estado actual del caso.
+4. Si el caso sigue en proceso, el navegador pide un ticket y abre un WebSocket contra la API, que le reenvía cada estado. Si el WebSocket falla, la página vuelve al sondeo de `GET /submissions/{id}` cada 2 s.
+5. Al llegar a `done`, la página pide `GET /reports/{id}`.
+
+### El pipeline de verificación
+
+- **Ingesta.** `trafilatura` extrae el texto de una URL. Para un video, `yt-dlp` lo descarga y `faster-whisper` lo transcribe (interfaz `Transcriber` intercambiable). La duración se valida antes de descargar y la descarga tiene un tope de tamaño.
+- **Afirmaciones.** Gemini extrae hasta 4 afirmaciones factuales autocontenidas (`MAX_CLAIMS_PER_SUBMISSION`) y descarta opiniones y predicciones. La respuesta se valida contra un esquema Pydantic.
+- **Verificación.** Para cada afirmación, Tavily busca solo en los dominios de `sources` y Gemini propone un veredicto con sus evidencias. El modelo separa la afirmación en partes (datos, cifras, superlativos y alcances) y marca cada una como confirmada, sin confirmar o contradicha.
+- **Puntuación.** El paso `scoring` actualiza la reputación de cada fuente.
+
+Los veredictos posibles son cuatro:
+
+| Veredicto | Significado |
+| --- | --- |
+| `SUPPORTED` | Las fuentes de confianza la respaldan. |
+| `CONTRADICTED` | Las fuentes de confianza la contradicen. |
+| `CHANGED` | Fue cierta y dejó de serlo, o solo es cierta en parte. La web muestra una línea de tiempo. |
+| `INSUFFICIENT` | No hay evidencia válida suficiente. |
+
+**Modelo de confianza respecto al LLM.** El modelo propone veredictos y citas, pero no se confía en él a ciegas:
+
+- Ninguna cita llega al reporte sin pasar dos chequeos deterministas: la URL tiene que estar en los resultados reales de la búsqueda de esa afirmación, y su dominio tiene que estar en la lista de confianza.
+- Sin citas válidas, el veredicto se fuerza a `INSUFFICIENT`.
+- Un `SUPPORTED` con alguna parte sin confirmar baja a `CHANGED`, o a `INSUFFICIENT` si solo hay una cita.
+- Los fragmentos de las citas se recortan con reglas fijas (`snippet.py`), sin modelo.
+- El contenido del usuario y la afirmación viajan delimitados y marcados como no confiables, como defensa contra la inyección de prompts.
+- Un fallo técnico (cuota agotada, sin fuentes de confianza) se registra como `verification_failed`, no como un `INSUFFICIENT` que parecería un resultado.
+
+Las verificaciones corren en paralelo con un semáforo y un tiempo máximo por afirmación. Un fallo en una afirmación no tumba el resto del caso.
+
+### Reputación de las fuentes
+
+Cada fuente tiene un score con un modelo Beta-Bernoulli (`score = alpha / (alpha + beta)`):
+
+- consenso ponderado entre fuentes (el peso es el score actual, con un piso de 0,05);
+- deduplicación de fuentes sindicadas (`syndication_group`), para que no inflen el conteo de independencia ni el voto de consenso;
+- mínimo de 2 fuentes independientes para puntuar;
+- idempotencia por una restricción única `(source_id, claim_id)` en `source_score_events`.
+
+`GET /sources` y `GET /sources/{domain}` exponen el score, `cases_count`, la bandera `low_sample` (menos de 10 casos), un intervalo aproximado y el historial reciente. La fórmula completa y sus limitaciones están en [docs/reputation.md](docs/reputation.md).
+
+### Renderizado, tiempo real y métricas
+
+| Ruta | Patrón |
+| --- | --- |
+| `/` | SSG |
+| `/sources` | ISR cada 60 s |
+| `/reports/[id]` | SSR con streaming |
+| `/history`, `/submit`, `/settings/security`, `/login`, `/register` | CSR |
+
+- **WebSocket.** El progreso del caso llega por `WS /ws/submissions/{id}`. El navegador se conecta directo a la API con un ticket de un solo uso que dura 30 s. La API valida el `Origin`, canjea el ticket y comprueba que el caso es del usuario. Hay un tope de 5 sockets por usuario.
+- **`BroadcastChannel`.** Al cerrar sesión en una pestaña, las demás salen solas.
+- **Web Vitals.** `useReportWebVitals` mide INP, LCP y CLS y los envía a `POST /vitals`.
+
+El detalle, con archivo y línea de cada pieza y cómo comprobarlo en vivo, está en [docs/RENDERIZADO.md](docs/RENDERIZADO.md).
 
 ### Endpoints
 
 | Método y ruta | Auth | Descripción |
 | --- | --- | --- |
 | `POST /auth/register` | — | Crea la cuenta (argon2id). |
-| `POST /auth/login` | — | Sin 2FA emite la sesión (`status: "authenticated"`); con 2FA devuelve un token limitado `mfa_pending` (`status: "mfa_required"`). |
-| `POST /auth/2fa/setup` · `/auth/2fa/confirm` | sesión + CSRF | Activa (o reconfigura) TOTP y genera códigos de recuperación. |
-| `POST /auth/2fa/disable` | sesión + CSRF + código | Desactiva 2FA con un código TOTP o de recuperación. |
+| `POST /auth/login` | — | Sin 2FA emite la sesión (`status: "authenticated"`). Con 2FA devuelve un token limitado `mfa_pending` (`status: "mfa_required"`). |
+| `POST /auth/2fa/setup` · `/auth/2fa/confirm` | sesión + CSRF | Activa o reconfigura TOTP y genera los códigos de recuperación. |
+| `POST /auth/2fa/disable` | sesión + CSRF + código | Desactiva la 2FA con un código TOTP o de recuperación. |
 | `POST /auth/2fa/verify` | token limitado | Emite la sesión completa (cookies). |
 | `POST /auth/refresh` · `/auth/logout` | cookie + CSRF | Rota o revoca la sesión. |
 | `GET /auth/me` | sesión | Usuario actual. |
 | `POST /submissions` | sesión + CSRF | Crea y encola un caso. |
-| `GET /submissions` · `/submissions/{id}` | sesión | Historial y estado (solo casos propios). |
-| `GET /reports/{id}` | sesión | Reporte de un caso `done` propio (`409` si no terminó). |
-| `GET /sources` · `/sources/{domain}` | — | Confiabilidad pública de fuentes. |
-| `GET /health` · `/health/ready` | — | Liveness y readiness (DB + Redis). |
+| `GET /submissions` | sesión | Historial de casos propios, paginado con `limit` y `cursor`. |
+| `GET /submissions/{id}` | sesión | Estado de un caso propio. |
+| `POST /submissions/{id}/ws-ticket` | sesión + CSRF | Emite el ticket de un solo uso para el WebSocket. |
+| `WS /ws/submissions/{id}?ticket=…` | ticket + `Origin` | Estados del caso en directo. |
+| `GET /reports/{id}` | sesión | Reporte de un caso `done` propio (`409` si no terminó, `404` si es ajeno). |
+| `GET /sources` · `/sources/{domain}` | — | Confiabilidad pública de las fuentes. |
+| `POST /vitals` | — | Recibe una métrica web. Tiene rate limit por IP y un cuerpo de 2 KB como máximo. |
+| `GET /health` · `/health/ready` | — | Liveness y readiness (base de datos y Redis). |
 
-Documentación interactiva completa en http://localhost:8000/docs.
+La documentación interactiva completa está en http://localhost:8000/docs.
 
-## Qué incluye cada fase
+## Seguridad
 
-- **Fase 1** — Monorepo `apps/web` (Next.js 16 App Router + TypeScript + Tailwind + shadcn/ui) y
-  `apps/api` (FastAPI + SQLAlchemy 2 async + Alembic). `docker-compose.yml` con `web`, `api`,
-  `worker` (ARQ), `postgres` y `redis`. Health checks, configuración por variables de entorno,
-  logging estructurado con redacción de secretos, CORS restringido. Linters: `ruff` (API) y
-  `eslint` (web). Pruebas: `pytest` (API).
-- **Fase 2** — Registro (argon2id, validación de fortaleza de contraseña) y login que nunca emite
-  una sesión completa solo con contraseña: siempre devuelve un token de alcance limitado
-  (`mfa_setup_pending` o `mfa_pending`, 5 min). Enrolamiento TOTP (`pyotp`, secreto cifrado en
-  reposo con Fernet, QR en base64) con 10 códigos de recuperación de un solo uso. Verificación TOTP
-  con ventana ±1 y protección contra reutilización de código. Sesión completa (access 15 min +
-  refresh rotativo) solo tras `/auth/2fa/verify`, en cookies httpOnly/SameSite=Lax (Secure se activa
-  automáticamente con `ENVIRONMENT=production`), con protección CSRF de doble envío para
-  `/auth/refresh` y `/auth/logout`. Detección de reutilización de refresh token (revoca toda la
-  familia de tokens). Rate limiting y bloqueo temporal tras 5 intentos fallidos. Páginas
-  `/register`, `/login`, `/login/2fa` (QR + códigos de recuperación) y `/settings/security`
-  (reenrolamiento), protegidas por `proxy.ts` (Next.js 16 renombró `middleware.ts` a `proxy.ts`).
-- **Fase 3** — `POST /submissions` (texto, URL o video) encola el caso en ARQ; `GET /submissions/{id}`
-  y `GET /submissions` para consultar estado/listado (pensado para polling cada 2s desde el
-  frontend). El worker corre `ingesting → (transcribing) → extracting → verifying → scoring → done`:
-  - **ingest**: `trafilatura` para URLs, `yt-dlp` + `faster-whisper` (interfaz `Transcriber`
-    intercambiable) para video, con límite de duración validado *antes* de descargar.
-  - **claims**: Claude (`client.messages.parse` con `output_format` Pydantic — JSON garantizado por
-    schema) extrae hasta 8 afirmaciones factuales autocontenidas, descartando opiniones/predicciones;
-    reintenta hasta 3 veces.
-  - **verify**: por cada afirmación, una llamada a Claude con la herramienta `web_search`
-    (`allowed_domains` = dominios de `sources`, sin dynamic filtering) investiga y devuelve
-    veredicto + evidencias en JSON. **Nunca se confía en el JSON del modelo a ciegas**: cada URL de
-    evidencia se valida contra los resultados reales que la herramienta de búsqueda devolvió en esa
-    misma respuesta (bloques `web_search_tool_result`) y contra la lista blanca de dominios; toda
-    evidencia que no pase ambos chequeos se descarta, y si no queda ninguna evidencia válida el
-    veredicto se fuerza a `INSUFFICIENT`. Verificaciones en paralelo (`asyncio.Semaphore`) con
-    timeout por afirmación; un fallo (timeout, error de API, JSON inválido tras reintentos) marca
-    esa afirmación como `INSUFFICIENT` sin tumbar el resto del caso.
-  - Defensa contra inyección de prompts: el texto del usuario y la afirmación a verificar siempre
-    viajan delimitados (`<document>`/`<claim>`) con instrucción explícita de ignorar cualquier orden
-    contenida ahí.
-  - `sources/seed_loader.py` carga `trusted_sources.json` en la tabla `sources` de forma idempotente
-    (se ejecuta al arrancar el worker).
-- **Fase 4** — El paso `scoring` del pipeline ahora actualiza reputación real
-  (`sources/reputation.py`, ver la fórmula completa y sus limitaciones en `docs/reputation.md`):
-  modelo Beta-Bernoulli (`score = alpha/(alpha+beta)`), consenso ponderado entre fuentes (peso =
-  score actual con piso de 0.05), deduplicación de fuentes sindicadas (`syndication_group`) para
-  que no infle el conteo de independencia ni el voto de consenso, mínimo 2 fuentes independientes
-  para puntuar, e idempotencia garantizada por una restricción única `(source_id, claim_id)` en
-  `source_score_events`. `GET /sources` y `GET /sources/{domain}` (públicos, sin autenticación)
-  exponen score, `cases_count`, bandera `low_sample` (<10 casos), intervalo aproximado (aproximación
-  normal a la Beta) e historial reciente de eventos.
+El análisis completo, según OWASP Top 10:2025, está en [docs/SEGURIDAD.md](docs/SEGURIDAD.md). En resumen:
 
-- **Fase 5** — `GET /reports/{submission_id}` (módulo `reports`, solo el dueño del caso; un caso
-  ajeno responde `404` igual que uno inexistente, y uno sin terminar responde `409`) arma el
-  reporte de credibilidad a partir de lo que el pipeline ya persistió — no hace llamadas al LLM:
-  resumen de veredictos, cada afirmación con su razonamiento y su evidencia (URL + fragmento +
-  fecha + postura), y para cada evidencia el score de la fuente, `cases_count` y `low_sample`.
-  Incluye siempre un descargo que recuerda que el reporte no declara nada verdadero ni falso.
-  `GET /submissions` ahora también devuelve `raw_input` (para el historial). Frontend:
-  `/submit` (texto, URL o video), `/reports/[id]` (polling cada 2s con barra de progreso por
-  etapa del pipeline y luego el reporte con citas enlazadas), `/history` (casos del usuario),
-  `/sources` (listado público de confiabilidad). Tras el 2FA se redirige a `/history`.
-  `apiFetch` renueva la sesión automáticamente ante un `401` (una sola llamada a `/auth/refresh`
-  compartida entre peticiones concurrentes para no reutilizar el refresh token rotativo, y
-  reenviando el token CSRF nuevo en el reintento).
+- **Contraseñas:** argon2id, reglas de fortaleza y una lista local de contraseñas filtradas.
+- **2FA opcional con TOTP:** secreto cifrado en reposo con Fernet, ventana de ±1, protección contra la reutilización del código y 10 códigos de recuperación de un solo uso. Al desactivarla se revocan las demás sesiones.
+- **Sesión:** access token de 15 minutos y refresh rotativo, en cookies `httpOnly` y `SameSite=Lax` (`Secure` con `ENVIRONMENT=production`). Si se reutiliza un refresh token, se revoca toda su familia.
+- **CSRF** de doble envío, **bloqueo temporal** tras 5 intentos fallidos y **rate limit** por IP y por usuario.
+- **SSRF:** la ingesta valida el esquema y resuelve el host antes de descargar, y rechaza loopback, redes privadas y endpoints de metadata de la nube. Cada redirección se vuelve a validar (hasta 5) y la conexión va a la misma IP que se validó, lo que cierra el DNS rebinding. Los videos solo se aceptan de una lista de plataformas (`ALLOWED_VIDEO_HOSTS`).
+- **Web:** CSP estática (`lib/csp.mjs`), HSTS y solo enlaces `http(s)` en las evidencias.
+- **Cuotas por usuario:** casos por minuto, por día y activos a la vez, y afirmaciones por mes.
 
-- **Fase 6** — `make seed` real (`python -m app.cli.seed_demo`, dentro del paquete de la API para
-  que exista en la imagen de Docker — el placeholder anterior en `scripts/` quedaba fuera del
-  contexto de build y no podía ejecutarse en el contenedor). Arquitectura, diagrama, tabla de
-  endpoints y guía de demo en este README. Corrección tipográfica: `--font-sans` se referenciaba a
-  sí misma en `globals.css`, así que Geist nunca se aplicaba y el navegador caía en una fuente
-  serif. Recorrido de punta a punta validado en navegador contra el stack en Docker (login + TOTP
-  → historial → reporte → caso fallido → fuentes → envío real).
+### Cómo probar la 2FA a mano
 
-### Cómo probar el 2FA manualmente
+La verificación en dos pasos es opcional. Una cuenta sin 2FA entra solo con la contraseña, y la interfaz le recuerda activarla. La garantía es que **una cuenta con 2FA no puede abrir sesión solo con la contraseña**: el token `mfa_pending` no da acceso a ninguna ruta protegida y solo vale una vez.
 
-La verificación en dos pasos es opcional: una cuenta sin 2FA entra solo con la contraseña, y la
-interfaz le recuerda activarla (aviso en `/history` y `/submit`). La garantía es: **una cuenta con
-2FA activada no puede abrir sesión solo con la contraseña** (el token `mfa_pending` no da acceso a
-ninguna ruta protegida).
-
-1. `POST /auth/register` con `email`/`password`.
-2. `POST /auth/login` → `{"status": "authenticated", ...}` y `Set-Cookie` con `access_token`,
-   `refresh_token` y `csrf_token`.
-3. `POST /auth/2fa/setup` con esas cookies y `X-CSRF-Token: <csrf_token>` → devuelve `otpauth_uri`
-   y `qr_code_base64`. Puedes decodificar el QR o extraer el parámetro `secret` de la URI y generar
-   el código con cualquier librería TOTP (p. ej. `pyotp.TOTP(secret).now()`).
-4. `POST /auth/2fa/confirm` (cookies + CSRF) con `{"code": "<código de 6 dígitos>"}` → activa 2FA
-   y devuelve 10 `recovery_codes` (solo se muestran una vez).
-5. Un nuevo `POST /auth/login` devuelve `{"status": "mfa_required", "token": ...}`. Envía
-   `POST /auth/2fa/verify` con `Authorization: Bearer <token>` y `{"code": "..."}` o
-   `{"recovery_code": "..."}` para obtener la sesión.
-6. `POST /auth/2fa/disable` (cookies + CSRF) con `{"code": "..."}` o `{"recovery_code": "..."}`
-   desactiva 2FA y borra el secreto y los códigos de recuperación.
-7. Desde el navegador: `/settings/security` activa (QR + códigos de recuperación con descarga),
-   reconfigura o desactiva la 2FA; con ella activa, `/login` pasa por `/login/2fa`.
+1. `POST /auth/register` con `email` y `password`.
+2. `POST /auth/login` devuelve `{"status": "authenticated", ...}` y las cookies `access_token`, `refresh_token` y `csrf_token`.
+3. `POST /auth/2fa/setup`, con esas cookies y `X-CSRF-Token: <csrf_token>`, devuelve `otpauth_uri` y `qr_code_base64`. Decodifica el QR o saca el parámetro `secret` de la URI, y genera el código con cualquier librería TOTP (por ejemplo `pyotp.TOTP(secret).now()`).
+4. `POST /auth/2fa/confirm` (cookies y CSRF) con `{"code": "<código de 6 dígitos>"}` activa la 2FA y devuelve 10 `recovery_codes`, que solo se muestran una vez.
+5. Un nuevo `POST /auth/login` devuelve `{"status": "mfa_required", "token": ...}`. Envía `POST /auth/2fa/verify` con `Authorization: Bearer <token>` y `{"code": "..."}` o `{"recovery_code": "..."}` para obtener la sesión.
+6. `POST /auth/2fa/disable` (cookies y CSRF) con `{"code": "..."}` o `{"recovery_code": "..."}` desactiva la 2FA y borra el secreto y los códigos de recuperación.
+7. Desde el navegador, `/settings/security` activa, reconfigura o desactiva la 2FA. Con ella activa, `/login` pasa por `/login/2fa`.
 
 ## Cómo levantar el proyecto
 
 ```bash
 cp .env.example .env
-# Edita .env: como mínimo, genera JWT_SECRET_KEY y TOTP_SECRET_ENCRYPTION_KEY (instrucciones
-# dentro del archivo). Sin ANTHROPIC_API_KEY el pipeline de verificación (Fase 3) encola y corre,
-# pero cada caso termina en status=failed al llegar al paso de extracción de afirmaciones.
+# Edita .env: como mínimo, genera JWT_SECRET_KEY y TOTP_SECRET_ENCRYPTION_KEY
+# (las instrucciones están en el archivo). Para verificar casos reales, añade
+# GEMINI_API_KEY y TAVILY_API_KEY.
 
 docker compose up --build
-make seed   # opcional: usuario demo + casos de ejemplo (ver "Demo en 5 minutos")
+make seed   # opcional: usuario demo y casos de ejemplo (ver «Demo en 5 minutos»)
 ```
 
 - Web: http://localhost:3000
-- API: http://localhost:8000 (docs interactivas en http://localhost:8000/docs)
-- Postgres: localhost:5432, Redis: localhost:6379
+- API: http://localhost:8000 (documentación interactiva en http://localhost:8000/docs)
+- Postgres 18: `localhost:5432`. Redis 7: `localhost:6379`.
 
-## Despliegue
-
-La web está en **Vercel** y la API, el worker, PostgreSQL y Redis están en **Azure** (grupo de
-recursos `rg-fakesnews-prod`, región `northcentralus`). Toda la infraestructura está descrita en
-Bicep en [`infra/`](infra/), y el runbook de operación (desplegar, ver logs, migraciones, backups,
-secretos y presupuesto) está en [docs/AZURE.md](docs/AZURE.md).
-
-| Pieza | En Azure |
-|---|---|
-| API | Container App `ca-fakesnews-api`, con 1 réplica siempre encendida |
-| Worker | Container App `ca-fakesnews-worker`, escala de 0 a 1 según los envíos sin terminar (KEDA consulta Postgres) |
-| Redis | Container App `ca-fakesnews-redis`, con ingress TCP interno y contraseña |
-| PostgreSQL | Flexible Server 18 (B1ms) con acceso privado en la VNet |
-| Secretos | Key Vault. Las apps los leen por referencia con su managed identity |
-| Imágenes | `ghcr.io/santiagotyrsarv/fakesnews-api` |
-
-Cada push a `main` que toca `apps/api` ejecuta [`api-deploy.yml`](.github/workflows/api-deploy.yml):
-construye la imagen, ejecuta `alembic upgrade head` en el job `caj-fakesnews-migrate` y, solo si
-las migraciones terminan bien, actualiza la API y el worker. Los cambios en `infra/` los despliega
-[`infra.yml`](.github/workflows/infra.yml). Los dos entran en Azure por OIDC, con una managed
-identity cuya credencial federada solo acepta `main`, así que en GitHub no hay ningún secreto de
-Azure.
-
-### La web hace de proxy de la API
-
-La web (`*.vercel.app`) y la API (`*.azurecontainerapps.io`) no comparten dominio, así que las
-cookies de sesión no llegarían. Por eso la web hace de proxy de la API en `/api`, y las cookies
-quedan en el dominio de la web:
-
-- En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` (se lee al compilar),
-  `API_PROXY_TARGET=https://<api>.azurecontainerapps.io` y `API_PROXY_SECRET=<secreto aleatorio>`.
-- En la API: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío,
-  `CORS_ORIGINS=["https://<web>.vercel.app"]`, `TRUSTED_PROXY_HOPS=1` y el mismo
-  `API_PROXY_SECRET` (en Key Vault).
-
-El proxy de `/api` está en `apps/web/proxy.ts`. Reenvía la petición y añade la IP del visitante
-(`X-Client-IP`, tomada de las cabeceras que fija el edge de Vercel) junto con `X-Proxy-Secret`. La
-API solo acepta esa IP si el secreto coincide. Quien llame directamente a la API queda identificado
-por la IP que vio el ingress de Container Apps, que es el único salto que se cuenta con
-`TRUSTED_PROXY_HOPS=1`. Así nadie puede falsificar la IP añadiendo entradas a `X-Forwarded-For`
-para saltarse el rate limiting. Este esquema confía en el edge de Vercel: si alojas la web en otro
-sitio, asegúrate de que su proxy sobrescriba `X-Real-IP`/`X-Forwarded-For` antes de usar
-`API_PROXY_SECRET`.
-
-Genera los secretos con los comandos documentados en [.env.example](.env.example) y no reutilices
-claves entre desarrollo y producción. `JWT_SECRET_KEY` y `TOTP_SECRET_ENCRYPTION_KEY` no se pueden
-rotar sin más: invalidan las sesiones y los secretos TOTP cifrados, y nadie con 2FA podría entrar.
-El procesamiento con Claude requiere una clave con acceso a `messages.parse` y a la herramienta de
-búsqueda web.
-
-Para la demo en producción, siembra el usuario demo a propósito con
-`az containerapp exec -g rg-fakesnews-prod -n ca-fakesnews-api --command "uv run python -m app.cli.seed_demo --production"`.
-Genera una contraseña aleatoria, distinta en cada ejecución (la fija del repo nunca se usa en
-producción), y la imprime una sola vez junto al secreto TOTP. `make seed` sin `--production` se
-niega a correr ahí.
-
-## Desarrollo local del backend (sin Docker)
+### Backend sin Docker
 
 ```bash
 cd apps/api
@@ -267,69 +196,104 @@ uv run pytest
 uv run ruff check .
 ```
 
-## Desarrollo local del frontend (sin Docker)
+### Frontend sin Docker
 
 ```bash
 cd apps/web
 pnpm install
 pnpm dev
-pnpm run lint
+pnpm run lint        # ESLint
+pnpm run lint:css    # Stylelint
+pnpm run test:api    # Vitest con MSW
+pnpm run test:lib    # node --test
+pnpm run test:e2e    # Playwright
 ```
 
-## Variables de entorno
+### Variables de entorno
 
-Ver `.env.example` en la raíz — cada variable está documentada ahí mismo. Nunca commitees el
-archivo `.env` real.
+Están todas en `.env.example`, en la raíz, cada una documentada ahí mismo. Nunca subas al repositorio el archivo `.env` real.
+
+## Despliegue
+
+La web está en **Vercel**. La API, el worker, PostgreSQL y Redis están en **Azure** (grupo de recursos `rg-fakesnews-prod`, región `northcentralus`). Toda la infraestructura está descrita en Bicep en [`infra/`](infra/). El runbook de operación (desplegar, ver logs, migraciones, backups, secretos y presupuesto) está en [docs/AZURE.md](docs/AZURE.md).
+
+| Pieza | En Azure |
+|---|---|
+| API | Container App `ca-fakesnews-api`, con 1 réplica siempre encendida |
+| Worker | Container App `ca-fakesnews-worker`, que escala de 0 a 1 según los casos sin terminar (KEDA consulta Postgres) |
+| Redis | Container App `ca-fakesnews-redis`, con ingress TCP interno y contraseña |
+| PostgreSQL | Flexible Server 18 (B1ms) con acceso privado en la VNet. La API y el worker usan un rol sin permisos de DDL |
+| Secretos | Key Vault. Las apps los leen por referencia con su managed identity |
+| Imágenes | `ghcr.io/santiagotyrsarv/fakesnews-api` |
+
+### CI/CD
+
+| Workflow | Qué hace |
+|---|---|
+| [`web.yml`](.github/workflows/web.yml) | ESLint, Stylelint, `tsc`, pruebas y build de la web. |
+| [`api.yml`](.github/workflows/api.yml) | Ruff y pytest. |
+| [`api-deploy.yml`](.github/workflows/api-deploy.yml) | Con cada push a `main` que toca `apps/api`: construye la imagen, ejecuta `alembic upgrade head` en el job `caj-fakesnews-migrate` y, solo si las migraciones terminan bien, actualiza la API y el worker. |
+| [`infra.yml`](.github/workflows/infra.yml) | Despliega los cambios de `infra/`. |
+| [`osv.yml`](.github/workflows/osv.yml) | OSV-Scanner semanal y con cada cambio de lockfile. |
+| [`uptime.yml`](.github/workflows/uptime.yml) | Cada 6 horas comprueba la web y `/api/health/ready`. |
+
+`api-deploy` e `infra` entran en Azure por OIDC, con una managed identity cuya credencial federada solo acepta `main`, así que en GitHub no hay ningún secreto de Azure. Dependabot actualiza npm, uv y las Actions, y SonarQube Cloud analiza cada PR.
+
+### La web hace de proxy de la API
+
+La web (`*.vercel.app`) y la API (`*.azurecontainerapps.io`) no comparten dominio, así que las cookies de sesión no llegarían. Por eso la web hace de proxy de la API en `/api`, y las cookies quedan en el dominio de la web:
+
+- En Vercel (directorio raíz `apps/web`): `NEXT_PUBLIC_API_URL=/api` (se lee al compilar), `API_PROXY_TARGET=https://<api>.azurecontainerapps.io`, `API_PROXY_SECRET=<secreto aleatorio>` y `NEXT_PUBLIC_WS_URL=wss://<api>.azurecontainerapps.io`.
+- En la API: `COOKIE_PATH_PREFIX=/api`, `COOKIE_DOMAIN` vacío, `CORS_ORIGINS=["https://<web>.vercel.app"]`, `TRUSTED_PROXY_HOPS=1` y el mismo `API_PROXY_SECRET` (en Key Vault).
+
+El proxy de `/api` está en `apps/web/proxy.ts`. Reenvía la petición y añade la IP del visitante (`X-Client-IP`, tomada de las cabeceras que fija el edge de Vercel) junto con `X-Proxy-Secret`. La API solo acepta esa IP si el secreto coincide. Quien llame directamente a la API queda identificado por la IP que vio el ingress de Container Apps, que es el único salto que se cuenta con `TRUSTED_PROXY_HOPS=1`. Así nadie puede falsificar la IP añadiendo entradas a `X-Forwarded-For` para saltarse el rate limit.
+
+Este esquema confía en el edge de Vercel. Si alojas la web en otro sitio, asegúrate de que su proxy sobrescriba `X-Real-IP` y `X-Forwarded-For` antes de usar `API_PROXY_SECRET`.
+
+Vercel no hace de proxy de WebSockets. Por eso el navegador abre el WebSocket directo contra la API (`NEXT_PUBLIC_WS_URL`) y se autentica con el ticket de un solo uso, no con la cookie. Sin esa variable, la página usa el sondeo.
+
+### Secretos y usuario demo
+
+Genera los secretos con los comandos documentados en [.env.example](.env.example) y no reutilices claves entre desarrollo y producción. `JWT_SECRET_KEY` y `TOTP_SECRET_ENCRYPTION_KEY` no se pueden rotar sin más: invalidan las sesiones y los secretos TOTP cifrados, y nadie con 2FA podría entrar.
+
+La clave de Gemini tiene que ser de un proyecto sin facturación, porque el plan gratuito no se aplica a un proyecto de prepago.
+
+Para la demo en producción, siembra el usuario demo a propósito:
+
+```bash
+az containerapp exec -g rg-fakesnews-prod -n ca-fakesnews-api --command "uv run python -m app.cli.seed_demo --production"
+```
+
+Genera una contraseña aleatoria, distinta en cada ejecución, y la imprime una sola vez junto al secreto TOTP. La contraseña fija del repo nunca se usa en producción.
+
+## Pruebas y calidad
+
+- **API:** más de 350 pruebas con pytest, y Ruff.
+- **Web:** Vitest con MSW, `node --test` para los módulos `.mjs`, un e2e del flujo principal con Playwright, ESLint, Stylelint y `tsc`.
+- **Veredictos:** `apps/api/evals/verdicts/` mide el pipeline contra 20 casos reales. En modo ciego (`--blind`, sin verificadores de datos en la búsqueda) acierta 14 de 20. Lo más débil son los casos mixtos (2 de 5).
+- **Dependencias y código:** SonarQube Cloud, OSV-Scanner, Dependabot, Aikido y Checkov.
 
 ## Documentación
 
-El índice está en [docs/README.md](docs/README.md). Para retomar el trabajo, empieza por [docs/ESTADO.md](docs/ESTADO.md): estado actual, historial de PR y pendientes. La auditoría técnica está en [docs/AUDITORIA.md](docs/AUDITORIA.md) y el análisis de seguridad en [docs/SEGURIDAD.md](docs/SEGURIDAD.md). Los patrones de renderizado de cada ruta (y dónde está cada requisito de la entrega de Programación Web) están en [docs/RENDERIZADO.md](docs/RENDERIZADO.md).
+| Documento | Contenido |
+|---|---|
+| [docs/README.md](docs/README.md) | Índice de la documentación. |
+| [docs/ESTADO.md](docs/ESTADO.md) | **Para retomar el trabajo.** Estado actual, historial de PR y pendientes. |
+| [docs/RENDERIZADO.md](docs/RENDERIZADO.md) | Patrones de renderizado de cada ruta, WebSocket, INP y `BroadcastChannel`. |
+| [docs/SEGURIDAD.md](docs/SEGURIDAD.md) | Análisis de seguridad. |
+| [docs/AUDITORIA.md](docs/AUDITORIA.md) | Auditoría técnica. |
+| [docs/AZURE.md](docs/AZURE.md) | Runbook de operación en Azure. |
+| [docs/reputation.md](docs/reputation.md) | Modelo de reputación de las fuentes. |
 
 ## Limitaciones conocidas
 
-Lista consolidada, agrupada por la fase en que se introdujo cada componente.
-
-- General: el sistema mide consistencia entre fuentes de una lista blanca fija de 16 dominios; no
-  es un fact-checker objetivo ni cubre medios fuera de esa lista. No hay panel de administración
-  para editar fuentes (se editan en `app/data/trusted_sources.json`). En desarrollo todo se sirve
-  por HTTP; la bandera `Secure` de las cookies depende de `ENVIRONMENT=production` y de un proxy
-  TLS delante, que no forma parte de este `docker-compose.yml`.
-- Fase 2: un lockout de cuenta responde `423` en vez de `401` cuando el email existe y está
-  bloqueado, lo cual filtra mínimamente si un email está registrado (trade-off común de los
-  esquemas de lockout; no hay mitigación adicional en el MVP). `/2fa/confirm` no rota
-  `totp_last_used_step` a propósito (ver comentarios en `service.py`), así que el mismo código
-  puede reutilizarse entre `/2fa/confirm` y el siguiente `/2fa/verify` inmediato — la reutilización
-  sí se bloquea a partir de ahí.
-- Fase 3: sin `ANTHROPIC_API_KEY` configurada, cualquier caso termina en `status=failed` en el paso
-  de extracción de afirmaciones (validado deliberadamente así en el stack real — ver historial de
-  build). El campo `evidence.published_at` es texto libre (`page_age` de la búsqueda, p. ej.
-  "April 30, 2025"), no una fecha normalizada. La ruta de video (`yt-dlp` + `faster-whisper`) está
-  cubierta por pruebas unitarias con mocks, pero no se probó con una descarga/transcripción real
-  contra el stack en Docker (sí se probaron `text` y `url` de punta a punta). Ingesta de URL/video protegida
-  contra SSRF (`pipeline/url_safety.py`): se valida el esquema y se resuelve el host antes de
-  descargar, rechazando loopback/red privada/link-local (incluye endpoints de metadata cloud como
-  `169.254.169.254`); video además restringido a una lista blanca de plataformas conocidas
-  (`ALLOWED_VIDEO_HOSTS`). Validado en vivo contra el stack en Docker apuntando a un servicio
-  interno (`postgres:5432`), un endpoint de metadata y `localhost` — los tres se bloquean antes de
-  hacer ninguna petición. Las páginas se descargan con `fetch_public_page`: cada redirección se
-  revalida (hasta 5) y la conexión va a la misma IP que se validó (el `Host` y el SNI llevan el
-  dominio, así que el certificado se sigue verificando), lo que también cierra el DNS rebinding;
-  `trafilatura` solo extrae el texto. Limitación que queda: yt-dlp sigue sus propias
-  redirecciones; lo acota la lista blanca de plataformas de video.
-- Fase 4: el sistema de reputación tiene una circularidad de diseño conocida y documentada en
-  detalle en `docs/reputation.md` — el peso de cada fuente en el consenso es su propio score
-  actual, lo que puede autoreforzar sesgos iniciales en vez de corregirlos, y el sistema mide
-  consenso entre fuentes, no verdad objetiva (una fuente minoritaria pero correcta puede recibir un
-  `miss`). El intervalo de confianza es una aproximación normal a la Beta, no el cuantil exacto.
-- Fase 5: el reporte solo existe para casos en estado `done`; un caso `failed` muestra el error
-  pero no un reporte parcial, aunque algunas afirmaciones se hubieran verificado. Las páginas de
-  casos son componentes cliente que consultan la API desde el navegador (sin render en servidor).
-  No hay exportación del reporte (PDF/Markdown).
-- Fase 6: los casos del seed usan evidencia ilustrativa (marcada como tal) con URLs a la portada
-  de cada fuente, no a artículos concretos. En desarrollo la contraseña del usuario demo es fija;
-  con `--production` es aleatoria y rota en cada ejecución.
-- Costos: cada usuario tiene una cuota de casos (`RATE_LIMIT_SUBMISSIONS_PER_MINUTE`,
-  `MAX_SUBMISSIONS_PER_DAY`, `MAX_ACTIVE_SUBMISSIONS_PER_USER`). No sustituye un límite de gasto en
-  la consola de Anthropic, que sigue siendo necesario.
-- Video: se puede apagar con `VIDEO_INGEST_ENABLED=false` (y `NEXT_PUBLIC_VIDEO_INGEST_ENABLED=false`
-  en la web) mientras no se haya probado con los recursos reales del worker.
+- **Alcance.** El sistema mide la consistencia entre 25 fuentes de una lista fija. No es un verificador objetivo ni cubre medios fuera de esa lista. No hay panel de administración para editar las fuentes: se editan en `app/data/trusted_sources.json`.
+- **Veredictos.** Los casos mixtos son el punto débil: cuando las fuentes confirman la parte cierta de una afirmación engañosa, el modelo tiende a dar `SUPPORTED`. Un `SUPPORTED` con una sola cita es el caso más frágil.
+- **Búsqueda.** Algunos medios de la lista casi no aparecen en los resultados (por ejemplo EFE), porque el ranking de Tavily deja que un solo medio ocupe todos los puestos.
+- **Cuotas externas.** La verificación depende de los planes gratuitos de Tavily (1.000 créditos al mes, 2 por afirmación) y de Gemini. Las cuotas por usuario acotan el uso, pero no sustituyen vigilar esos límites.
+- **Reputación.** Tiene una circularidad conocida, documentada en [docs/reputation.md](docs/reputation.md): el peso de cada fuente en el consenso es su propio score, lo que puede reforzar sesgos iniciales. Mide consenso entre fuentes, no verdad objetiva. El intervalo de confianza es una aproximación normal a la Beta.
+- **Autenticación.** Una cuenta bloqueada responde `423` en vez de `401`, lo que revela que el email está registrado. `/2fa/confirm` no rota `totp_last_used_step` a propósito, así que el mismo código puede servir para `/2fa/confirm` y el `/2fa/verify` inmediato.
+- **Video.** La ruta de video (`yt-dlp` y `faster-whisper`) está cubierta con pruebas unitarias, pero no se ha probado de punta a punta con una descarga real. Se puede apagar con `VIDEO_INGEST_ENABLED=false` (y `NEXT_PUBLIC_VIDEO_INGEST_ENABLED=false` en la web). `yt-dlp` sigue sus propias redirecciones; lo acota la lista de plataformas.
+- **Reportes.** Solo existen para casos en estado `done`. Un caso `failed` muestra el error, pero no un reporte parcial. No hay exportación (PDF o Markdown). `evidence.published_at` es texto, no una fecha normalizada.
+- **Demo.** Los casos del seed usan evidencia ilustrativa, marcada como tal, con URLs a la portada de cada fuente. En desarrollo, la contraseña del usuario demo es fija.
+- **Desarrollo local.** Todo se sirve por HTTP. La bandera `Secure` de las cookies depende de `ENVIRONMENT=production` y de un proxy TLS delante, que no forma parte de `docker-compose.yml`.
