@@ -1,5 +1,7 @@
 # Auditoría FakesNews — código + producción
 
+> **Documento histórico (archivado).** Describe el proyecto al 2026-10-07, cuando la API corría en Railway. Railway ya no existe: producción está en Azure desde el 2026-11-04 ([AZURE.md](AZURE.md)). Para el estado actual, ver [ESTADO.md](ESTADO.md); para las auditorías posteriores, [AUDITORIA.md](AUDITORIA.md) y [SEGURIDAD.md](SEGURIDAD.md).
+
 - **Fecha:** 2026-10-07 · **Commit auditado:** `21404ea` (rama `main`, el mismo desplegado en Railway)
 - **Alcance en vivo:** `https://fakesnews.vercel.app` (web) y `https://fakesnews-production.up.railway.app` (API). Railway proyecto `luminous-harmony` (servicios `FAKESNEWS`, `upbeat-wholeness` = worker, `Postgres`, `Redis-1mfD`), Vercel proyecto `fakesnews`.
 - **Modo:** solo lectura sobre el código. Pruebas en producción no destructivas con **una cuenta de prueba nueva** (`audit-634ff5fd@example.com`, creada para esta auditoría). **Sin casos de LLM**: no había créditos, así que el pipeline se evaluó solo por código y tests.

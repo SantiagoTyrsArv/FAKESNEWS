@@ -141,7 +141,23 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def register_user(db: AsyncSession, email: str, password: str) -> User:
+async def register_user(
+    db: AsyncSession,
+    redis_client: redis_asyncio.Redis,
+    *,
+    ip: str,
+    email: str,
+    password: str,
+) -> User:
+    # Sign-up is open and each account hashes a password and brings its own
+    # case quota, so one address only gets so many tries.
+    await check_rate_limit(
+        f"register:ip:{ip}",
+        settings.rate_limit_register_per_hour,
+        window_seconds=3600,
+        client=redis_client,
+    )
+
     violations = validate_password_strength(password)
     if violations:
         raise WeakPasswordError(violations)
@@ -196,7 +212,11 @@ async def authenticate_password(
             await _register_failed_attempt(db, user)
         raise InvalidCredentialsError()
 
-    await _reset_failed_attempts(db, user)
+    # With 2FA the login isn't over yet: clearing the counter here would hand
+    # whoever has the password a fresh set of code guesses on every login, and
+    # the lockout would never trigger. _check_second_factor clears it.
+    if not user.mfa_enabled:
+        await _reset_failed_attempts(db, user)
     return user
 
 

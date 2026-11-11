@@ -77,6 +77,8 @@ jobs:
       - run: uv sync --frozen --no-install-project --no-build
       - run: uv run --frozen --no-sync --no-build ruff check .
       - run: uv run --frozen --no-sync --no-build ruff format --check .
-      - run: uv run --frozen --no-sync --no-build python -m pytest -q
+      # The floor sits a few points under the measured figure (94 % on SQLite
+      # alone): it catches a module landing without tests, not a rounding change.
+      - run: uv run --frozen --no-sync --no-build python -m pytest -q --cov --cov-fail-under=90
         env:
           TEST_POSTGRES_URL: postgresql+asyncpg://postgres:test@localhost:5432/fakesnews_test
