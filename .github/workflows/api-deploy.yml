@@ -97,3 +97,28 @@ jobs:
           done
           az containerapp show -g "$RESOURCE_GROUP" -n ca-fakesnews-api \
             --query "properties.template.containers[0].image" -o tsv
+
+      # Without this a revision that fails to start goes unnoticed until the
+      # uptime check, up to 6 hours later: the old revision keeps serving.
+      - name: Check the new revisions started
+        run: |
+          for APP in ca-fakesnews-api ca-fakesnews-worker; do
+            for _ in $(seq 1 30); do
+              LATEST=$(az containerapp show -g "$RESOURCE_GROUP" -n "$APP" \
+                --query properties.latestRevisionName -o tsv --only-show-errors)
+              READY=$(az containerapp show -g "$RESOURCE_GROUP" -n "$APP" \
+                --query properties.latestReadyRevisionName -o tsv --only-show-errors)
+              echo "$APP: latest=$LATEST ready=$READY"
+              [ -n "$LATEST" ] && [ "$LATEST" = "$READY" ] && continue 2
+              sleep 10
+            done
+            echo "$APP: the new revision is not ready after 5 minutes" >&2
+            exit 1
+          done
+
+          FQDN=$(az containerapp show -g "$RESOURCE_GROUP" -n ca-fakesnews-api \
+            --query properties.configuration.ingress.fqdn -o tsv --only-show-errors)
+          # Readiness also checks Postgres and Redis. The retries cover a cold
+          # start: the API scales to zero.
+          curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors \
+            --max-time 20 "https://$FQDN/health/ready"
