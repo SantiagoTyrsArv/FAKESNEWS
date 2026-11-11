@@ -151,7 +151,7 @@ Auditoría nueva de todo el repositorio (10 áreas, solo lectura), hecha sobre `
 5. **La reputación de las fuentes la mueve cualquier cuenta** con casos elegidos.
 6. **Los refresh tokens caducados nunca se borran.**
 7. **Menores:** un `httpx.AsyncClient` nuevo por cada llamada a Gemini y a Tavily; `_fail_stuck_cases` escribe en cada lectura de un caso; `INCR` y `EXPIRE` del límite de peticiones no son atómicos; las imágenes base de los Dockerfile no están fijadas por digest.
-8. **Las skills de Higgsfield** (`.agents/skills` y `.claude/skills`, 204 archivos, el 37 % del repositorio) siguen versionadas. Entraron a propósito en el PR #2 y tienen `skills-lock.json`: sacarlas es decisión del dueño.
+8. ~~**Las skills de Higgsfield**~~ Hecho el 2026-11-10: `.agents/skills`, `.claude/skills` y `skills-lock.json` (205 archivos, el 37 % del repositorio) ya no se versionan y están en `.gitignore`. Siguen instaladas en el equipo del dueño.
 
 ## Key Vault y `pgdump` (2026-11-09, noche)
 
@@ -172,7 +172,7 @@ El plugin no lee el feed porque la cuenta es gratuita, así que se revisó en `a
 
 El dueño marcó como «Ignore» en Aikido los falsos positivos.
 | «Generic API Key» en `test_auth_flow.py`, `test_submissions.py` y otro | Baja | Contraseñas de prueba |
-| Inclusión de archivos en `fbx2glb.py` | Baja | Script local de Blender de la skill `higgsfield-websites`: solo abre la ruta que se le pasa por la línea de comandos |
+| Inclusión de archivos en `fbx2glb.py` | Baja | Script local de Blender de la skill `higgsfield-websites`: solo abre la ruta que se le pasa por la línea de comandos. Ya no está en el repositorio (2026-11-10) |
 | 1 secreto en `tests/core/test_config.py` | Baja | Valor de prueba (`"x" * 48`) |
 | «Generic API Key» en `tests/conftest.py` | Baja | Clave de prueba (`test-secret-key-at-least-32-bytes-long-for-hs256`) |
 

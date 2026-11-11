@@ -26,5 +26,10 @@ Thumbs.db
 # Brainstorming companion mockups
 .superpowers/
 
+# Agent skills installed on the developer's machine (not part of the app)
+.agents/
+.claude/skills/
+skills-lock.json
+
 # Browser-automation artifacts
 .playwright-mcp/
