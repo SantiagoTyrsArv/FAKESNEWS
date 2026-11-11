@@ -79,6 +79,20 @@ async def test_register_rejects_duplicate_email(app_client: AsyncClient) -> None
     assert resp.status_code == 409
 
 
+async def test_register_is_rate_limited_per_ip(app_client: AsyncClient) -> None:
+    """Sign-up is open, so one address only gets so many tries an hour. The
+    limit comes before the password check: a refused try costs no hashing."""
+    limit = get_settings().rate_limit_register_per_hour
+    for attempt in range(limit):
+        resp = await app_client.post(
+            "/auth/register", json={"email": f"user{attempt}@example.com", "password": "short"}
+        )
+        assert resp.status_code == 400
+
+    resp = await app_client.post("/auth/register", json={"email": EMAIL, "password": PASSWORD})
+    assert resp.status_code == 429
+
+
 async def test_login_unknown_email_returns_generic_error(app_client: AsyncClient) -> None:
     resp = await app_client.post(
         "/auth/login", json={"email": "nobody@example.com", "password": PASSWORD}

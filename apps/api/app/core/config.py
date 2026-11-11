@@ -91,6 +91,9 @@ class Settings(BaseSettings):
     lockout_minutes: int = Field(default=15, alias="LOCKOUT_MINUTES")
     rate_limit_login_per_minute: int = Field(default=10, alias="RATE_LIMIT_LOGIN_PER_MINUTE")
     rate_limit_verify_per_minute: int = Field(default=10, alias="RATE_LIMIT_VERIFY_PER_MINUTE")
+    # Sign-ups per IP. Loose enough for a classroom behind one address, tight
+    # enough that a script can't mint accounts (and their case quotas) freely.
+    rate_limit_register_per_hour: int = Field(default=20, alias="RATE_LIMIT_REGISTER_PER_HOUR")
     # Longest a case progress WebSocket stays open: a bit over the pipeline's
     # job timeout, like the report page's STALE_AFTER_MS.
     ws_max_seconds: int = Field(default=960, alias="WS_MAX_SECONDS")

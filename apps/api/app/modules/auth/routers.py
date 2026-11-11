@@ -152,9 +152,22 @@ def _rate_limited() -> HTTPException:
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis_client: Annotated[redis_asyncio.Redis, Depends(get_redis_dependency)],
+):
     try:
-        user = await service.register_user(db, body.email, body.password)
+        user = await service.register_user(
+            db, redis_client, ip=client_ip(request), email=body.email, password=body.password
+        )
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Demasiados registros desde esta red. Intenta de nuevo más tarde.",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
     except service.WeakPasswordError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, {"violations": exc.violations}) from exc
     except service.EmailAlreadyRegisteredError as exc:

@@ -10,6 +10,8 @@ import pyotp
 from httpx import AsyncClient
 
 from tests.auth.test_auth_flow import (
+    EMAIL,
+    PASSWORD,
     _csrf,
     _login_with_password_only,
     _register_with_mfa,
@@ -182,3 +184,31 @@ async def test_disabling_mfa_revokes_other_sessions(app_client: AsyncClient) -> 
 
     use(here)
     assert (await app_client.post("/auth/refresh", headers=_csrf(app_client))).status_code == 200
+
+
+async def test_password_login_does_not_reset_second_factor_failures(
+    app_client: AsyncClient,
+) -> None:
+    """Whoever has the password must not get a fresh set of code guesses by
+    logging in again: the lockout counts wrong codes across logins."""
+    _secret, _codes, pending = await _register_with_mfa(app_client)
+
+    for _ in range(4):
+        wrong = await app_client.post(
+            "/auth/2fa/verify",
+            json={"code": "000000"},
+            headers={"Authorization": f"Bearer {pending}"},
+        )
+        assert wrong.status_code == 401
+
+    pending = await _login_with_password_only(app_client)
+    fifth = await app_client.post(
+        "/auth/2fa/verify",
+        json={"code": "000000"},
+        headers={"Authorization": f"Bearer {pending}"},
+    )
+    assert fifth.status_code == 401
+
+    app_client.cookies.clear()
+    locked = await app_client.post("/auth/login", json={"email": EMAIL, "password": PASSWORD})
+    assert locked.status_code == 423
