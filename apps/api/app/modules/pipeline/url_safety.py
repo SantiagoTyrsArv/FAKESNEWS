@@ -22,15 +22,27 @@ class UnsafeUrlError(Exception):
         self.reason = reason
 
 
+# Public by the registries' reckoning, yet only answering from inside a cloud:
+# Azure's platform endpoint (WireServer), reachable from its own workloads.
+_CLOUD_INTERNAL_ADDRESSES = frozenset({ipaddress.ip_address("168.63.129.16")})
+
+
 def _is_public_ip(ip_str: str) -> bool:
     ip = ipaddress.ip_address(ip_str)
-    return not (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_reserved
-        or ip.is_multicast
-        or ip.is_unspecified
+    # is_global also rules out what the flags below miss, such as the shared
+    # address space 100.64.0.0/10 that cloud platforms use internally. The
+    # flags stay because is_global lets NAT64 (64:ff9b::/96) through.
+    return (
+        ip.is_global
+        and ip not in _CLOUD_INTERNAL_ADDRESSES
+        and not (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        )
     )
 
 

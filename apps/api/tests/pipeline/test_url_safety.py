@@ -50,6 +50,24 @@ def test_rejects_unresolvable_host(monkeypatch: pytest.MonkeyPatch) -> None:
         assert_public_http_url("http://does-not-resolve.invalid/")
 
 
+@pytest.mark.parametrize(
+    "ip",
+    [
+        "100.64.0.1",  # shared address space (RFC 6598), used inside Azure
+        "100.100.0.1",
+        "168.63.129.16",  # Azure's internal platform endpoint (WireServer)
+        "64:ff9b::a00:1",  # NAT64 form of 10.0.0.1
+        "::ffff:10.0.0.1",  # IPv4-mapped private address
+    ],
+)
+def test_rejects_addresses_that_are_not_on_the_public_internet(
+    monkeypatch: pytest.MonkeyPatch, ip: str
+) -> None:
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: _fake_addrinfo(ip))
+    with pytest.raises(UnsafeUrlError):
+        assert_public_http_url("http://internal.example/")
+
+
 def test_allows_public_address(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: _fake_addrinfo("93.184.216.34"))
     assert_public_http_url("https://example.com/article")  # should not raise
