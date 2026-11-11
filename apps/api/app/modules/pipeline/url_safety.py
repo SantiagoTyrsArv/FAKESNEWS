@@ -24,7 +24,9 @@ class UnsafeUrlError(Exception):
 
 # Public by the registries' reckoning, yet only answering from inside a cloud:
 # Azure's platform endpoint (WireServer), reachable from its own workloads.
-_CLOUD_INTERNAL_ADDRESSES = frozenset({ipaddress.ip_address("168.63.129.16")})
+# The address is fixed and documented by Azure: it is a blocklist entry, not
+# somewhere this code connects to.
+_CLOUD_INTERNAL_ADDRESSES = frozenset({ipaddress.ip_address("168.63.129.16")})  # NOSONAR
 
 
 def _is_public_ip(ip_str: str) -> bool:
