@@ -131,6 +131,28 @@ La entrega se evalúa de dos formas: con una **demo en vivo** en https://fakesne
 - Los scripts `task-start` y `task-done` de la skill no reconocen los encabezados «Tarea N», así que el registro se lleva a mano.
 - El modo automático bloquea los despliegues y las lecturas de producción (`psql-job.sh`, `az deployment`): esos comandos los ejecuta el dueño con `!`.
 
+## Auditoría técnica del 2026-11-10 y sus quick wins
+
+Auditoría nueva de todo el repositorio (10 áreas, solo lectura), hecha sobre `aae3c0d`. No encontró nada crítico. El informe completo quedó en la conversación de esa sesión, no en un archivo; aquí está lo que importa para seguir.
+
+**Corregido en `fix/audit-quick-wins-2`:**
+- **Bloqueo del segundo factor.** Acertar la contraseña ponía a cero `failed_attempts` también en cuentas con 2FA, así que quien tenía la contraseña podía fallar 4 códigos, repetir el login y seguir sin bloquearse nunca. Ahora el contador solo se limpia cuando el login termina (`auth/service.py`, `authenticate_password`).
+- **Registro sin límite.** `/auth/register` no tenía límite de peticiones. Ahora admite `RATE_LIMIT_REGISTER_PER_HOUR` (20) por IP y responde 429 antes de calcular ningún hash.
+- **Filtro SSRF.** `_is_public_ip` dejaba pasar `100.64.0.0/10` (rango compartido que Azure usa por dentro) y `168.63.129.16` (punto de servicio interno de Azure). Ahora exige `is_global` y bloquea esa dirección.
+- **Cobertura mal medida.** Sin `concurrency = ["greenlet"]`, coverage perdía las líneas que siguen a un `await` de base de datos: daba 86 % cuando el valor real es 94 %. Ya está configurado en `pyproject.toml`, y el CI exige un 90 %.
+- **Despliegue.** `api-deploy.yml` comprueba al final que las revisiones nuevas de la API y del worker arrancaron y que `/health/ready` responde.
+- **Limpieza.** Fuera `python-multipart` y `tenacity` (no se usaban); `.env.example` al día con las variables del WebSocket, las métricas y el proxy; `AUDIT.md` marcado como histórico.
+
+**Pendiente de esa auditoría, por orden:**
+1. **Dos pestañas que renuevan la sesión a la vez la cierran.** `refreshInFlight` (`apps/web/lib/api.ts`) solo coordina dentro de una pestaña; la segunda petición llega con el refresh token ya rotado y la API revoca la familia. Arreglo previsto: `navigator.locks` en el cliente.
+2. **Cambiar de autenticador no pide el código actual.** Con 2FA activo basta una sesión para enrolar otro dispositivo (`start_totp_setup`), lo que contradice lo que exige `disable_mfa`. Es un comportamiento probado a propósito: hay que decidirlo, no solo corregirlo.
+3. **El login distingue cuentas.** Una cuenta bloqueada responde 423 y un correo inexistente siempre 401; además cualquiera puede bloquear una cuenta ajena con 5 contraseñas erróneas.
+4. **Sin verificación de correo ni recuperación de contraseña.**
+5. **La reputación de las fuentes la mueve cualquier cuenta** con casos elegidos.
+6. **Los refresh tokens caducados nunca se borran.**
+7. **Menores:** un `httpx.AsyncClient` nuevo por cada llamada a Gemini y a Tavily; `_fail_stuck_cases` escribe en cada lectura de un caso; `INCR` y `EXPIRE` del límite de peticiones no son atómicos; las imágenes base de los Dockerfile no están fijadas por digest.
+8. **Las skills de Higgsfield** (`.agents/skills` y `.claude/skills`, 204 archivos, el 37 % del repositorio) siguen versionadas. Entraron a propósito en el PR #2 y tienen `skills-lock.json`: sacarlas es decisión del dueño.
+
 ## Key Vault y `pgdump` (2026-11-09, noche)
 
 - **Protección de purga en `kv-fakesnews-4q4yxz5r`** (`CKV_AZURE_110`, `_42`): está en `keyvault.bicep` y se aplicó desplegando `bootstrap.bicep` a mano. **Es irreversible.** Un secreto o el propio almacén borrados se pueden recuperar durante 7 días, y nadie puede purgarlos antes.
