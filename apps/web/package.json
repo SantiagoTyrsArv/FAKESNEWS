@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
-    "@projectwallace/css-analyzer": "^9.9.5",
+    "@projectwallace/css-analyzer": "^9.9.7",
     "@tailwindcss/postcss": "^4.3.4",
     "@types/node": "^22",
     "@types/react": "^19",
